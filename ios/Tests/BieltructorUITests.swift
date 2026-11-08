@@ -14,6 +14,10 @@ final class BieltructorUITests: XCTestCase {
     app.buttons["Avançar"].press(forDuration: 0.5)
     app.buttons["Saltar"].tap()
     XCTAssertTrue(app.buttons["Construir"].isHittable)
+    app.buttons["Mochila"].tap()
+    XCTAssertTrue(app.buttons["Voltar"].waitForExistence(timeout: 5))
+    app.buttons["Voltar"].tap()
+    XCTAssertTrue(app.buttons["Saltar"].waitForExistence(timeout: 5))
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(app.buttons["Partir"].isHittable)
     XCTAssertTrue(app.buttons["Saltar"].isHittable)
