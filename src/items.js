@@ -9,6 +9,8 @@ import {
   BED,
   COAL,
   WOOL,
+  FARMLAND,
+  cropInfo,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -42,6 +44,14 @@ export const ITEMS = {
   stone_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 2 },
   wooden_sword: { icon: "🗡️", tool: "sword", tier: 1, damage: 2 },
   stone_sword: { icon: "🗡️", tool: "sword", tier: 2, damage: 3 },
+  wooden_hoe: { icon: "🪓", tool: "hoe", tier: 1 },
+  wheat_seeds: { icon: "🌱", plants: "wheat" },
+  wheat: { icon: "🌾" },
+  carrot: { icon: "🥕", food: 3, plants: "carrot" },
+  potato: { icon: "🥔", food: 1, plants: "potato" },
+  bread: { icon: "🍞", food: 5 },
+  fishing_rod: { icon: "🎣", tool: "rod", tier: 1 },
+  fish: { icon: "🐟", food: 2 },
 };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);
@@ -75,10 +85,12 @@ const HARDNESS = {
   [BED]: 0.5,
   [COAL]: 2,
   [WOOL]: 0.4,
+  [FARMLAND]: 0.5,
 };
 const STONY = new Set([2, 6, COAL]);
 export function breakTime(type, toolId) {
   const tool = ITEMS[toolId];
+  if (cropInfo(type)) return 0.05;
   const base = HARDNESS[type] ?? 1;
   if (STONY.has(type) && tool?.tool === "pickaxe")
     return base / (tool.tier === 2 ? 5 : 3);
@@ -87,7 +99,35 @@ export function breakTime(type, toolId) {
 
 // What breaking a block gives. `roll` is a random number from 0 to 1.
 export function drops(type, toolId, roll) {
-  if (type === 0) return [["dirt", 1]];
+  // Grass sometimes hides seeds, carrots or potatoes.
+  if (type === 0) {
+    const extra =
+      roll < 0.12
+        ? "wheat_seeds"
+        : roll < 0.17
+          ? "carrot"
+          : roll < 0.22
+            ? "potato"
+            : null;
+    return extra
+      ? [
+          ["dirt", 1],
+          [extra, 1],
+        ]
+      : [["dirt", 1]];
+  }
+  if (type === FARMLAND) return [["dirt", 1]];
+  const crop = cropInfo(type);
+  if (crop) {
+    const seed = crop.crop === "wheat" ? "wheat_seeds" : crop.crop;
+    if (crop.stage < 3) return [[seed, 1]];
+    if (crop.crop === "wheat")
+      return [
+        ["wheat", 1 + (roll < 0.5)],
+        ["wheat_seeds", 1 + (roll < 0.6)],
+      ];
+    return [[crop.crop, 2 + (roll < 0.5)]];
+  }
   if (type === COAL)
     return ITEMS[toolId]?.tool === "pickaxe" ? [["coal", 1]] : [];
   if (type === 5) return roll < 0.2 ? [["apple", 1]] : [["leaves", 1]];

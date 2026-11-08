@@ -20,7 +20,13 @@ import {
   BED,
   COAL,
   WOOL,
+  FARMLAND,
+  CROP_BASE,
+  CROPS,
+  cropBlock,
+  cropInfo,
 } from "./world.js";
+import { isWatered, growCrop } from "./farm.js";
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
 import { Inventory } from "./inventory.js";
 import {
@@ -146,6 +152,14 @@ const strings = {
       stone_pickaxe: "Picareta de pedra",
       wooden_sword: "Espada de madeira",
       stone_sword: "Espada de pedra",
+      wooden_hoe: "Enxada de madeira",
+      wheat_seeds: "Sementes de trigo",
+      wheat: "Trigo",
+      carrot: "Cenoura",
+      potato: "Batata",
+      bread: "Pão",
+      fishing_rod: "Cana de pesca",
+      fish: "Peixe",
     },
     backpack: "Mochila",
     recipes: "Receitas",
@@ -185,6 +199,10 @@ const strings = {
     attack: "Atacar",
     monsterNear: "Ouves um barulho estranho… 👀",
     cantSleep: "Não consegues dormir: há monstros por perto!",
+    tilled: "Terra lavrada! Agora planta sementes.",
+    planted: "Plantaste: {item}. Cresce mais depressa ao pé de água.",
+    fishing: "A pescar… 🎣",
+    caught: "Apanhaste um peixe! 🐟",
     challenges: {
       shelter: [
         "O primeiro abrigo",
@@ -401,6 +419,14 @@ const strings = {
       stone_pickaxe: "Stone pickaxe",
       wooden_sword: "Wooden sword",
       stone_sword: "Stone sword",
+      wooden_hoe: "Wooden hoe",
+      wheat_seeds: "Wheat seeds",
+      wheat: "Wheat",
+      carrot: "Carrot",
+      potato: "Potato",
+      bread: "Bread",
+      fishing_rod: "Fishing rod",
+      fish: "Fish",
     },
     backpack: "Backpack",
     recipes: "Recipes",
@@ -439,6 +465,10 @@ const strings = {
     attack: "Attack",
     monsterNear: "You hear a funny noise… 👀",
     cantSleep: "You can’t sleep: there are monsters nearby!",
+    tilled: "Soil tilled! Now plant some seeds.",
+    planted: "You planted: {item}. It grows faster near water.",
+    fishing: "Fishing… 🎣",
+    caught: "You caught a fish! 🐟",
     challenges: {
       shelter: [
         "First shelter",
@@ -635,6 +665,9 @@ let mode = "splash",
   spawnClock = 2,
   attackCooldown = 0,
   lightBlocks = [],
+  cropKeys = [],
+  growClock = 5,
+  fishing = null,
   peakY = null,
   draft = null,
   flying = false,
@@ -685,7 +718,10 @@ const clock = () =>
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
   0xefad36, 0xbfe6ec, 0x8a5a33, 0x8a5a33, 0xc08a55, 0xa0703f, 0xf2b544,
-  0xc8473c, 0x5b5f60, 0xf1ede4,
+  0xc8473c, 0x5b5f60, 0xf1ede4, 0x6b4a2e,
+  // Crops: wheat, carrot and potato, four stages each.
+  0x7cbf4e, 0x8bc34a, 0xa8c94a, 0xe0b54a, 0x6fbf5a, 0x76c25a, 0x7fc45a,
+  0xee8a2b, 0x6aa84f, 0x72ad52, 0x7db257, 0xb48a4c,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -1449,6 +1485,13 @@ const plankLines = (ctx, base, line) => {
     ctx.fillRect(x, y, 1, 3);
 };
 const blockTextures = {
+  [FARMLAND]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#6b4a2e";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#4f3520";
+      for (const y of [2, 6, 10, 14]) ctx.fillRect(0, y, 16, 2);
+    }),
   [PLANKS]: () => drawTexture((ctx) => plankLines(ctx, "#c08a55", "#9a6a3c")),
   [BENCH]: () =>
     drawTexture((ctx) => {
@@ -1520,6 +1563,69 @@ for (const [type, make] of Object.entries(blockTextures))
     map: make(),
     roughness: 0.95,
   });
+// Crops: two crossed see-through panels that grow taller stage by stage.
+function cropTexture(crop, stage) {
+  return drawTexture((ctx) => {
+    const ripe = stage === 3;
+    const stalk = ripe && crop === "wheat" ? "#d9a93c" : "#5fae46";
+    for (let x = 1; x < 16; x += 3) {
+      ctx.fillStyle = stalk;
+      ctx.fillRect(x, 4, 1, 12);
+      ctx.fillRect(x + 1, 7, 1, 3);
+    }
+    if (ripe) {
+      ctx.fillStyle = {
+        wheat: "#f2c75c",
+        carrot: "#ee8a2b",
+        potato: "#b48a4c",
+      }[crop];
+      for (let x = 1; x < 16; x += 3)
+        ctx.fillRect(
+          x - (crop === "wheat" ? 0 : 1),
+          crop === "wheat" ? 1 : 13,
+          crop === "wheat" ? 2 : 3,
+          3,
+        );
+      if (crop === "potato") {
+        ctx.fillStyle = "#f4efe6";
+        ctx.fillRect(7, 2, 2, 2);
+      }
+    }
+  });
+}
+function crossGeometry(height) {
+  const parts = [Math.PI / 4, -Math.PI / 4].map((angle) =>
+    new THREE.PlaneGeometry(0.9, height)
+      .rotateY(angle)
+      .translate(0, -0.5 + height / 2, 0),
+  );
+  const geometry = new THREE.BufferGeometry();
+  for (const name of ["position", "normal", "uv"])
+    geometry.setAttribute(
+      name,
+      new THREE.Float32BufferAttribute(
+        [
+          ...parts[0].attributes[name].array,
+          ...parts[1].attributes[name].array,
+        ],
+        name === "uv" ? 2 : 3,
+      ),
+    );
+  const offset = parts[0].attributes.position.count;
+  geometry.setIndex([
+    ...parts[0].index.array,
+    ...[...parts[1].index.array].map((i) => i + offset),
+  ]);
+  return geometry;
+}
+for (const crop of CROPS)
+  for (let stage = 0; stage < 4; stage++)
+    materials[cropBlock(crop, stage)] = new THREE.MeshStandardMaterial({
+      map: cropTexture(crop, stage),
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+      roughness: 1,
+    });
 // Torches always glow a little, and more at night.
 const torchMaterial = materials[TORCH];
 torchMaterial.emissive.set(0xffb347);
@@ -1531,6 +1637,9 @@ const shapes = {
   [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
   [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
 };
+for (const crop of CROPS)
+  for (let stage = 0; stage < 4; stage++)
+    shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
 // Amber works as a lantern: it glows as night falls.
 const amber = materials[7];
 amber.emissive.set(0xffa040);
@@ -1545,6 +1654,7 @@ function rebuild() {
   mapping = [];
   const groups = Array.from({ length: TYPES }, () => []);
   lightBlocks = [];
+  cropKeys = [];
   for (const [k, type] of blocks) {
     const [x, y, z] = k.split(",").map(Number);
     if (
@@ -1562,6 +1672,7 @@ function rebuild() {
     )
       groups[type].push([x, y, z]);
     if (type === TORCH || type === 7) lightBlocks.push([x, y, z]);
+    if (cropInfo(type) && cropInfo(type).stage < 3) cropKeys.push(k);
   }
   const matrix = new THREE.Matrix4();
   groups.forEach((group, i) => {
@@ -1573,7 +1684,7 @@ function rebuild() {
     group.forEach(([x, y, z], j) =>
       mesh.setMatrixAt(j, matrix.makeTranslation(x, y, z)),
     );
-    mesh.castShadow = i !== GLASS && i !== TORCH;
+    mesh.castShadow = i !== GLASS && i !== TORCH && !cropInfo(i);
     mesh.receiveShadow = true;
     mesh.userData.type = i;
     terrain.add(mesh);
@@ -2535,6 +2646,81 @@ function updateVitalsHud(underwater) {
       : ""
   }${underwater || air < MAX_AIR ? `<span class="bubbles">${'<i class="bubble"></i>'.repeat(air)}</span>` : ""}`;
 }
+function setBlock(p, type) {
+  const k = key(...p);
+  blocks.set(k, type);
+  edits.set(k, type);
+}
+// Height of the highest block in a column (the water line is just above 1).
+function topAt(x, z) {
+  for (let y = 31; y >= 0; y--) if (blocks.has(key(x, y, z))) return y;
+  return -1;
+}
+// Every few seconds, crops may grow a stage; water nearby (or rain) helps.
+function growCrops(dt) {
+  growClock -= dt;
+  if (growClock > 0) return;
+  const step = 5 - growClock;
+  growClock = 5;
+  let changed = false;
+  for (const k of cropKeys) {
+    const type = blocks.get(k);
+    if (!cropInfo(type)) continue;
+    const [x, , z] = k.split(",").map(Number);
+    const grown = growCrop(
+      type,
+      step,
+      raining() || isWatered(topAt, x, z),
+      Math.random(),
+    );
+    if (grown !== type) {
+      blocks.set(k, grown);
+      edits.set(k, grown);
+      changed = true;
+    }
+  }
+  if (changed) rebuild();
+}
+const raining = () => false;
+const bobber = new THREE.Mesh(
+  new THREE.SphereGeometry(0.09, 8, 6),
+  new THREE.MeshStandardMaterial({ color: 0xe6574a }),
+);
+bobber.visible = false;
+scene.add(bobber);
+function castLine() {
+  const waterHit = new THREE.Raycaster();
+  waterHit.setFromCamera(
+    firstPerson && pointerKind !== "touch" ? center : pointer,
+    camera,
+  );
+  const hit = waterHit.intersectObject(water)[0];
+  if (
+    !hit ||
+    hit.point.distanceTo(player) > 10 ||
+    topAt(Math.round(hit.point.x), Math.round(hit.point.z)) > 1
+  )
+    return;
+  fishing = { until: elapsed + 2 + Math.random() * 3, from: player.clone() };
+  bobber.position.copy(hit.point);
+  bobber.visible = true;
+  toast(t("fishing"));
+}
+function updateFishing() {
+  if (!fishing) return;
+  bobber.position.y = WATER_LEVEL + 0.05 + Math.sin(elapsed * 4) * 0.03;
+  if (player.distanceTo(fishing.from) > 3 || ITEMS[heldId()]?.tool !== "rod") {
+    fishing = null;
+    bobber.visible = false;
+  } else if (elapsed >= fishing.until) {
+    fishing = null;
+    bobber.visible = false;
+    if (!creative() && inventory.add("fish", 1)) toast(t("full"));
+    else toast(t("caught"));
+    beepAt(700, 1000);
+    render();
+  }
+}
 // Advanced recipes need a workbench within four blocks.
 function nearBench() {
   const [px, py, pz] = [player.x, player.y, player.z].map(Math.round);
@@ -2574,8 +2760,42 @@ function edit(place) {
     interactWith(targetAnimal);
     return;
   }
+  // Fishing: cast the line onto water in front of Biel.
+  if (place && ITEMS[heldId()]?.tool === "rod") {
+    castLine();
+    return;
+  }
   if (!target) return;
   const p = [...target.p];
+  const targetType = blocks.get(key(...p)),
+    above = key(p[0], p[1] + 1, p[2]);
+  // A hoe turns grass or dirt into farmland.
+  if (
+    place &&
+    ITEMS[heldId()]?.tool === "hoe" &&
+    (targetType === 0 || targetType === 1) &&
+    !blocks.has(above)
+  ) {
+    setBlock(p, FARMLAND);
+    toast(t("tilled"));
+    beepAt(200, 140);
+    rebuild();
+    scheduleSave();
+    return;
+  }
+  // Seeds, carrots and potatoes are planted on farmland.
+  const plants = ITEMS[heldId()]?.plants;
+  if (place && plants && targetType === FARMLAND && !blocks.has(above)) {
+    const name = itemName(heldId());
+    setBlock([p[0], p[1] + 1, p[2]], cropBlock(plants, 0));
+    if (!creative()) inventory.takeFrom(selected);
+    toast(t("planted", { item: name }));
+    beepAt(500, 700);
+    rebuild();
+    scheduleSave();
+    render();
+    return;
+  }
   if (place && blocks.get(key(...p)) === BED) {
     sleepIn(p);
     return;
@@ -2629,6 +2849,8 @@ function edit(place) {
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
       const got = drops(type, heldId(), Math.random());
+      if (cropInfo(type)?.crop === "wheat" && cropInfo(type).stage === 3)
+        emit("harvest:wheat");
       for (const [id] of got) emit("got:" + id);
       for (const [id, n] of got) if (inventory.add(id, n)) toast(t("full"));
       if (got.length)
@@ -2864,6 +3086,8 @@ function frame(now) {
     if (dx || dz) tutorialEvent("walk", speed * dt);
     updateAnimals(dt);
     updateMonsters(dt);
+    growCrops(dt);
+    updateFishing();
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
       if (grounded || swimming || flying) {
@@ -3484,6 +3708,47 @@ if (new URLSearchParams(location.search).has("test"))
     action("restdone");
     check("and play goes on", mode === "playing" && playSeconds === 0);
     settings.parents = normalizeParents({});
+    // Farming: till, plant, grow, harvest, bake; and a little fishing.
+    const fx = Math.round(player.x) + 2,
+      fz = Math.round(player.z),
+      fy = topAt(fx, fz);
+    setBlock([fx, fy, fz], 1);
+    hold("wooden_hoe");
+    target = { p: [fx, fy, fz], normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    check("the hoe makes farmland", blocks.get(key(fx, fy, fz)) === FARMLAND);
+    hold("wheat_seeds");
+    edit(true);
+    check(
+      "seeds are planted",
+      cropInfo(blocks.get(key(fx, fy + 1, fz)))?.stage === 0,
+    );
+    rebuild();
+    for (
+      let i = 0;
+      i < 200 && cropInfo(blocks.get(key(fx, fy + 1, fz))).stage < 3;
+      i++
+    )
+      growCrops(30);
+    check(
+      "wheat grows ripe",
+      cropInfo(blocks.get(key(fx, fy + 1, fz))).stage === 3,
+    );
+    const wheatBefore = inventory.count("wheat");
+    target = { p: [fx, fy + 1, fz], normal: new THREE.Vector3(0, 1, 0) };
+    edit(false);
+    check(
+      "harvesting wheat earns the farmer sticker",
+      inventory.count("wheat") > wheatBefore && !!progress.done.wheat,
+    );
+    inventory.add("wheat", 3);
+    action("craft", "bread");
+    check("bread from wheat", inventory.count("bread") >= 1);
+    hold("fishing_rod");
+    fishing = { until: elapsed - 1, from: player.clone() };
+    const fishBefore = inventory.count("fish");
+    updateFishing();
+    check("fishing catches a fish", inventory.count("fish") === fishBefore + 1);
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };

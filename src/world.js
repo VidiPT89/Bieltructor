@@ -10,12 +10,27 @@ export const GLASS = 8,
   BED = 14,
   COAL = 15,
   WOOL = 16,
-  TYPES = 17;
+  FARMLAND = 17,
+  // Crops: three plants with four growing stages each (18 to 29).
+  CROP_BASE = 18,
+  TYPES = 30;
+export const CROPS = ["wheat", "carrot", "potato"];
+export const cropBlock = (crop, stage) =>
+  CROP_BASE + CROPS.indexOf(crop) * 4 + stage;
+export const cropInfo = (type) =>
+  type >= CROP_BASE && type < CROP_BASE + 12
+    ? { crop: CROPS[(type - CROP_BASE) >> 2], stage: (type - CROP_BASE) & 3 }
+    : null;
 // Biel walks through open doors and torches; light passes through the
 // blocks that do not fill their whole space.
-export const passable = (type) => type === DOOR_OPEN || type === TORCH;
+export const passable = (type) =>
+  type === DOOR_OPEN || type === TORCH || cropInfo(type) !== null;
 export const seeThrough = (type) =>
-  type === GLASS || type === DOOR_OPEN || type === TORCH || type === BED;
+  type === GLASS ||
+  type === DOOR_OPEN ||
+  type === TORCH ||
+  type === BED ||
+  cropInfo(type) !== null;
 export const key = (x, y, z) => `${x},${y},${z}`;
 export function height(x, z) {
   return Math.max(

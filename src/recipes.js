@@ -45,6 +45,19 @@ export const RECIPES = [
     needs: { milk: 1, egg: 1, apple: 1 },
     bench: true,
   },
+  { id: "bread", out: ["bread", 1], needs: { wheat: 3 } },
+  {
+    id: "wooden_hoe",
+    out: ["wooden_hoe", 1],
+    needs: { planks: 2, stick: 2 },
+    bench: true,
+  },
+  {
+    id: "fishing_rod",
+    out: ["fishing_rod", 1],
+    needs: { stick: 3, wool: 1 },
+    bench: true,
+  },
 ];
 
 export function canCraft(inventory, recipe, nearBench) {
