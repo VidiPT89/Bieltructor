@@ -6,8 +6,6 @@ import {
   key,
   SIZE,
   collides,
-  validateSave,
-  validatePlayer,
   WATER_LEVEL,
   GLASS,
   DOOR,
@@ -16,7 +14,17 @@ import {
   seeThrough,
   toggleDoor,
 } from "./world.js";
-import { sky, DAY_LENGTH, NOON } from "./daynight.js";
+import { sky, NOON } from "./daynight.js";
+import {
+  createStore,
+  newWorld,
+  normalizeOptions,
+  validateWorld,
+  difficultyRules,
+  DAY_LENGTHS,
+  DIFFICULTIES,
+  MAX_WORLDS,
+} from "./worlds.js";
 import { Music, audioContext, pauseAudio } from "./music.js";
 import "./style.css";
 const $ = (s) => document.querySelector(s),
@@ -26,7 +34,7 @@ const strings = {
     tag: "UM MUNDO À TUA MEDIDA",
     title: "Pequenos blocos.<br>Grandes aventuras.",
     intro: "Olá, Biel! O próximo grande mundo começa contigo.",
-    play: "Vamos construir",
+    start: "Vamos construir",
     resume: "Continuar aventura",
     settings: "Definições",
     back: "Voltar",
@@ -43,6 +51,7 @@ const strings = {
       "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–9 e 0 para escolher um material. Botão direito numa porta abre-a e fecha-a. À noite, o âmbar brilha como uma lanterna. V muda a perspetiva. Esc abre o menu.",
     world: "O vale do Biel",
     creative: "MODO CRIATIVO",
+    adventureLabel: "AVENTURA",
     saved: "Mundo guardado",
     saveError:
       "Não foi possível guardar. Exporta o mundo para não perderes as alterações.",
@@ -88,22 +97,58 @@ const strings = {
     storage: "O mundo é guardado neste dispositivo.",
     edition: "EDIÇÃO CRIATIVA / 01",
     made: "Feito para imaginar",
-    resetWorld: "Recomeçar o mundo",
-    confirmReset: "Carrega outra vez para apagar tudo",
-    worldReset: "Mundo novo, pronto a construir!",
     space: "Espaço",
     music: "Música",
     cycle: "Dia e noite",
-    cycleOn: "Ciclo de 8 minutos",
+    cycleNormal: "Normal",
     alwaysDay: "Sempre de dia",
+    alwaysNight: "Sempre de noite",
     day: "Dia",
     night: "Noite",
+    dayCount: "Dia {n}",
+    worlds: "Os meus mundos",
+    newWorld: "Novo mundo",
+    create: "Criar mundo",
+    worldName: "Nome do mundo",
+    defaultName: "Mundo do Biel",
+    gameMode: "Modo de jogo",
+    adventure: "Aventura",
+    creativeMode: "Criativo",
+    adventureHint: "Recolhe materiais, fabrica ferramentas e cuida do Biel.",
+    creativeHint:
+      "Todos os blocos, sem perigos. Toca duas vezes em Saltar para voar.",
+    difficulty: "Dificuldade",
+    peaceful: "Pacífico",
+    easy: "Fácil",
+    normal: "Médio",
+    hard: "Difícil",
+    monsters: "Monstros",
+    animals: "Animais",
+    dayLength: "Duração do dia",
+    short: "Curto (10 min)",
+    normalDay: "Normal (20 min)",
+    long: "Longo (30 min)",
+    hunger: "Fome",
+    keepInventory: "Manter a mochila ao adormecer",
+    yes: "Sim",
+    no: "Não",
+    play: "Jogar",
+    deleteWorld: "Apagar",
+    confirmDelete: "Tens a certeza?",
+    worldDeleted: "Mundo apagado.",
+    worldSettings: "Definições do mundo",
+    worldFull: "Já tens 6 mundos. Apaga um para criar outro.",
+    noWorlds: "Ainda não tens mundos. Cria o primeiro!",
+    fixedOptions: "O modo de jogo não muda depois de criar o mundo.",
+    descend: "Descer",
+    flying: "A voar!",
+    walking: "De volta ao chão.",
   },
   en: {
     tag: "A WORLD OF YOUR OWN",
     title: "Little blocks.<br>Big adventures.",
     intro: "Hey, Biel! The next great world starts with you.",
-    play: "Let’s build",
+    start: "Let’s build",
     resume: "Continue adventure",
     settings: "Settings",
     back: "Back",
@@ -120,6 +165,7 @@ const strings = {
       "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–9 and 0 select a material. Right-click a door to open or close it. At night, amber glows like a lantern. V changes perspective. Esc opens the menu.",
     world: "Biel’s valley",
     creative: "CREATIVE MODE",
+    adventureLabel: "ADVENTURE",
     saved: "World saved",
     saveError: "Could not save. Export your world to keep your changes.",
     pause: "A little break",
@@ -164,16 +210,51 @@ const strings = {
     storage: "Your world is saved on this device.",
     edition: "CREATIVE EDITION / 01",
     made: "Made for imagination",
-    resetWorld: "Start a new world",
-    confirmReset: "Press again to erase everything",
-    worldReset: "A fresh world, ready to build!",
     space: "Space",
     music: "Music",
     cycle: "Day and night",
-    cycleOn: "8-minute cycle",
+    cycleNormal: "Normal",
     alwaysDay: "Always day",
+    alwaysNight: "Always night",
     day: "Day",
     night: "Night",
+    dayCount: "Day {n}",
+    worlds: "My worlds",
+    newWorld: "New world",
+    create: "Create world",
+    worldName: "World name",
+    defaultName: "Biel’s world",
+    gameMode: "Game mode",
+    adventure: "Adventure",
+    creativeMode: "Creative",
+    adventureHint: "Gather materials, craft tools and look after Biel.",
+    creativeHint: "Every block, no dangers. Double-tap Jump to fly.",
+    difficulty: "Difficulty",
+    peaceful: "Peaceful",
+    easy: "Easy",
+    normal: "Normal",
+    hard: "Hard",
+    monsters: "Monsters",
+    animals: "Animals",
+    dayLength: "Day length",
+    short: "Short (10 min)",
+    normalDay: "Normal (20 min)",
+    long: "Long (30 min)",
+    hunger: "Hunger",
+    keepInventory: "Keep the backpack when Biel falls asleep",
+    yes: "Yes",
+    no: "No",
+    play: "Play",
+    deleteWorld: "Delete",
+    confirmDelete: "Are you sure?",
+    worldDeleted: "World deleted.",
+    worldSettings: "World settings",
+    worldFull: "You already have 6 worlds. Delete one to make another.",
+    noWorlds: "No worlds yet. Make your first one!",
+    fixedOptions: "The game mode can’t change once the world exists.",
+    descend: "Down",
+    flying: "Flying!",
+    walking: "Back on the ground.",
   },
 };
 let settings = {
@@ -181,7 +262,6 @@ let settings = {
   theme: "system",
   sound: true,
   music: true,
-  cycle: "cycle",
   quality: "high",
 };
 try {
@@ -191,21 +271,55 @@ try {
   );
 } catch {}
 if (!strings[settings.lang]) settings.lang = "pt";
-const t = (k) => strings[settings.lang][k];
+const t = (k, vars = {}) =>
+  String(strings[settings.lang][k]).replace(/\{(\w+)\}/g, (_, v) => vars[v]);
 const touchInput = new TouchInput();
 let mode = "splash",
-  previous = "menu",
   started = false,
   selected = 0,
   firstPerson = false,
-  confirmReset = false,
+  confirmDelete = null,
+  draft = null,
+  flying = false,
+  lastJump = 0,
   timeOfDay = NOON,
   scenery = "menu",
   toastTimer,
   saveTimer;
 const music = new Music();
-const isNight = () => settings.cycle === "cycle" && sky(timeOfDay).night;
-const clock = () => (isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`);
+// Worlds live in the browser storage of the app; see src/worlds.js.
+const storage = {
+  getItem: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (k, v) => localStorage.setItem(k, v),
+  removeItem: (k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+  },
+};
+const store = createStore(storage);
+const makeId = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+store.migrate(makeId);
+let world = store.load(store.current()) ?? null;
+const rules = () => difficultyRules[world?.options.difficulty ?? "peaceful"];
+const creative = () => world?.mode === "creative";
+// The time the sky shows: the clock, or a fixed time for "always day/night".
+const skyTime = () =>
+  world?.options.cycle === "day"
+    ? NOON + 0.03
+    : world?.options.cycle === "night"
+      ? 0.75
+      : timeOfDay;
+const isNight = () => sky(skyTime()).night;
+const clock = () =>
+  `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`} · ${t("dayCount", { n: world?.day ?? 1 })}`;
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
   0xefad36, 0xbfe6ec, 0x8a5a33,
@@ -225,8 +339,66 @@ const toastEl = document.createElement("div");
 toastEl.id = "toast";
 toastEl.setAttribute("role", "status");
 document.body.append(toastEl);
-function button(action, label, cls = "") {
-  return `<button data-action="${action}" ${action === "view" || action === "pause" ? `aria-label="${t(action)}"` : ""} class="${cls}">${label}</button>`;
+function button(action, label, cls = "", arg = "") {
+  return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${action === "view" || action === "pause" ? `aria-label="${t(action)}"` : ""} class="${cls}">${label}</button>`;
+}
+const escapeHtml = (text) =>
+  String(text).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+const modeLabel = (w) =>
+  `${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.options.difficulty)}`;
+// One <select> for a world option. Booleans are stored as "true"/"false".
+function field(id, label, value, choices) {
+  return `<label>${label}<select id="opt-${id}" data-option="${id}">${choices
+    .map(
+      ([v, l]) =>
+        `<option value="${v}" ${String(value) === String(v) ? "selected" : ""}>${l}</option>`,
+    )
+    .join("")}</select></label>`;
+}
+function worldFields(o, withMode) {
+  const yesNo = [
+    [true, t("yes")],
+    [false, t("no")],
+  ];
+  return [
+    withMode
+      ? field("mode", t("gameMode"), draft.mode, [
+          ["adventure", t("adventure")],
+          ["creative", t("creativeMode")],
+        ]) +
+        `<p class="field-hint">${draft.mode === "creative" ? t("creativeHint") : t("adventureHint")}</p>`
+      : "",
+    '<div class="options-grid">',
+    field(
+      "difficulty",
+      t("difficulty"),
+      o.difficulty,
+      DIFFICULTIES.map((d) => [d, t(d)]),
+    ),
+    o.difficulty === "peaceful"
+      ? ""
+      : field("monsters", t("monsters"), o.monsters, yesNo),
+    field("animals", t("animals"), o.animals, yesNo),
+    field("cycle", t("cycle"), o.cycle, [
+      ["normal", t("cycleNormal")],
+      ["day", t("alwaysDay")],
+      ["night", t("alwaysNight")],
+    ]),
+    field("dayLength", t("dayLength"), o.dayLength, [
+      ["short", t("short")],
+      ["normal", t("normalDay")],
+      ["long", t("long")],
+    ]),
+    field("hunger", t("hunger"), o.hunger, yesNo),
+    field("keepInventory", t("keepInventory"), o.keepInventory, yesNo),
+    "</div>",
+  ].join("");
 }
 function render() {
   app.className = mode;
@@ -235,23 +407,42 @@ function render() {
   if (mode === "splash")
     content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
   if (mode === "menu")
-    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${started ? t("resume") : t("play")} <span>↗︎</span>`, "primary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${t("world")}</strong><small>${t("creative")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
+    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${t("world")}</b><small>${t("creative")} · <span class="clock">${clock()}</span></small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${(i + 1) % 10}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button></div></div>`;
-  if (["settings", "help", "paused"].includes(mode)) {
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${(i + 1) % 10}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+  if (MODALS.includes(mode)) {
     let inner = "";
+    if (mode === "worlds") {
+      const list = store.list();
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("worlds")}</h2><div class="world-list">${
+        list.length
+          ? list
+              .map(
+                (w) =>
+                  `<div class="world-card ${w.id === world?.id ? "current" : ""}"><div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
+              )
+              .join("")
+          : `<p class="help-copy">${t("noWorlds")}</p>`
+      }</div>${list.length >= MAX_WORLDS ? `<p class="field-hint">${t("worldFull")}</p>` : button("newworld", "+ " + t("newWorld"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
+    }
+    if (mode === "newworld")
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("newWorld")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(draft.name)}"></label>${worldFields(draft.options, true)}${button("create", t("create"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
+    if (mode === "worldsettings")
+      inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("cycle")}<select id="cycle"><option value="cycle" ${settings.cycle === "cycle" ? "selected" : ""}>${t("cycleOn")}</option><option value="day" ${settings.cycle === "day" ? "selected" : ""}>${t("alwaysDay")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${button("export", t("export"))}${button("import", t("import"))}${button("reset", confirmReset ? t("confirmReset") : t("resetWorld"), confirmReset ? "danger confirm" : "danger")}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
-    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t(mode === "paused" ? "pause" : mode)}">${inner}</section></div>`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+    content = `<div class="modal-backdrop"><section class="panel ${mode === "newworld" || mode === "worldsettings" ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
   app
     .querySelectorAll("[data-action]")
-    .forEach((b) => (b.onclick = () => action(b.dataset.action)));
+    .forEach(
+      (b) => (b.onclick = () => action(b.dataset.action, b.dataset.arg)),
+    );
   app.querySelectorAll("[data-slot]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -265,7 +456,6 @@ function render() {
       ["appearance", "theme"],
       ["sound", "sound"],
       ["music", "music"],
-      ["cycle", "cycle"],
       ["quality", "quality"],
     ])
       $("#" + id).onchange = (e) => {
@@ -279,33 +469,119 @@ function render() {
         render();
       };
   }
-  if (["settings", "help", "paused"].includes(mode))
-    app.querySelector("button,select")?.focus();
+  // World options: the new-world draft, or the live world from the pause menu.
+  app.querySelectorAll("[data-option]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        const target = mode === "newworld" ? draft : world;
+        const raw =
+          el.value === "true" ? true : el.value === "false" ? false : el.value;
+        if (el.dataset.option === "mode") draft.mode = raw;
+        else if (el.dataset.option === "difficulty")
+          // A new difficulty brings its own sensible defaults.
+          target.options = normalizeOptions({
+            ...target.options,
+            difficulty: raw,
+            monsters: raw !== "peaceful",
+            hunger: undefined,
+            keepInventory: undefined,
+          });
+        else
+          target.options = normalizeOptions({
+            ...target.options,
+            [el.dataset.option]: raw,
+          });
+        if (mode === "worldsettings") save();
+        render();
+      }),
+  );
+  const nameInput = $("#world-name");
+  if (nameInput)
+    nameInput.oninput = () => {
+      if (mode === "newworld") draft.name = nameInput.value;
+      else {
+        world.name = nameInput.value.trim().slice(0, 32) || world.name;
+        scheduleSave();
+      }
+    };
+  if (MODALS.includes(mode)) app.querySelector("button,select")?.focus();
 }
-function action(a) {
-  if (a !== "reset") confirmReset = false;
-  if (a === "reset") {
-    if (!confirmReset) {
-      confirmReset = true;
+const MODALS = [
+  "settings",
+  "help",
+  "paused",
+  "worlds",
+  "newworld",
+  "worldsettings",
+];
+// Screens opened on top of each other; "back" returns to the previous one.
+const history = [];
+function open(screen) {
+  history.push(mode === "playing" ? "paused" : mode);
+  mode = screen;
+}
+function action(a, arg) {
+  if (a !== "deleteworld") confirmDelete = null;
+  if (a === "play") {
+    if (!world) {
+      draft = {
+        name: t("defaultName"),
+        mode: "adventure",
+        options: normalizeOptions({}),
+      };
+      open("newworld");
     } else {
-      confirmReset = false;
-      resetWorld();
+      mode = "playing";
+      history.length = 0;
+      started = true;
+      keys.clear();
     }
-  } else if (a === "play") {
-    mode = "playing";
-    started = true;
-    keys.clear();
   } else if (a === "pause") {
     mode = "paused";
     save();
-  } else if (a === "settings" || a === "help") {
-    previous = mode === "playing" ? "paused" : mode;
-    mode = a;
+  } else if (["settings", "help", "worlds", "worldsettings"].includes(a)) {
+    if (a === "worlds" && world) save();
+    open(a);
+  } else if (a === "newworld") {
+    draft = {
+      name: t("defaultName"),
+      mode: "adventure",
+      options: normalizeOptions({}),
+    };
+    open("newworld");
+  } else if (a === "create") {
+    if (store.list().length >= MAX_WORLDS) {
+      toast(t("worldFull"));
+      return;
+    }
+    if (world) save();
+    const created = newWorld({ id: makeId(), ...draft });
+    store.save(created);
+    loadWorld(created);
+    mode = "playing";
+    history.length = 0;
+  } else if (a === "openworld") {
+    if (world) save();
+    const chosen = store.load(arg);
+    if (chosen) loadWorld(chosen);
+    mode = "playing";
+    history.length = 0;
+  } else if (a === "deleteworld") {
+    if (confirmDelete !== arg) confirmDelete = arg;
+    else {
+      confirmDelete = null;
+      store.remove(arg);
+      if (world?.id === arg) {
+        world = null;
+        started = false;
+      }
+      toast(t("worldDeleted"));
+    }
   } else if (a === "back") {
-    mode = previous;
-    previous = "menu";
+    mode = history.pop() ?? "menu";
   } else if (a === "home") {
     mode = "menu";
+    history.length = 0;
     save();
   } else if (a === "view") {
     togglePerspective();
@@ -347,41 +623,29 @@ function toast(message) {
 }
 const blocks = generate(),
   edits = new Map();
-try {
-  const loaded = validateSave(JSON.parse(localStorage.getItem("biel-world")));
-  if (loaded) {
-    for (const [x, y, z, type] of loaded) {
-      const k = key(x, y, z);
-      edits.set(k, type);
-      if (type === null) blocks.delete(k);
-      else blocks.set(k, type);
-    }
-    started = loaded.length > 0;
-  }
-} catch {}
 // Blocks Biel has placed that are still standing (drives the shelter quest).
 const placed = () => [...edits.values()].filter((v) => v !== null).length;
+// The current world, ready to be stored or exported.
 function saveData() {
-  return {
-    version: 1,
-    edits: [...edits].map(([k, v]) => [...k.split(",").map(Number), v]),
+  world.edits = [...edits].map(([k, v]) => [...k.split(",").map(Number), v]);
+  world.player = {
+    x: player.x,
+    y: player.y,
+    z: player.z,
+    yaw,
+    pitch,
+    firstPerson,
+    health: 20,
+    food: 20,
   };
+  world.time = timeOfDay;
+  world.updatedAt = Date.now();
+  return world;
 }
 function save() {
+  if (!world) return true;
   try {
-    localStorage.setItem("biel-world", JSON.stringify(saveData()));
-    localStorage.setItem(
-      "biel-player",
-      JSON.stringify({
-        x: player.x,
-        y: player.y,
-        z: player.z,
-        yaw,
-        pitch,
-        firstPerson,
-        time: timeOfDay,
-      }),
-    );
+    store.save(saveData());
     return true;
   } catch {
     toast(t("saveError"));
@@ -765,18 +1029,48 @@ function spawn() {
   velocity = 0;
 }
 spawn();
-// Return to where Biel was standing last time, when that spot is still free.
-try {
-  const raw = JSON.parse(localStorage.getItem("biel-player"));
-  if (Number.isFinite(raw?.time)) timeOfDay = ((raw.time % 1) + 1) % 1;
-  const last = validatePlayer(raw);
-  if (last) {
-    player.set(last.x, last.y, last.z);
-    ({ yaw, pitch, firstPerson } = last);
+// Rebuilds the scene for a world: generated terrain plus the player's edits.
+function loadWorld(w) {
+  world = w;
+  store.setCurrent(w.id);
+  blocks.clear();
+  for (const [k, v] of generate()) blocks.set(k, v);
+  edits.clear();
+  for (const [x, y, z, type] of w.edits) {
+    const k = key(x, y, z);
+    edits.set(k, type);
+    if (type === null) blocks.delete(k);
+    else blocks.set(k, type);
+  }
+  rebuild();
+  spawn();
+  if (w.player) {
+    player.set(w.player.x, w.player.y, w.player.z);
+    ({ yaw, pitch, firstPerson } = w.player);
     if (collides(blocks, player)) spawn();
   }
-} catch {}
+  timeOfDay = w.time;
+  flying = false;
+  started = true;
+  document.documentElement.classList.toggle("first-person", firstPerson);
+}
+if (world) loadWorld(world);
 document.documentElement.classList.toggle("first-person", firstPerson);
+// Creative mode: a quick double tap on jump starts or stops flying.
+function jumpTapped() {
+  const now = performance.now();
+  if (creative() && now - lastJump < 320) {
+    setFlying(!flying);
+    lastJump = 0;
+  } else lastJump = now;
+}
+function setFlying(on) {
+  if (flying === on) return;
+  flying = on;
+  velocity = 0;
+  toast(t(on ? "flying" : "walking"));
+  render();
+}
 function togglePerspective() {
   firstPerson = !firstPerson;
   document.documentElement.classList.toggle("first-person", firstPerson);
@@ -800,6 +1094,7 @@ app.addEventListener("pointerdown", (e) => {
   if (!control || mode !== "playing") return;
   e.preventDefault();
   touchInput.press(e.pointerId, control.dataset.key);
+  if (control.dataset.key === "Space") jumpTapped();
   app.setPointerCapture(e.pointerId);
 });
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
@@ -999,6 +1294,7 @@ window.addEventListener("keydown", (e) => {
     )
       e.preventDefault();
     keys.add(e.code);
+    if (e.code === "Space" && !e.repeat) jumpTapped();
     if (/^[0-9]$/.test(e.key)) {
       selected = e.key === "0" ? 9 : +e.key - 1;
       render();
@@ -1008,7 +1304,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Escape" && !e.repeat) {
     if (mode === "playing") action("pause");
     else if (mode === "paused") action("play");
-    else if (mode === "help" || mode === "settings") action("back");
+    else if (MODALS.includes(mode)) action("back");
   }
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
@@ -1044,8 +1340,13 @@ function frame(now) {
   elapsed += dt;
   if (mode === "playing") scenery = "game";
   if (mode === "menu" || mode === "splash") scenery = "menu";
-  if (mode === "playing" && settings.cycle === "cycle")
-    timeOfDay = (timeOfDay + dt / DAY_LENGTH) % 1;
+  if (mode === "playing" && world.options.cycle === "normal") {
+    timeOfDay += dt / DAY_LENGTHS[world.options.dayLength];
+    if (timeOfDay >= 1) {
+      timeOfDay -= 1;
+      world.day++;
+    }
+  }
   if (mode === "playing") {
     biel.scale.setScalar(1);
     let dx =
@@ -1072,7 +1373,9 @@ function frame(now) {
     }
     // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
     const swimming = player.y + 0.9 < WATER_LEVEL;
-    if (swimming) {
+    if (flying) {
+      velocity = (pressed("Space") ? 6 : 0) - (pressed("KeyC") ? 6 : 0);
+    } else if (swimming) {
       velocity = pressed("Space")
         ? Math.min(velocity + 30 * dt, 3)
         : Math.max(velocity - 6 * dt, -1.5);
@@ -1091,6 +1394,8 @@ function frame(now) {
       if (collides(blocks, player)) {
         player.y -= delta;
         if (velocity < 0) grounded = true;
+        // Landing while flying ends the flight.
+        if (flying && velocity < 0) setFlying(false);
         velocity = 0;
         break;
       }
@@ -1150,9 +1455,7 @@ function frame(now) {
     water.position.y = WATER_LEVEL + Math.sin(elapsed * 0.7) * 0.035;
   clouds.rotation.y = elapsed * 0.003;
   // The menu always shows a sunny day; the game follows the clock.
-  applySky(
-    scenery === "game" && settings.cycle === "cycle" ? timeOfDay : NOON + 0.03,
-  );
+  applySky(scenery === "game" ? skyTime() : NOON + 0.03);
   const clockEl = app.querySelector(".clock");
   if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1188,33 +1491,20 @@ setTimeout(leaveSplash, 3000);
 app.addEventListener("click", leaveSplash);
 window.addEventListener("keydown", leaveSplash);
 
+// An imported file always becomes a new world, so nothing is overwritten.
 function applyImportedWorld(json) {
-  const data = JSON.parse(json),
-    valid = validateSave(data);
-  if (!valid || valid.length !== data.edits.length)
-    throw Error("Invalid world");
-  blocks.clear();
-  for (const [k, v] of generate()) blocks.set(k, v);
-  edits.clear();
-  for (const [x, y, z, v] of valid) {
-    const k = key(x, y, z);
-    edits.set(k, v);
-    if (v === null) blocks.delete(k);
-    else blocks.set(k, v);
+  const imported = validateWorld(JSON.parse(json), { id: makeId() });
+  if (!imported) throw Error("Invalid world");
+  if (store.list().length >= MAX_WORLDS) {
+    toast(t("worldFull"));
+    return;
   }
-  rebuild();
-  spawn();
-  save();
+  if (world) save();
+  imported.id = makeId();
+  store.save(imported);
+  loadWorld(imported);
   toast(t("saved"));
-}
-function resetWorld() {
-  blocks.clear();
-  for (const [k, v] of generate()) blocks.set(k, v);
-  edits.clear();
-  rebuild();
-  spawn();
-  save();
-  toast(t("worldReset"));
+  render();
 }
 window.importNativeWorld = (json) => {
   try {
@@ -1246,6 +1536,16 @@ if (new URLSearchParams(location.search).has("test"))
     $("#appearance").dispatchEvent(new Event("change"));
     action("back");
     action("play");
+    check("first play opens the new world screen", mode === "newworld");
+    draft.mode = "creative";
+    draft.options = normalizeOptions({ difficulty: "peaceful" });
+    action("create");
+    check(
+      "creative world created",
+      world?.mode === "creative" &&
+        mode === "playing" &&
+        store.list().length === 1,
+    );
     for (let i = 0; i < 30; i++) frame(last + 16);
     check("spawn above ground", !collides(blocks, player));
     const before = player.clone();
@@ -1353,10 +1653,7 @@ if (new URLSearchParams(location.search).has("test"))
     );
     togglePerspective();
     check("save", save());
-    check(
-      "save round trip",
-      validateSave(JSON.parse(localStorage.getItem("biel-world"))).length > 0,
-    );
+    check("save round trip", store.load(world.id).edits.length > 0);
     touchInput.press(101, "KeyW");
     touchInput.press(102, "Space");
     check("multitouch movement and jump", pressed("KeyW") && pressed("Space"));
@@ -1372,15 +1669,26 @@ if (new URLSearchParams(location.search).has("test"))
     check("pause menu", mode === "paused");
     action("play");
     check("resume", mode === "playing");
-    action("settings");
-    action("reset");
+    // A second world, then delete it from the list in two steps.
+    const firstId = world.id;
+    action("pause");
+    action("worlds");
+    action("newworld");
+    draft.options = normalizeOptions({ difficulty: "normal" });
+    action("create");
     check(
-      "reset asks for confirmation",
-      edits.size > 0 && app.textContent.includes("outra vez"),
+      "adventure world on normal",
+      world.mode === "adventure" && world.options.monsters,
     );
-    action("reset");
-    check("reset world", edits.size === 0 && placed() === 0);
-    action("back");
+    const secondId = world.id;
+    action("pause");
+    action("worlds");
+    action("deleteworld", secondId);
+    check("delete asks for confirmation", store.list().length === 2);
+    action("deleteworld", secondId);
+    check("world deleted", store.list().length === 1 && world === null);
+    action("openworld", firstId);
+    check("first world reopened", world?.id === firstId && edits.size > 0);
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };

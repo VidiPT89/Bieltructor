@@ -352,8 +352,19 @@ h2 {
   display: block;
   width: 100%;
   margin-top: 8px;
-  padding: 12px;
-  background: var(--field);
+  padding: 12px 36px 12px 12px;
+  font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  background-color: var(--field);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
@@ -973,15 +984,6 @@ kbd {
     font-size: 44px;
   }
 }
-.file-actions .danger {
-  flex-basis: 100%;
-  color: #e0664a;
-  border-color: #e0664a66;
-}
-.file-actions .danger.confirm {
-  background: #c94f35;
-  color: #fff8ee;
-}
 .menu header,
 .menu .intro,
 .menu .biel-label,
@@ -995,5 +997,81 @@ kbd {
   from {
     opacity: 0;
     transform: translateY(12px);
+  }
+}
+.panel input {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.panel input:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+.field-hint {
+  margin: -8px 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.world-list {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+}
+.world-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--field);
+}
+.world-card.current {
+  border-color: var(--orange, #ed8524);
+}
+.world-card strong {
+  display: block;
+  font-size: 15px;
+}
+.world-card small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.world-card button {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.world-card .danger {
+  color: #e0664a;
+  border-color: #e0664a66;
+}
+.world-card .danger.confirm {
+  background: #c94f35;
+  color: #fff8ee;
+}
+.wide-panel {
+  width: 620px;
+}
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+.options-grid label {
+  margin: 10px 0;
+}
+@media (max-width: 560px) {
+  .options-grid {
+    grid-template-columns: 1fr;
   }
 }
