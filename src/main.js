@@ -13,6 +13,7 @@ import {
   TYPES,
   seeThrough,
   toggleDoor,
+  passable,
   PLANKS,
   BENCH,
   TORCH,
@@ -22,6 +23,13 @@ import {
 } from "./world.js";
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
 import { Inventory } from "./inventory.js";
+import {
+  ANIMALS,
+  initialAnimals,
+  validateAnimals,
+  interact,
+} from "./creatures.js";
+import { MODELS, nameTag } from "./models.js";
 import { RECIPES, canCraft, craft } from "./recipes.js";
 import {
   createVitals,
@@ -137,6 +145,17 @@ const strings = {
     sleepDay: "Só se dorme à noite, mas esta cama já é a tua casa.",
     health: "Vida",
     food: "Comida",
+    gave_chicken: "A galinha deu-te um ovo! 🥚",
+    gave_cow: "A vaca deu-te leite! 🥛",
+    gave_sheep: "Tosquiaste a ovelha: +2 lã",
+    notReady: "Ainda não… volta daqui a pouco.",
+    wantsTreat: "O cão abana a cauda. Dá-lhe um biscoito para ficar teu amigo!",
+    tamed: "O cão ficou teu amigo! 🐶",
+    nameDog: "Como se chama o teu cão?",
+    dogDefault: "Bobi",
+    done: "Pronto",
+    sit: "{name} senta-se e espera por ti.",
+    follow: "{name} vem contigo!",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -294,6 +313,17 @@ const strings = {
     sleepDay: "You can only sleep at night, but this bed is your home now.",
     health: "Health",
     food: "Food",
+    gave_chicken: "The chicken gave you an egg! 🥚",
+    gave_cow: "The cow gave you milk! 🥛",
+    gave_sheep: "You sheared the sheep: +2 wool",
+    notReady: "Not yet… come back in a little while.",
+    wantsTreat: "The dog wags its tail. Give it a treat to make friends!",
+    tamed: "The dog is your friend now! 🐶",
+    nameDog: "What is your dog called?",
+    dogDefault: "Buddy",
+    done: "Done",
+    sit: "{name} sits and waits for you.",
+    follow: "{name} is coming with you!",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -390,6 +420,9 @@ let mode = "splash",
   invPick = null,
   inventory = new Inventory(),
   vitals = createVitals(),
+  animals = [],
+  targetAnimal = null,
+  namingDog = null,
   peakY = null,
   draft = null,
   flying = false,
@@ -544,6 +577,8 @@ function render() {
       .join(
         "",
       )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+  if (mode === "namedog")
+    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog")}"><span class="eyebrow">🐶</span><h2>${t("nameDog")}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(t("dogDefault"))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
   if (mode === "asleep")
     content = `<div class="modal-backdrop asleep"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("asleep")}"><span class="eyebrow">☾︎ ${t("dayCount", { n: world.day })}</span><h2>${t("asleep")}</h2><p class="help-copy">${t("asleepText")}</p>${button("wake", t("wake"), "primary wide")}</section></div>`;
   if (MODALS.includes(mode)) {
@@ -722,6 +757,16 @@ function action(a, arg) {
   } else if (a === "pause") {
     mode = "paused";
     save();
+  } else if (a === "namedone") {
+    const name = $("#dog-name")?.value.trim().slice(0, 20) || t("dogDefault");
+    if (namingDog) {
+      namingDog.name = name;
+      dressAnimal(namingDog);
+      toast(t("follow", { name }));
+    }
+    namingDog = null;
+    mode = "playing";
+    scheduleSave();
   } else if (a === "wake") {
     vitals = createVitals();
     spawn();
@@ -837,6 +882,7 @@ function saveData() {
   };
   world.time = timeOfDay;
   world.inventory = inventory.toJSON();
+  world.creatures = animals.map(({ mesh, timer, walking, ...data }) => data);
   world.updatedAt = Date.now();
   return world;
 }
@@ -1332,6 +1378,7 @@ function loadWorld(w) {
   flying = false;
   inventory = Inventory.from(w.inventory);
   vitals = createVitals(w.player?.health, w.player?.food);
+  setupAnimals();
   rebuildBackpacks();
   selected = 0;
   if (!inventory.slots.some(Boolean)) {
@@ -1411,6 +1458,142 @@ window.pauseNativeGame = () => {
 };
 window.nativeFileError = () => toast(t("invalid"));
 
+// Friendly animals: they wander, give things and (the dog) follow Biel.
+const animalGroup = new THREE.Group();
+scene.add(animalGroup);
+const worldSeed = () =>
+  [...(world?.id ?? "biel")].reduce(
+    (h, c) => (h * 31 + c.charCodeAt(0)) >>> 0,
+    7,
+  );
+// Feet height on the column at x,z, looking down from just above `fromY`.
+function surfaceY(x, z, fromY) {
+  const bx = Math.round(x),
+    bz = Math.round(z);
+  for (let y = Math.floor(fromY + 1.5); y >= 0; y--) {
+    const type = blocks.get(key(bx, y, bz));
+    if (type !== undefined && !passable(type)) return y + 0.51;
+  }
+  return -10;
+}
+function setupAnimals() {
+  animals = validateAnimals(world.creatures);
+  if (!world.animalsSpawned && world.options.animals) {
+    animals = initialAnimals(worldSeed());
+    world.animalsSpawned = true;
+  }
+  animalGroup.clear();
+  for (const a of animals) {
+    a.mesh = MODELS[a.type]();
+    a.mesh.userData.animal = a;
+    dressAnimal(a);
+    animalGroup.add(a.mesh);
+  }
+}
+// Collar and name tag for a dog that is Biel's friend.
+function dressAnimal(a) {
+  const m = a.mesh;
+  if (m.userData.collar) m.userData.collar.visible = a.tamed;
+  if (m.userData.tag) m.remove(m.userData.tag);
+  if (a.tamed && a.name) {
+    m.userData.tag = nameTag(a.name);
+    m.userData.tag.position.y = 1.35;
+    m.add(m.userData.tag);
+  }
+}
+function interactWith(a) {
+  const res = interact(
+    a,
+    creative() && a.type === "dog" ? "treat" : heldId(),
+    world.age,
+  );
+  if (res.result === "gave") {
+    if (!creative() && inventory.add(...res.give)) toast(t("full"));
+    else toast(t("gave_" + a.type));
+    beepAt(620, 920);
+  } else if (res.result === "tamed") {
+    if (!creative()) inventory.remove("treat", 1);
+    burst([a.x, a.y + 0.8, a.z], 6);
+    beepAt(420, 260);
+    beepAt(440, 280, 0.18);
+    dressAnimal(a);
+    toast(t("tamed"));
+    namingDog = a;
+    mode = "namedog";
+  } else if (res.result === "sit" || res.result === "follow")
+    toast(t(res.result, { name: a.name || t("dogDefault") }));
+  else toast(t(res.result));
+  scheduleSave();
+  render();
+}
+function updateAnimals(dt) {
+  for (const a of animals) {
+    const m = a.mesh,
+      active = world.options.animals || a.tamed;
+    m.visible = active;
+    if (!active) continue;
+    let speed = 0;
+    if (a.type === "dog" && a.tamed) {
+      // A friendly dog follows Biel and catches up if he gets far away.
+      const dx = player.x - a.x,
+        dz = player.z - a.z,
+        d = Math.hypot(dx, dz);
+      if (!a.sitting && d > 18) {
+        a.x = player.x - 1;
+        a.z = player.z - 1;
+        a.y = player.y;
+      } else if (!a.sitting && d > 2.6) {
+        a.yaw = Math.atan2(dx, dz);
+        speed = d > 6 ? 4.2 : 2.6;
+      }
+    } else {
+      a.timer = (a.timer ?? 0) - dt;
+      if (a.timer <= 0) {
+        a.walking = Math.random() < 0.6;
+        a.yaw += (Math.random() - 0.5) * 2.4;
+        a.timer = 2 + Math.random() * 3;
+      }
+      if (a.walking) speed = ANIMALS[a.type].speed;
+    }
+    if (speed) {
+      const nx = a.x + Math.sin(a.yaw) * speed * dt,
+        nz = a.z + Math.cos(a.yaw) * speed * dt,
+        ny = surfaceY(nx, nz, a.y);
+      const blocked =
+        Math.abs(nx) > SIZE - 1 ||
+        Math.abs(nz) > SIZE - 1 ||
+        ny - a.y > 1.05 ||
+        (ny < WATER_LEVEL - 0.3 && !a.tamed);
+      if (blocked) {
+        a.yaw += Math.PI * (0.5 + Math.random());
+        a.timer = 1;
+        speed = 0;
+      } else {
+        a.x = nx;
+        a.z = nz;
+      }
+    }
+    const ground = surfaceY(a.x, a.z, a.y);
+    a.y = ground > a.y ? ground : Math.max(ground, a.y - 6 * dt);
+    m.position.set(a.x, a.y - 0.01, a.z);
+    m.rotation.y +=
+      Math.atan2(
+        Math.sin(a.yaw - m.rotation.y),
+        Math.cos(a.yaw - m.rotation.y),
+      ) * Math.min(1, dt * 8);
+    const swing = speed ? Math.sin(elapsed * 10) * 0.6 : 0;
+    m.userData.legs.forEach((l, i) => (l.rotation.x = i % 2 ? swing : -swing));
+    if (m.userData.head)
+      m.userData.head.rotation.x = speed
+        ? 0
+        : Math.sin(elapsed * 1.5 + a.x) * 0.12;
+    if (m.userData.body) m.userData.body.rotation.x = a.sitting ? -0.35 : 0;
+    if (m.userData.tail)
+      m.userData.tail.rotation.y = a.tamed ? Math.sin(elapsed * 14) * 0.5 : 0;
+    if (m.userData.wool)
+      m.userData.wool.scale.setScalar(world.age < a.readyAt ? 0.82 : 1);
+  }
+}
 function pick() {
   // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
   ray.setFromCamera(
@@ -1420,6 +1603,17 @@ function pick() {
   const hits = ray.intersectObjects(meshes, false);
   target = null;
   outline.visible = false;
+  // A friendly animal in front of the blocks wins.
+  targetAnimal = null;
+  const animalHit = ray.intersectObjects(animalGroup.children, true)[0];
+  if (animalHit && (!hits[0] || animalHit.distance < hits[0].distance)) {
+    let o = animalHit.object;
+    while (o && !o.userData.animal) o = o.parent;
+    if (o && o.position.distanceTo(player) < 5) {
+      targetAnimal = o.userData.animal;
+      return;
+    }
+  }
   for (const hit of hits) {
     const p = mapping[hit.object.userData.type][hit.instanceId];
     if (new THREE.Vector3(...p).distanceTo(player) < 7) {
@@ -1631,6 +1825,10 @@ function edit(place) {
     } else flashLabel(t("notHungry"));
     return;
   }
+  if (place && targetAnimal) {
+    interactWith(targetAnimal);
+    return;
+  }
   if (!target) return;
   const p = [...target.p];
   if (place && blocks.get(key(...p)) === BED) {
@@ -1760,7 +1958,8 @@ canvas.onpointerup = (e) => {
     pick();
     const place = pointerDown.button === 2 || e.shiftKey;
     // Creative breaks on click; Adventure breaks while the button is held.
-    if (e.pointerType !== "touch" && (place || creative())) edit(place);
+    if (e.pointerType === "touch" && targetAnimal) interactWith(targetAnimal);
+    else if (e.pointerType !== "touch" && (place || creative())) edit(place);
   }
   pointerDown = null;
   mouseBreak = false;
@@ -1896,6 +2095,8 @@ function frame(now) {
       }
     }
     if (player.y < -5) spawn();
+    world.age += dt;
+    updateAnimals(dt);
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
       if (grounded || swimming || flying) {
@@ -2313,6 +2514,42 @@ if (new URLSearchParams(location.search).has("test"))
     check(
       "walking to the backpack gets everything back",
       inventory.count("stone") === 5 && world.backpacks.length === 0,
+    );
+    // Animals: products, waiting time and a dog that becomes a friend.
+    check(
+      "animals in the new world",
+      animals.length === 11 && animalGroup.children.length === 11,
+    );
+    const cow = animals.find((x) => x.type === "cow"),
+      dog = animals.find((x) => x.type === "dog");
+    interactWith(cow);
+    check("the cow gives milk", inventory.count("milk") === 1);
+    interactWith(cow);
+    check("the cow needs a rest", inventory.count("milk") === 1);
+    interactWith(animals.find((x) => x.type === "sheep"));
+    check("shearing gives wool", inventory.count("wool") === 2);
+    hold("apple");
+    interactWith(dog);
+    check("the dog wants a treat", !dog.tamed);
+    inventory.add("treat", 1);
+    hold("treat");
+    interactWith(dog);
+    check("a treat makes a friend", dog.tamed && mode === "namedog");
+    $("#dog-name").value = "Faísca";
+    action("namedone");
+    check("the dog gets a name", dog.name === "Faísca" && mode === "playing");
+    dog.x = player.x + 10;
+    dog.z = player.z;
+    for (let i = 0; i < 150; i++) frame(last + 16);
+    check(
+      "the dog follows Biel",
+      Math.hypot(dog.x - player.x, dog.z - player.z) < 4,
+    );
+    save();
+    check(
+      "animals are saved",
+      store.load(world.id).creatures.find((x) => x.type === "dog").name ===
+        "Faísca",
     );
     const secondId = world.id;
     action("pause");

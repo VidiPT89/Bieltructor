@@ -97,6 +97,8 @@ export function newWorld({ id, name, mode, options, now = Date.now() }) {
     inventory: [],
     time: 0.3,
     day: 1,
+    age: 0,
+    animalsSpawned: false,
     spawnPoint: null,
     creatures: [],
     backpacks: [],
@@ -145,6 +147,8 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     };
   world.time = wrap(finite(raw.time, 0.3));
   world.day = Math.max(1, Math.floor(finite(raw.day, 1)));
+  world.age = Math.max(0, finite(raw.age, 0));
+  world.animalsSpawned = raw.animalsSpawned === true;
   if (
     Array.isArray(raw.spawnPoint) &&
     raw.spawnPoint.length === 3 &&
