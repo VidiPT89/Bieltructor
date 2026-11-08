@@ -1,4 +1,4 @@
-"""Build every app icon and web logo from doc/Bieltructor_logo.jpeg.
+"""Build every app icon and web logo from docs/Bieltructor_logo.jpeg.
 
 Usage: python3 scripts/make-icons.py   (requires Pillow and macOS iconutil)
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 root = Path(__file__).resolve().parent.parent
-source = Image.open(root / "doc/Bieltructor_logo.jpeg").convert("RGB")
+source = Image.open(root / "docs/Bieltructor_logo.jpeg").convert("RGB")
 w, h = source.size
 
 # The artwork sits on white rounded corners. Flood fill them from each corner

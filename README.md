@@ -10,8 +10,15 @@
 [![Request Feature](https://img.shields.io/badge/Request-Feature-blue)](https://github.com/VidiPT89/Bieltructor/issues)
 
 <p align="center">
-  <img src="docs/screenshot.jpg" width="68%" alt="Bieltructor on macOS">
-  <img src="docs/screenshot-ipad.jpg" width="27%" alt="Bieltructor on iPad">
+  <img src="docs/screenshot-day.jpg" width="100%" alt="Biel in front of his house on macOS">
+</p>
+<p align="center">
+  <img src="docs/screenshot-night.jpg" width="49%" alt="The same house at night, with stars and a glowing amber lantern">
+  <img src="docs/screenshot-menu.jpg" width="49%" alt="Main menu on macOS">
+</p>
+<p align="center">
+  <img src="docs/screenshot-ipad-menu.jpg" width="32%" alt="Main menu on iPad">
+  <img src="docs/screenshot-ipad.jpg" width="32%" alt="Playing on iPad with touch controls">
 </p>
 
 ## ✨ Features
@@ -113,7 +120,7 @@ Building has a seven-block reach. Water is shallow, but holes dug below the wate
 
 ## 🎨 App icon
 
-The logo lives in `doc/Bieltructor_logo.jpeg`. After changing it, run `npm run icons` (Python 3 with Pillow) to regenerate the macOS `.icns`, the iOS app icon, the in-game logo and the favicon.
+The logo lives in `docs/Bieltructor_logo.jpeg`. After changing it, run `npm run icons` (Python 3 with Pillow) to regenerate the macOS `.icns`, the iOS app icon, the in-game logo and the favicon.
 
 ## 🧪 Testing
 
