@@ -130,7 +130,97 @@ function dog() {
   return g;
 }
 
-export const MODELS = { chicken, cow, sheep, dog };
+// Monsters: silly rather than scary.
+function sleepy() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.56, 0.7, 0.36], [0, 1.0, 0], 0x7fbf86);
+  for (const y of [0.8, 1.05, 1.3])
+    box(g, [0.58, 0.04, 0.38], [0, y, 0], 0x5f9f69);
+  const head = new THREE.Group();
+  head.position.set(0, 1.6, 0);
+  g.add(head);
+  box(head, [0.5, 0.48, 0.46], [0, 0, 0], 0xb9d9a8);
+  // Closed sleepy eyes and a big yawn.
+  for (const x of [-0.12, 0.12])
+    box(head, [0.14, 0.03, 0.02], [x, 0.06, 0.24], 0x2d3a2a);
+  box(head, [0.12, 0.1, 0.02], [0, -0.12, 0.24], 0x6b2c2c);
+  // A striped nightcap with a pompom.
+  box(head, [0.52, 0.12, 0.48], [0, 0.29, 0], 0xe6574a);
+  box(head, [0.36, 0.12, 0.34], [0.04, 0.4, -0.04], 0xf4efe6);
+  box(head, [0.2, 0.12, 0.2], [0.1, 0.5, -0.08], 0xe6574a);
+  box(head, [0.1, 0.1, 0.1], [0.18, 0.6, -0.1], 0xf4efe6);
+  g.userData.head = head;
+  for (const x of [-0.36, 0.36]) {
+    const arm = box(g, [0.16, 0.16, 0.62], [x, 1.25, 0.32], 0x7fbf86);
+    arm.userData.arm = true;
+  }
+  for (const x of [-0.14, 0.14])
+    leg(g, [0.2, 0.62, 0.22], [x, 0.66, 0], 0x5f9f69, 0xb9d9a8);
+  return g;
+}
+
+const JELLY_COLORS = [0x6fd3c6, 0xf08cc0, 0x9fd36f];
+function jelly(small = false, colorIndex = 0) {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  const color = JELLY_COLORS[colorIndex % JELLY_COLORS.length];
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.8, 0.8),
+    new THREE.MeshStandardMaterial({
+      color,
+      transparent: true,
+      opacity: 0.78,
+      roughness: 0.2,
+    }),
+  );
+  body.position.y = 0.4;
+  body.castShadow = true;
+  g.add(body);
+  box(body, [0.4, 0.4, 0.4], [0, -0.05, 0], color);
+  for (const x of [-0.17, 0.17]) {
+    box(body, [0.14, 0.16, 0.02], [x, 0.1, 0.41], 0xffffff);
+    box(body, [0.07, 0.08, 0.02], [x, 0.08, 0.42], 0x1d2a2e);
+  }
+  box(body, [0.2, 0.05, 0.02], [0, -0.1, 0.41], 0x1d2a2e);
+  g.userData.body = body;
+  if (small) g.scale.setScalar(0.55);
+  return g;
+}
+
+function archer() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.34, 0.6, 0.22], [0, 1.0, 0], 0xece6d6);
+  for (const y of [0.84, 1.0, 1.16])
+    box(g, [0.4, 0.05, 0.26], [0, y, 0], 0xd6cfbd);
+  const head = new THREE.Group();
+  head.position.set(0, 1.52, 0);
+  g.add(head);
+  box(head, [0.44, 0.42, 0.42], [0, 0, 0], 0xf4efe2);
+  for (const x of [-0.11, 0.11])
+    box(head, [0.12, 0.12, 0.02], [x, 0.04, 0.22], 0x2b2620);
+  box(head, [0.22, 0.04, 0.02], [0, -0.12, 0.22], 0x2b2620);
+  // A floppy brown hat.
+  box(head, [0.62, 0.06, 0.62], [0, 0.23, 0], 0x7a5236);
+  box(head, [0.38, 0.16, 0.38], [0, 0.33, 0], 0x8a6040);
+  g.userData.head = head;
+  const bow = box(g, [0.06, 0.7, 0.08], [0.3, 1.05, 0.25], 0x9a6a3c);
+  bow.rotation.z = 0.15;
+  box(g, [0.12, 0.12, 0.4], [-0.25, 1.1, 0.12], 0xece6d6);
+  for (const x of [-0.1, 0.1])
+    leg(g, [0.12, 0.66, 0.12], [x, 0.7, 0], 0xece6d6);
+  return g;
+}
+
+export function arrow() {
+  const g = new THREE.Group();
+  box(g, [0.05, 0.05, 0.6], [0, 0, 0], 0x9a6a3c);
+  box(g, [0.14, 0.14, 0.06], [0, 0, 0.32], 0xe6574a);
+  return g;
+}
+
+export const MODELS = { chicken, cow, sheep, dog, sleepy, jelly, archer };
 
 // A floating name tag drawn on a canvas.
 export function nameTag(text) {

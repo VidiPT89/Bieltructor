@@ -29,7 +29,15 @@ import {
   validateAnimals,
   interact,
 } from "./creatures.js";
-import { MODELS, nameTag } from "./models.js";
+import { MODELS, nameTag, arrow } from "./models.js";
+import {
+  MONSTERS,
+  allowedMonsters,
+  canSpawn,
+  spawnSpot,
+  strike,
+  weaponDamage,
+} from "./monsters.js";
 import { RECIPES, canCraft, craft } from "./recipes.js";
 import {
   createVitals,
@@ -89,7 +97,7 @@ const strings = {
     ready: "Pronto para explorar?",
     hint: "Arrasta para olhar · Clica para partir · Botão direito para construir",
     hintAdventure:
-      "Arrasta para olhar · Mantém clicado para partir · Botão direito para construir ou comer · E abre a mochila",
+      "Arrasta para olhar · Mantém clicado para partir · Botão direito para construir ou comer · F ou clique num monstro para atacar · E abre a mochila",
     items: {
       grass: "Relva",
       dirt: "Terra",
@@ -156,6 +164,9 @@ const strings = {
     done: "Pronto",
     sit: "{name} senta-se e espera por ti.",
     follow: "{name} vem contigo!",
+    attack: "Atacar",
+    monsterNear: "Ouves um barulho estranho… 👀",
+    cantSleep: "Não consegues dormir: há monstros por perto!",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -258,7 +269,7 @@ const strings = {
     ready: "Ready to explore?",
     hint: "Drag to look · Click to break · Right-click to build",
     hintAdventure:
-      "Drag to look · Hold the click to break · Right-click to build or eat · E opens the backpack",
+      "Drag to look · Hold the click to break · Right-click to build or eat · F or click a monster to attack · E opens the backpack",
     items: {
       grass: "Grass",
       dirt: "Dirt",
@@ -324,6 +335,9 @@ const strings = {
     done: "Done",
     sit: "{name} sits and waits for you.",
     follow: "{name} is coming with you!",
+    attack: "Attack",
+    monsterNear: "You hear a funny noise… 👀",
+    cantSleep: "You can’t sleep: there are monsters nearby!",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -423,6 +437,12 @@ let mode = "splash",
   animals = [],
   targetAnimal = null,
   namingDog = null,
+  monsters = [],
+  arrows = [],
+  targetMonster = null,
+  spawnClock = 2,
+  attackCooldown = 0,
+  lightBlocks = [],
   peakY = null,
   draft = null,
   flying = false,
@@ -576,7 +596,7 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
   if (mode === "namedog")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog")}"><span class="eyebrow">🐶</span><h2>${t("nameDog")}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(t("dogDefault"))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
   if (mode === "asleep")
@@ -854,6 +874,9 @@ function action(a, arg) {
   } else if (a === "place") {
     edit(true);
     return;
+  } else if (a === "attack") {
+    attack();
+    return;
   }
   render();
 }
@@ -882,7 +905,9 @@ function saveData() {
   };
   world.time = timeOfDay;
   world.inventory = inventory.toJSON();
-  world.creatures = animals.map(({ mesh, timer, walking, ...data }) => data);
+  world.creatures = animals.map(
+    ({ mesh, timer, walking, bite, ...data }) => data,
+  );
   world.updatedAt = Date.now();
   return world;
 }
@@ -1135,6 +1160,7 @@ function rebuild() {
   meshes = [];
   mapping = [];
   const groups = Array.from({ length: TYPES }, () => []);
+  lightBlocks = [];
   for (const [k, type] of blocks) {
     const [x, y, z] = k.split(",").map(Number);
     if (
@@ -1151,6 +1177,7 @@ function rebuild() {
       })
     )
       groups[type].push([x, y, z]);
+    if (type === TORCH || type === 7) lightBlocks.push([x, y, z]);
   }
   const matrix = new THREE.Matrix4();
   groups.forEach((group, i) => {
@@ -1379,6 +1406,9 @@ function loadWorld(w) {
   inventory = Inventory.from(w.inventory);
   vitals = createVitals(w.player?.health, w.player?.food);
   setupAnimals();
+  for (const m of [...monsters]) removeMonster(m, false);
+  for (const a of arrows) scene.remove(a.mesh);
+  arrows = [];
   rebuildBackpacks();
   selected = 0;
   if (!inventory.slots.some(Boolean)) {
@@ -1400,7 +1430,6 @@ function loadWorld(w) {
   started = true;
   document.documentElement.classList.toggle("first-person", firstPerson);
 }
-if (world) loadWorld(world);
 document.documentElement.classList.toggle("first-person", firstPerson);
 // Creative mode: a quick double tap on jump starts or stops flying.
 function jumpTapped() {
@@ -1534,10 +1563,21 @@ function updateAnimals(dt) {
     if (!active) continue;
     let speed = 0;
     if (a.type === "dog" && a.tamed) {
-      // A friendly dog follows Biel and catches up if he gets far away.
-      const dx = player.x - a.x,
-        dz = player.z - a.z,
-        d = Math.hypot(dx, dz);
+      // A friendly dog follows Biel, or chases a monster close to him.
+      const foe = a.sitting
+        ? null
+        : monsters.find((m) => Math.hypot(m.x - player.x, m.z - player.z) < 7);
+      const goal = foe ?? player;
+      const dx = goal.x - a.x,
+        dz = goal.z - a.z,
+        d = Math.hypot(dx, dz) + (foe ? 1.6 : 0);
+      if (foe && d < 2.9) {
+        a.bite = (a.bite ?? 0) - dt;
+        if (a.bite <= 0) {
+          a.bite = 1;
+          hitMonster(foe, 2);
+        }
+      }
       if (!a.sitting && d > 18) {
         a.x = player.x - 1;
         a.z = player.z - 1;
@@ -1594,6 +1634,288 @@ function updateAnimals(dt) {
       m.userData.wool.scale.setScalar(world.age < a.readyAt ? 0.82 : 1);
   }
 }
+// Night monsters. They are not saved: a new night brings new ones.
+const monsterGroup = new THREE.Group();
+scene.add(monsterGroup);
+const monstersAllowed = () =>
+  world &&
+  world.mode === "adventure" &&
+  world.options.monsters &&
+  world.options.difficulty !== "peaceful";
+function addMonster(type, at, small = false) {
+  const m = {
+    type,
+    x: at.x,
+    y: at.y,
+    z: at.z,
+    yaw: 0,
+    hp: small ? 1 : MONSTERS[type].hp,
+    small,
+    cooldown: 1,
+    warned: false,
+    hop: Math.random() * 6,
+    flash: 0,
+  };
+  m.mesh =
+    type === "jelly"
+      ? MODELS.jelly(small, Math.floor(Math.random() * 3))
+      : MODELS[type]();
+  m.mesh.userData.monster = m;
+  m.mesh.position.set(m.x, m.y, m.z);
+  monsterGroup.add(m.mesh);
+  monsters.push(m);
+  sparkle([m.x, m.y + 0.6, m.z]);
+  return m;
+}
+function trySpawnMonster() {
+  const state = {
+    mode: world.mode,
+    options: world.options,
+    night: isNight(),
+    count: monsters.length,
+    rules: rules(),
+  };
+  if (!canSpawn(state)) return null;
+  const spot = spawnSpot({
+    rand: Math.random,
+    player,
+    lights: lightBlocks,
+    surface: (x, z) => surfaceY(x, z, 40),
+  });
+  if (!spot) return null;
+  const types = allowedMonsters(world.options.difficulty);
+  return addMonster(types[Math.floor(Math.random() * types.length)], spot);
+}
+function removeMonster(m, poof = true) {
+  if (poof) sparkle([m.x, m.y + 0.6, m.z]);
+  monsterGroup.remove(m.mesh);
+  monsters = monsters.filter((x) => x !== m);
+  if (targetMonster === m) targetMonster = null;
+}
+// Colourful sparkles instead of anything scary.
+const sparkleMaterials = [0xffd25e, 0x8fd3f4, 0xf08cc0, 0x9fd36f].map(
+  (color) => new THREE.MeshBasicMaterial({ color }),
+);
+function sparkle(p) {
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(cube, sparkleMaterials[i % 4]);
+    m.scale.setScalar(0.1);
+    m.position.set(...p);
+    scene.add(m);
+    particles.push({
+      m,
+      v: new THREE.Vector3(
+        (Math.random() - 0.5) * 4,
+        Math.random() * 4,
+        (Math.random() - 0.5) * 4,
+      ),
+      life: 0.7,
+    });
+  }
+}
+function hurtPlayer(amount, from) {
+  if (creative()) return;
+  if (!hurt(vitals, amount, rules())) return;
+  hurtFlash();
+  beepAt(240, 120);
+  // A gentle push away from whatever hit Biel.
+  const away = Math.atan2(player.x - from.x, player.z - from.z);
+  for (let i = 0; i < 6; i++)
+    for (const [axis, d] of [
+      ["x", Math.sin(away) * 0.12],
+      ["z", Math.cos(away) * 0.12],
+    ]) {
+      player[axis] += d;
+      if (collides(blocks, player)) player[axis] -= d;
+    }
+  if (grounded) velocity = 4;
+}
+function hitMonster(m, damage) {
+  const res = strike(m, damage);
+  m.flash = 0.2;
+  const away = Math.atan2(m.x - player.x, m.z - player.z);
+  m.x += Math.sin(away) * 0.6;
+  m.z += Math.cos(away) * 0.6;
+  beepAt(700, 300);
+  if (res.result === "split") {
+    removeMonster(m);
+    for (const side of [-0.5, 0.5])
+      addMonster("jelly", { x: m.x + side, y: m.y, z: m.z - side }, true);
+  } else if (res.result === "poof") {
+    removeMonster(m);
+    if (!creative() && !inventory.add(...res.drop))
+      setTimeout(() => flashLabel(`+${res.drop[1]} ${itemName(res.drop[0])}`));
+    render();
+  }
+}
+// Biel's attack: the monster under the pointer, or the nearest one in reach.
+function attack() {
+  if (mode !== "playing" || attackCooldown > 0) return;
+  const foe =
+    targetMonster ??
+    monsters
+      .filter((m) => Math.hypot(m.x - player.x, m.z - player.z) < 3.2)
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - player.x, a.z - player.z) -
+          Math.hypot(b.x - player.x, b.z - player.z),
+      )[0];
+  if (!foe) return;
+  attackCooldown = 0.45;
+  rightArm.rotation.x = -1.6;
+  hitMonster(foe, weaponDamage(heldId()));
+}
+function shootArrow(m) {
+  const mesh = arrow(),
+    from = new THREE.Vector3(m.x, m.y + 1.2, m.z),
+    to = new THREE.Vector3(player.x, player.y + 1, player.z);
+  const vel = to.sub(from).normalize().multiplyScalar(7);
+  mesh.position.copy(from);
+  mesh.lookAt(from.clone().add(vel));
+  scene.add(mesh);
+  arrows.push({ mesh, vel, life: 3 });
+  beepAt(900, 500);
+}
+function updateMonsters(dt) {
+  attackCooldown -= dt;
+  if (!monstersAllowed()) {
+    for (const m of [...monsters]) removeMonster(m, false);
+    return;
+  }
+  const night = isNight();
+  spawnClock -= dt;
+  if (spawnClock <= 0) {
+    spawnClock = 4;
+    if (night) trySpawnMonster();
+  }
+  for (const m of [...monsters]) {
+    // At sunrise they fizzle away in sparkles.
+    if (!night) {
+      if (Math.random() < dt * 1.5) removeMonster(m);
+      continue;
+    }
+    const dx = player.x - m.x,
+      dz = player.z - m.z,
+      d = Math.hypot(dx, dz);
+    if (d > 40) {
+      removeMonster(m, false);
+      continue;
+    }
+    if (!m.warned && d < 10) {
+      m.warned = true;
+      toast(t("monsterNear"));
+      beepAt(330, 520);
+      beepAt(520, 330, 0.15);
+    }
+    let speed = MONSTERS[m.type].speed * rules().monsterSpeed,
+      dir = Math.atan2(dx, dz);
+    m.cooldown -= dt;
+    if (m.type === "archer") {
+      if (d < 5) dir += Math.PI;
+      else if (d < 8) speed = 0;
+      if (d < 11 && m.cooldown <= 0) {
+        m.cooldown = 2.8;
+        shootArrow(m);
+      }
+    } else if (d < 1.15 && Math.abs(player.y - m.y) < 1.5) {
+      speed = 0;
+      if (m.cooldown <= 0) {
+        m.cooldown = 1.2;
+        hurtPlayer(MONSTERS[m.type].damage, m);
+      }
+    }
+    if (m.type === "jelly") {
+      m.hop += dt * 5;
+      speed *= Math.sin(m.hop) > 0 ? 1.7 : 0.2;
+    }
+    m.yaw = Math.atan2(dx, dz);
+    if (speed) {
+      const nx = m.x + Math.sin(dir) * speed * dt,
+        nz = m.z + Math.cos(dir) * speed * dt,
+        ny = surfaceY(nx, nz, m.y);
+      if (
+        ny - m.y <= 1.05 &&
+        ny > -5 &&
+        Math.abs(nx) < SIZE &&
+        Math.abs(nz) < SIZE
+      ) {
+        m.x = nx;
+        m.z = nz;
+      }
+    }
+    const ground = surfaceY(m.x, m.z, m.y);
+    m.y = ground > m.y ? ground : Math.max(ground, m.y - 6 * dt);
+    const mesh = m.mesh;
+    mesh.position.set(
+      m.x,
+      m.y -
+        0.01 +
+        (m.type === "jelly" ? Math.max(0, Math.sin(m.hop)) * 0.35 : 0),
+      m.z,
+    );
+    mesh.rotation.y = m.yaw;
+    const swing = speed ? Math.sin(elapsed * 8) * 0.5 : 0;
+    mesh.userData.legs.forEach(
+      (l, i) => (l.rotation.x = i % 2 ? swing : -swing),
+    );
+    if (mesh.userData.head)
+      mesh.userData.head.rotation.z = Math.sin(elapsed * 2 + m.x) * 0.15;
+    m.flash = Math.max(0, m.flash - dt);
+    mesh.scale.setScalar((m.small ? 0.55 : 1) * (1 + m.flash));
+  }
+  for (const a of [...arrows]) {
+    a.life -= dt;
+    a.mesh.position.addScaledVector(a.vel, dt);
+    const p = a.mesh.position;
+    const hitBlock = blocks.has(
+      key(Math.round(p.x), Math.round(p.y), Math.round(p.z)),
+    );
+    const hitBiel =
+      p.distanceTo(new THREE.Vector3(player.x, player.y + 0.9, player.z)) <
+      0.75;
+    if (hitBiel)
+      hurtPlayer(MONSTERS.archer.damage, {
+        x: p.x - a.vel.x,
+        z: p.z - a.vel.z,
+      });
+    if (hitBiel || hitBlock || a.life <= 0) {
+      scene.remove(a.mesh);
+      arrows = arrows.filter((x) => x !== a);
+    }
+  }
+  const btn = app.querySelector(".attack-btn");
+  if (btn)
+    btn.classList.toggle(
+      "hidden",
+      !monsters.some((m) => Math.hypot(m.x - player.x, m.z - player.z) < 3.5),
+    );
+}
+// Torches and lanterns light up the night around Biel (nearest few only).
+const torchLights = Array.from({ length: 6 }, () => {
+  const light = new THREE.PointLight(0xffb35a, 0, 10, 1.6);
+  scene.add(light);
+  return light;
+});
+let lightClock = 0;
+function updateTorchLights(dt, daylight) {
+  lightClock -= dt;
+  if (lightClock > 0) return;
+  lightClock = 0.5;
+  const count = settings.quality === "high" ? 6 : 3;
+  const nearest = lightBlocks
+    .map((b) => [
+      Math.hypot(b[0] - player.x, b[1] - player.y, b[2] - player.z),
+      b,
+    ])
+    .filter(([d]) => d < 24)
+    .sort((a, b) => a[0] - b[0])
+    .slice(0, count);
+  torchLights.forEach((light, i) => {
+    const b = nearest[i]?.[1];
+    light.intensity = b ? (1 - daylight) * 7 : 0;
+    if (b) light.position.set(b[0], b[1] + 0.3, b[2]);
+  });
+}
 function pick() {
   // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
   ray.setFromCamera(
@@ -1603,7 +1925,17 @@ function pick() {
   const hits = ray.intersectObjects(meshes, false);
   target = null;
   outline.visible = false;
-  // A friendly animal in front of the blocks wins.
+  // A monster or a friendly animal in front of the blocks wins.
+  targetMonster = null;
+  const monsterHit = ray.intersectObjects(monsterGroup.children, true)[0];
+  if (monsterHit && (!hits[0] || monsterHit.distance < hits[0].distance)) {
+    let o = monsterHit.object;
+    while (o && !o.userData.monster) o = o.parent;
+    if (o && o.position.distanceTo(player) < 5) {
+      targetMonster = o.userData.monster;
+      return;
+    }
+  }
   targetAnimal = null;
   const animalHit = ray.intersectObjects(animalGroup.children, true)[0];
   if (animalHit && (!hits[0] || animalHit.distance < hits[0].distance)) {
@@ -1709,6 +2041,10 @@ const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
 const heldId = () => inventory.slots[selected]?.id ?? null;
 // Beds: the newest one becomes home; at night, sleeping skips to the morning.
 function sleepIn(p) {
+  if (monsters.some((m) => Math.hypot(m.x - player.x, m.z - player.z) < 10)) {
+    toast(t("cantSleep"));
+    return;
+  }
   world.spawnPoint = [...p];
   if (isNight() && world.options.cycle === "normal") {
     fadeScreen();
@@ -1924,6 +2260,10 @@ canvas.onpointerdown = (e) => {
     moved: false,
     button: e.button,
   };
+  if (targetMonster && e.button === 0 && e.pointerType !== "touch") {
+    attack();
+    return;
+  }
   // Adventure: holding the left mouse button breaks the block under it.
   mouseBreak =
     !creative() && e.pointerType !== "touch" && e.button === 0 && !e.shiftKey;
@@ -1958,7 +2298,9 @@ canvas.onpointerup = (e) => {
     pick();
     const place = pointerDown.button === 2 || e.shiftKey;
     // Creative breaks on click; Adventure breaks while the button is held.
-    if (e.pointerType === "touch" && targetAnimal) interactWith(targetAnimal);
+    if (e.pointerType === "touch" && targetMonster) attack();
+    else if (e.pointerType === "touch" && targetAnimal)
+      interactWith(targetAnimal);
     else if (e.pointerType !== "touch" && (place || creative())) edit(place);
   }
   pointerDown = null;
@@ -1991,6 +2333,7 @@ window.addEventListener("keydown", (e) => {
       render();
     }
     if (e.code === "KeyE" && !e.repeat) action("inventory");
+    if (e.code === "KeyF" && !e.repeat) attack();
     if (e.code === "KeyV" && !e.repeat) togglePerspective();
   }
   if (e.code === "Escape" && !e.repeat) {
@@ -2097,6 +2440,7 @@ function frame(now) {
     if (player.y < -5) spawn();
     world.age += dt;
     updateAnimals(dt);
+    updateMonsters(dt);
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
       if (grounded || swimming || flying) {
@@ -2152,7 +2496,7 @@ function frame(now) {
     leftLeg.rotation.x = stride;
     rightLeg.rotation.x = -stride;
     leftArm.rotation.x = -stride;
-    rightArm.rotation.x = stride;
+    rightArm.rotation.x = attackCooldown > 0.25 ? -1.6 : stride;
     head.rotation.z = Math.sin(elapsed * 2) * 0.025;
     look.copy(player).add(new THREE.Vector3(0, 1.5, 0));
     if (firstPerson) {
@@ -2197,7 +2541,8 @@ function frame(now) {
     water.position.y = WATER_LEVEL + Math.sin(elapsed * 0.7) * 0.035;
   clouds.rotation.y = elapsed * 0.003;
   // The menu always shows a sunny day; the game follows the clock.
-  applySky(scenery === "game" ? skyTime() : NOON + 0.03);
+  const skyNow = applySky(scenery === "game" ? skyTime() : NOON + 0.03);
+  updateTorchLights(dt, skyNow.daylight);
   const clockEl = app.querySelector(".clock");
   if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -2213,6 +2558,8 @@ function frame(now) {
   }
   renderer.render(scene, camera);
 }
+// The saved world loads once every part of the scene exists.
+if (world) loadWorld(world);
 render();
 function animate(now) {
   frame(now);
@@ -2494,6 +2841,8 @@ if (new URLSearchParams(location.search).has("test"))
     inventory.add("stone", 5);
     const awayFromHome = [player.x + 4, player.y, player.z];
     player.set(...awayFromHome);
+    while (collides(blocks, player)) player.y++;
+    awayFromHome[1] = player.y;
     vitals.health = 0;
     frame(last + 16);
     check(
@@ -2551,6 +2900,88 @@ if (new URLSearchParams(location.search).has("test"))
       store.load(world.id).creatures.find((x) => x.type === "dog").name ===
         "Faísca",
     );
+    // Monsters on Normal at night: appear, hurt, get chased off, vanish at dawn.
+    dog.sitting = true;
+    spawn();
+    for (let i = 0; i < 20; i++) frame(last + 16);
+    timeOfDay = 0.75;
+    let spawned = null;
+    for (let i = 0; i < 6 && !spawned; i++) spawned = trySpawnMonster();
+    check(
+      "monsters appear at night on normal",
+      spawned && monsters.length >= 1,
+    );
+    for (const m of [...monsters]) removeMonster(m, false);
+    const sleepyOne = addMonster("sleepy", {
+      x: player.x + 0.9,
+      y: player.y,
+      z: player.z,
+    });
+    vitals.hurtCooldown = 0;
+    vitals.health = 20;
+    for (let i = 0; i < 100; i++) frame(last + 16);
+    check(
+      "a sleepwalker bumps into Biel",
+      vitals.health < 20 && vitals.health > 0,
+    );
+    check(
+      "you cannot sleep with a monster nearby",
+      (() => {
+        const day = world.day;
+        sleepIn(bedPos);
+        return world.day === day;
+      })(),
+    );
+    hold("stone_sword");
+    targetMonster = sleepyOne;
+    attackCooldown = 0;
+    attack();
+    attackCooldown = 0;
+    targetMonster = sleepyOne;
+    attack();
+    check(
+      "the sword sends it off in sparkles",
+      !monsters.includes(sleepyOne) && inventory.count("stick") >= 2,
+    );
+    const bigJelly = addMonster("jelly", {
+      x: player.x + 1,
+      y: player.y,
+      z: player.z,
+    });
+    bigJelly.hp = 1;
+    targetMonster = bigJelly;
+    attackCooldown = 0;
+    attack();
+    check(
+      "a jelly splits in two",
+      monsters.filter((m) => m.small).length === 2,
+    );
+    const archerOne = addMonster("archer", {
+      x: player.x + 7,
+      y: player.y,
+      z: player.z,
+    });
+    archerOne.cooldown = 0;
+    frame(last + 16);
+    check("the archer shoots suction-cup arrows", arrows.length >= 1);
+    blocks.set(
+      key(
+        Math.round(player.x),
+        Math.round(player.y) + 1,
+        Math.round(player.z) + 3,
+      ),
+      TORCH,
+    );
+    rebuild();
+    check("torches are light sources", lightBlocks.length > 0);
+    timeOfDay = 0.3;
+    for (let i = 0; i < 240; i++) frame(last + 16);
+    check("monsters fizzle away at sunrise", monsters.length === 0);
+    world.options = normalizeOptions({ ...world.options, monsters: false });
+    timeOfDay = 0.75;
+    for (let i = 0; i < 6; i++) trySpawnMonster();
+    check("no monsters when switched off", monsters.length === 0);
+    timeOfDay = 0.3;
     const secondId = world.id;
     action("pause");
     action("worlds");

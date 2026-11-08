@@ -170,8 +170,13 @@ h1::first-line {
 }
 .menu-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 30px;
+  max-width: 560px;
+}
+.menu-actions .secondary {
+  white-space: nowrap;
 }
 .primary {
   color: #251a0c;
@@ -1276,4 +1281,12 @@ kbd {
 }
 .asleep .panel {
   text-align: center;
+}
+.attack-btn {
+  background: #c94f35 !important;
+  color: #fff8ee !important;
+  border-color: #ff9b7e !important;
+}
+.attack-btn.hidden {
+  display: none;
 }
