@@ -63,3 +63,27 @@ export function strike(monster, damage) {
   if (monster.type === "jelly" && !monster.small) return { result: "split" };
   return { result: "poof", drop: MONSTERS[monster.type].drop };
 }
+
+// Monsters saved with the world, cleaned up when loading.
+export function validateMonsters(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (m) =>
+        m &&
+        Object.hasOwn(MONSTERS, m.type) &&
+        [m.x, m.y, m.z, m.hp].every(Number.isFinite) &&
+        Math.abs(m.x) <= SIZE &&
+        Math.abs(m.z) <= SIZE &&
+        m.hp > 0,
+    )
+    .slice(0, 12)
+    .map((m) => ({
+      type: m.type,
+      x: m.x,
+      y: m.y,
+      z: m.z,
+      hp: Math.min(m.hp, MONSTERS[m.type].hp),
+      small: m.type === "jelly" && m.small === true,
+    }));
+}

@@ -54,6 +54,7 @@ import {
   spawnSpot,
   strike,
   weaponDamage,
+  validateMonsters,
 } from "./monsters.js";
 import { RECIPES, canCraft, craft } from "./recipes.js";
 import {
@@ -1283,6 +1284,14 @@ function saveData() {
   world.creatures = animals.map(
     ({ mesh, timer, walking, bite, ...data }) => data,
   );
+  world.monsters = monsters.map(({ type, x, y, z, hp, small }) => ({
+    type,
+    x,
+    y,
+    z,
+    hp,
+    small,
+  }));
   world.updatedAt = Date.now();
   return world;
 }
@@ -1786,6 +1795,12 @@ function loadWorld(w) {
   for (const m of [...monsters]) removeMonster(m, false);
   for (const a of arrows) scene.remove(a.mesh);
   arrows = [];
+  // Monsters from last time come back where they were.
+  for (const saved of validateMonsters(w.monsters)) {
+    const m = addMonster(saved.type, saved, saved.small, true);
+    m.hp = saved.hp;
+    m.warned = true;
+  }
   rebuildBackpacks();
   selected = 0;
   if (!inventory.slots.some(Boolean)) {
@@ -2021,7 +2036,7 @@ const monstersAllowed = () =>
   world.mode === "adventure" &&
   world.options.monsters &&
   world.options.difficulty !== "peaceful";
-function addMonster(type, at, small = false) {
+function addMonster(type, at, small = false, quiet = false) {
   const m = {
     type,
     x: at.x,
@@ -2043,7 +2058,7 @@ function addMonster(type, at, small = false) {
   m.mesh.position.set(m.x, m.y, m.z);
   monsterGroup.add(m.mesh);
   monsters.push(m);
-  sparkle([m.x, m.y + 0.6, m.z]);
+  if (!quiet) sparkle([m.x, m.y + 0.6, m.z]);
   return m;
 }
 function trySpawnMonster() {
@@ -3372,6 +3387,13 @@ if (new URLSearchParams(location.search).has("test"))
     archerOne.cooldown = 0;
     frame(last + 16);
     check("the archer shoots suction-cup arrows", arrows.length >= 1);
+    const monstersBefore = monsters.length;
+    save();
+    loadWorld(store.load(world.id));
+    check(
+      "monsters are saved with the world",
+      monstersBefore > 0 && monsters.length === monstersBefore,
+    );
     blocks.set(
       key(
         Math.round(player.x),

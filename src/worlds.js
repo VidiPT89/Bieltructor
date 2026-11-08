@@ -102,6 +102,7 @@ export function newWorld({ id, name, mode, options, now = Date.now() }) {
     tutorial: null,
     spawnPoint: null,
     creatures: [],
+    monsters: [],
     backpacks: [],
   };
 }
@@ -167,6 +168,7 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     world.creatures = raw.creatures.slice(0, 60);
   if (Array.isArray(raw.backpacks))
     world.backpacks = raw.backpacks.slice(0, 10);
+  if (Array.isArray(raw.monsters)) world.monsters = raw.monsters.slice(0, 12);
   return world;
 }
 

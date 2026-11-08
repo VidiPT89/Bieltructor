@@ -77,3 +77,17 @@ test("swords hit harder and jellies split before they pop", () => {
   const small = { type: "jelly", hp: 1, small: true };
   assert.deepEqual(strike(small, 1), { result: "poof", drop: ["slime", 1] });
 });
+
+test("monsters saved with the world are cleaned up when loading", async () => {
+  const { validateMonsters } = await import("../src/monsters.js");
+  const out = validateMonsters([
+    { type: "sleepy", x: 1, y: 3, z: 1, hp: 99 },
+    { type: "dragon", x: 1, y: 3, z: 1, hp: 2 },
+    { type: "jelly", x: 1, y: 3, z: 1, hp: 0 },
+    { type: "archer", x: 1, y: 3, z: 1, hp: 2, small: true },
+  ]);
+  assert.deepEqual(out, [
+    { type: "sleepy", x: 1, y: 3, z: 1, hp: 4, small: false },
+    { type: "archer", x: 1, y: 3, z: 1, hp: 2, small: false },
+  ]);
+});
