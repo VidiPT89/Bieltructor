@@ -18,12 +18,15 @@
 
 - ✅ Original animated voxel character, Biel, with an orange explorer jacket and backpack
 - ✅ A 3D island with hills, trees, sandy shores, animated water and drifting clouds
-- ✅ Creative building with eight materials: grass, dirt, stone, sand, wood, leaves, brick and amber
+- ✅ Creative building with ten materials: grass, dirt, stone, sand, wood, leaves, brick, amber, glass and doors
+- ✅ Two-block doors that open and close, see-through glass and amber blocks that glow like lanterns at night
+- ✅ An 8-minute day and night cycle with a moving sun and moon, sunsets, stars and moonlight (or "Always day" in Settings)
+- ✅ Calm background music generated live in the game, slower and softer at night, with its own on/off switch
 - ✅ Break and place blocks with particle effects and synthesized sounds
 - ✅ Walking, running, jumping, swimming, gravity, collisions and first/third-person views
 - ✅ Crosshair aiming in first person with a mouse, tap-to-select on touch screens
 - ✅ A first-shelter building challenge that counts the blocks still standing
-- ✅ Automatic local saving of the world and of Biel's position and camera
+- ✅ Automatic local saving of the world, Biel's position, the camera and the time of day
 - ✅ JSON import and export through native file dialogs, plus a two-step "Start a new world" reset
 - ✅ Portuguese (Portugal) and English, selectable in Settings
 - ✅ Dark, Light and System appearance, with the iVidi.dev orange, burnt yellow and black palette
@@ -40,6 +43,7 @@
 | macOS application | Swift, AppKit, WebKit |
 | iOS / iPadOS application | Swift, UIKit, WebKit |
 | Game renderer | Three.js / WebGL |
+| Music and sound | Web Audio API (generated live, no audio files) |
 | Game logic and interface | JavaScript, HTML, CSS |
 | Build tools | Vite, Swift compiler |
 | Tests | Node.js test runner and integrated WebKit smoke tests |
@@ -99,7 +103,8 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 | Look around | Drag the scene |
 | Break a block | Left-click a nearby block (in first person, the block under the crosshair) |
 | Place a block | Right-click, or Shift + click |
-| Select material | 1–8 or click the inventory |
+| Select material | 1–9 and 0, or click the inventory |
+| Open / close a door | Right-click the door (Build on iPad) |
 | Change perspective | V or the camera button |
 | Pause | Escape or the pause button |
 | Full screen | Control + Command + F |
@@ -120,11 +125,11 @@ npm run build:ios
 # In Xcode: select an iPad simulator, then Product > Test.
 ```
 
-The unit suite checks deterministic terrain, the protected floor, spawn clearance, collision boundaries, saved-world and saved-position validation, independent fingers and clearing held touch controls. The integrated smoke suite (23 checks, shared by the Mac and iPad apps) covers rendering, language, appearance, movement, jumping, swimming, block placement/removal, the quest counter, notifications, perspective, persistence, multi-touch, pause/resume and the two-step world reset. The iPad UI test also drives the touch controls in landscape and portrait. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
+The unit suite checks deterministic terrain, the protected floor, spawn clearance, collision boundaries, saved-world and saved-position validation, doors and glass, the day/night curve, the music generator, independent fingers and clearing held touch controls. The integrated smoke suite (30 checks, shared by the Mac and iPad apps) covers rendering, language, appearance, movement, jumping, swimming, block placement/removal, glass, doors, the night sky, music, the quest counter, notifications, perspective, persistence, multi-touch, pause/resume and the two-step world reset. The iPad UI test also drives the touch controls in landscape and portrait. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
 
 ## Current scope
 
-Bieltructor is a single-player creative sandbox with a finite 57 × 57 block world, eight building materials and one building challenge. It does not yet include survival combat, crafting, multiplayer or an infinite world. World edits, Biel's position and the camera are saved locally. The macOS build has been compiled and its integrated tests run on Apple Silicon. The iOS/iPadOS build has been tested on the iPad Pro 11-inch simulator, including touch movement, jumping, building and both orientations. Intel Macs and physical iPads/iPhones have not been tested yet.
+Bieltructor is a single-player creative sandbox with a finite 57 × 57 block world, ten building materials, a day and night cycle and one building challenge. It does not yet include survival combat, crafting, multiplayer or an infinite world. World edits, Biel's position, the camera and the time of day are saved locally. The macOS build has been compiled and its integrated tests run on Apple Silicon. The iOS/iPadOS build has been tested on the iPad Pro 11-inch simulator, including touch movement, jumping, building and both orientations. Intel Macs and physical iPads/iPhones have not been tested yet.
 
 ## 📄 License
 

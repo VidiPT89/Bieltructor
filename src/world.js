@@ -1,5 +1,13 @@
 export const SIZE = 28;
 export const WATER_LEVEL = 2.2;
+// Block types: 0-7 natural materials and amber, then the building extras.
+export const GLASS = 8,
+  DOOR = 9,
+  DOOR_OPEN = 10,
+  TYPES = 11;
+// Biel walks through open doors; light passes through glass and open doors.
+export const passable = (type) => type === DOOR_OPEN;
+export const seeThrough = (type) => type === GLASS || type === DOOR_OPEN;
 export const key = (x, y, z) => `${x},${y},${z}`;
 export function height(x, z) {
   return Math.max(
@@ -37,9 +45,24 @@ export function generate() {
   return blocks;
 }
 function solid(blocks, x, y, z) {
-  return blocks.has(
+  const type = blocks.get(
     key(Math.floor(x + 0.5), Math.floor(y + 0.5), Math.floor(z + 0.5)),
   );
+  return type !== undefined && !passable(type);
+}
+// Opens or closes the whole vertical door at x,y,z. Returns the keys changed.
+export function toggleDoor(blocks, x, y, z) {
+  const isDoor = (t) => t === DOOR || t === DOOR_OPEN;
+  if (!isDoor(blocks.get(key(x, y, z)))) return [];
+  const next = blocks.get(key(x, y, z)) === DOOR ? DOOR_OPEN : DOOR;
+  let bottom = y;
+  while (isDoor(blocks.get(key(x, bottom - 1, z)))) bottom--;
+  const changed = [];
+  for (let h = bottom; isDoor(blocks.get(key(x, h, z))); h++) {
+    blocks.set(key(x, h, z), next);
+    changed.push(key(x, h, z));
+  }
+  return changed;
 }
 export function collides(blocks, p) {
   for (const x of [p.x - 0.27, p.x + 0.27])
@@ -65,7 +88,7 @@ export function validateSave(raw) {
       Math.abs(e[2]) <= SIZE &&
       e[1] >= 1 &&
       e[1] <= 30 &&
-      (e[3] === null || (Number.isInteger(e[3]) && e[3] >= 0 && e[3] < 8)),
+      (e[3] === null || (Number.isInteger(e[3]) && e[3] >= 0 && e[3] < TYPES)),
   );
   return edits;
 }

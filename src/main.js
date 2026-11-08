@@ -9,7 +9,15 @@ import {
   validateSave,
   validatePlayer,
   WATER_LEVEL,
+  GLASS,
+  DOOR,
+  DOOR_OPEN,
+  TYPES,
+  seeThrough,
+  toggleDoor,
 } from "./world.js";
+import { sky, DAY_LENGTH, NOON } from "./daynight.js";
+import { Music, audioContext, pauseAudio } from "./music.js";
 import "./style.css";
 const $ = (s) => document.querySelector(s),
   app = $("#app");
@@ -32,7 +40,7 @@ const strings = {
     off: "Desligados",
     help: "Como jogar",
     helpText:
-      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–8 para escolher um material. V muda a perspetiva. Esc abre o menu.",
+      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–9 e 0 para escolher um material. Botão direito numa porta abre-a e fecha-a. À noite, o âmbar brilha como uma lanterna. V muda a perspetiva. Esc abre o menu.",
     world: "O vale do Biel",
     creative: "MODO CRIATIVO",
     saved: "Mundo guardado",
@@ -55,6 +63,8 @@ const strings = {
       "Folhas",
       "Tijolo",
       "Âmbar",
+      "Vidro",
+      "Porta",
     ],
     break: "Partir",
     place: "Construir",
@@ -71,7 +81,7 @@ const strings = {
     view: "Perspetiva",
     reset: "Regressar ao início",
     mobile:
-      "Usa os botões para andar. Arrasta o cenário para olhar e toca num bloco para o selecionar.",
+      "Usa os botões para andar. Arrasta o cenário para olhar e toca num bloco para o selecionar. Escolhe uma porta e carrega em Construir para a abrir ou fechar.",
     quality: "Qualidade",
     high: "Alta",
     low: "Leve",
@@ -82,6 +92,12 @@ const strings = {
     confirmReset: "Carrega outra vez para apagar tudo",
     worldReset: "Mundo novo, pronto a construir!",
     space: "Espaço",
+    music: "Música",
+    cycle: "Dia e noite",
+    cycleOn: "Ciclo de 8 minutos",
+    alwaysDay: "Sempre de dia",
+    day: "Dia",
+    night: "Noite",
   },
   en: {
     tag: "A WORLD OF YOUR OWN",
@@ -101,7 +117,7 @@ const strings = {
     off: "Off",
     help: "How to play",
     helpText:
-      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–8 select a material. V changes perspective. Esc opens the menu.",
+      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–9 and 0 select a material. Right-click a door to open or close it. At night, amber glows like a lantern. V changes perspective. Esc opens the menu.",
     world: "Biel’s valley",
     creative: "CREATIVE MODE",
     saved: "World saved",
@@ -123,6 +139,8 @@ const strings = {
       "Leaves",
       "Brick",
       "Amber",
+      "Glass",
+      "Door",
     ],
     break: "Break",
     place: "Build",
@@ -139,7 +157,7 @@ const strings = {
     view: "Perspective",
     reset: "Return to spawn",
     mobile:
-      "Use the buttons to move. Drag the scene to look and tap a block to select it.",
+      "Use the buttons to move. Drag the scene to look and tap a block to select it. Select a door and press Build to open or close it.",
     quality: "Quality",
     high: "High",
     low: "Light",
@@ -150,9 +168,22 @@ const strings = {
     confirmReset: "Press again to erase everything",
     worldReset: "A fresh world, ready to build!",
     space: "Space",
+    music: "Music",
+    cycle: "Day and night",
+    cycleOn: "8-minute cycle",
+    alwaysDay: "Always day",
+    day: "Day",
+    night: "Night",
   },
 };
-let settings = { lang: "pt", theme: "system", sound: true, quality: "high" };
+let settings = {
+  lang: "pt",
+  theme: "system",
+  sound: true,
+  music: true,
+  cycle: "cycle",
+  quality: "high",
+};
 try {
   Object.assign(
     settings,
@@ -168,11 +199,16 @@ let mode = "splash",
   selected = 0,
   firstPerson = false,
   confirmReset = false,
+  timeOfDay = NOON,
+  scenery = "menu",
   toastTimer,
   saveTimer;
+const music = new Music();
+const isNight = () => settings.cycle === "cycle" && sky(timeOfDay).night;
+const clock = () => (isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`);
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
-  0xefad36,
+  0xefad36, 0xbfe6ec, 0x8a5a33,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -201,7 +237,7 @@ function render() {
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${started ? t("resume") : t("play")} <span>↗︎</span>`, "primary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${t("world")}</strong><small>${t("creative")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${t("world")}</b><small>${t("creative")}</small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${i + 1}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button></div></div>`;
+    content = `<div class="hud-top"><div class="world-title"><b>${t("world")}</b><small>${t("creative")} · <span class="clock">${clock()}</span></small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${(i + 1) % 10}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button></div></div>`;
   if (["settings", "help", "paused"].includes(mode)) {
     let inner = "";
     if (mode === "paused")
@@ -209,7 +245,7 @@ function render() {
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${button("export", t("export"))}${button("import", t("import"))}${button("reset", confirmReset ? t("confirmReset") : t("resetWorld"), confirmReset ? "danger confirm" : "danger")}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("cycle")}<select id="cycle"><option value="cycle" ${settings.cycle === "cycle" ? "selected" : ""}>${t("cycleOn")}</option><option value="day" ${settings.cycle === "day" ? "selected" : ""}>${t("alwaysDay")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${button("export", t("export"))}${button("import", t("import"))}${button("reset", confirmReset ? t("confirmReset") : t("resetWorld"), confirmReset ? "danger confirm" : "danger")}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t(mode === "paused" ? "pause" : mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
@@ -228,11 +264,16 @@ function render() {
       ["language", "lang"],
       ["appearance", "theme"],
       ["sound", "sound"],
+      ["music", "music"],
+      ["cycle", "cycle"],
       ["quality", "quality"],
     ])
       $("#" + id).onchange = (e) => {
         settings[prop] =
-          prop === "sound" ? e.target.value === "on" : e.target.value;
+          prop === "sound" || prop === "music"
+            ? e.target.value === "on"
+            : e.target.value;
+        if (prop === "music") settings.music ? music.start() : music.stop();
         theme();
         applyQuality();
         render();
@@ -338,6 +379,7 @@ function save() {
         yaw,
         pitch,
         firstPerson,
+        time: timeOfDay,
       }),
     );
     return true;
@@ -395,7 +437,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.18;
-scene.add(new THREE.HemisphereLight(0xe5f3ff, 0x667349, 2.5));
+const hemi = new THREE.HemisphereLight(0xe5f3ff, 0x667349, 2.5);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffe6b2, 3);
 sun.position.set(18, 35, 12);
 sun.castShadow = true;
@@ -435,15 +478,70 @@ function texture(hex) {
     ctx.fillStyle = i % 2 ? "#ffffff12" : "#00000012";
     ctx.fillRect((i * 7) % 16, (i * 11 + Math.floor(i / 16) * 3) % 16, 2, 2);
   }
+  return pixelTexture(canvas);
+}
+// Glass: a light frame with a clear centre and a little shine.
+function glassTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 16;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#cdeef488";
+  ctx.fillRect(0, 0, 16, 16);
+  ctx.clearRect(1, 1, 14, 14);
+  ctx.fillStyle = "#e6f8fb33";
+  ctx.fillRect(1, 1, 14, 14);
+  ctx.fillStyle = "#ffffffaa";
+  for (let i = 0; i < 4; i++) ctx.fillRect(3 + i, 9 - i * 2, 1, 2);
+  return pixelTexture(canvas);
+}
+// Door: wooden planks, a small window and a brass handle.
+function doorTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 16;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#8a5a33";
+  ctx.fillRect(0, 0, 16, 16);
+  ctx.fillStyle = "#6c4325";
+  for (const x of [0, 5, 10, 15]) ctx.fillRect(x, 0, 1, 16);
+  ctx.fillRect(0, 0, 16, 1);
+  ctx.fillRect(0, 15, 16, 1);
+  ctx.fillStyle = "#bfe6ec";
+  ctx.fillRect(4, 3, 8, 4);
+  ctx.fillStyle = "#f2c14e";
+  ctx.fillRect(12, 9, 2, 2);
+  return pixelTexture(canvas);
+}
+function pixelTexture(canvas) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
-const materials = colors.map(
-  (c) => new THREE.MeshStandardMaterial({ map: texture(c), roughness: 1 }),
+const doorMaterial = new THREE.MeshStandardMaterial({
+  map: doorTexture(),
+  roughness: 0.9,
+});
+const materials = colors.map((c, i) =>
+  i === GLASS
+    ? new THREE.MeshStandardMaterial({
+        map: glassTexture(),
+        transparent: true,
+        roughness: 0.15,
+        depthWrite: false,
+      })
+    : i === DOOR
+      ? doorMaterial
+      : new THREE.MeshStandardMaterial({ map: texture(c), roughness: 1 }),
 );
+materials[DOOR_OPEN] = doorMaterial;
+// Amber works as a lantern: it glows as night falls.
+const amber = materials[7];
+amber.emissive.set(0xffa040);
+amber.emissiveMap = amber.map;
+amber.emissiveIntensity = 0;
+// An open door folds against the side of its block.
+const doorPanel = new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0);
 function rebuild() {
   for (const m of meshes) {
     terrain.remove(m);
@@ -451,7 +549,7 @@ function rebuild() {
   }
   meshes = [];
   mapping = [];
-  const groups = colors.map(() => []);
+  const groups = Array.from({ length: TYPES }, () => []);
   for (const [k, type] of blocks) {
     const [x, y, z] = k.split(",").map(Number);
     if (
@@ -462,17 +560,24 @@ function rebuild() {
         [0, -1, 0],
         [0, 0, 1],
         [0, 0, -1],
-      ].some(([a, b, c]) => !blocks.has(key(x + a, y + b, z + c)))
+      ].some(([a, b, c]) => {
+        const next = blocks.get(key(x + a, y + b, z + c));
+        return next === undefined || seeThrough(next);
+      })
     )
       groups[type].push([x, y, z]);
   }
   const matrix = new THREE.Matrix4();
   groups.forEach((group, i) => {
-    const mesh = new THREE.InstancedMesh(cube, materials[i], group.length);
+    const mesh = new THREE.InstancedMesh(
+      i === DOOR_OPEN ? doorPanel : cube,
+      materials[i],
+      group.length,
+    );
     group.forEach(([x, y, z], j) =>
       mesh.setMatrixAt(j, matrix.makeTranslation(x, y, z)),
     );
-    mesh.castShadow = true;
+    mesh.castShadow = i !== GLASS;
     mesh.receiveShadow = true;
     mesh.userData.type = i;
     terrain.add(mesh);
@@ -515,6 +620,81 @@ for (let i = 0; i < 13; i++) {
     Math.cos(i * 4) * 45,
   );
   clouds.add(group);
+}
+// Sky: stars, sun and moon live far away and follow the camera.
+const skyDome = new THREE.Group();
+scene.add(skyDome);
+const starPositions = [];
+for (let i = 0; i < 450; i++) {
+  const u = Math.random() * Math.PI * 2,
+    v = Math.random() * 0.9 + 0.05;
+  starPositions.push(
+    Math.cos(u) * Math.sqrt(1 - v * v) * 95,
+    v * 95,
+    Math.sin(u) * Math.sqrt(1 - v * v) * 95,
+  );
+}
+const stars = new THREE.Points(
+  new THREE.BufferGeometry().setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(starPositions, 3),
+  ),
+  new THREE.PointsMaterial({
+    color: 0xfff8e6,
+    size: 1.3,
+    transparent: true,
+    opacity: 0,
+    fog: false,
+    depthWrite: false,
+  }),
+);
+skyDome.add(stars);
+const disc = (color, size) => {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshBasicMaterial({ color, fog: false, transparent: true }),
+  );
+  skyDome.add(m);
+  return m;
+};
+const sunDisc = disc(0xfff0a8, 9),
+  moonDisc = disc(0xe9eef8, 6);
+const DAY_SKY = new THREE.Color(0xb6d7dc),
+  NIGHT_SKY = new THREE.Color(0x0c1630),
+  DUSK_SKY = new THREE.Color(0xf09a5c),
+  SUNLIGHT = new THREE.Color(0xffe6b2),
+  DUSK_LIGHT = new THREE.Color(0xff9a5a),
+  DAY_HEMI = new THREE.Color(0xe5f3ff),
+  NIGHT_HEMI = new THREE.Color(0x9db0e8),
+  sunDirection = new THREE.Vector3();
+function applySky(time) {
+  const s = sky(time);
+  scene.background
+    .copy(NIGHT_SKY)
+    .lerp(DAY_SKY, s.daylight)
+    .lerp(DUSK_SKY, s.dusk * 0.55);
+  scene.fog.color.copy(scene.background);
+  hemi.intensity = 1.25 + 1.25 * s.daylight;
+  hemi.color.copy(NIGHT_HEMI).lerp(DAY_HEMI, s.daylight);
+  sun.intensity = 3 * s.daylight;
+  sun.color.copy(SUNLIGHT).lerp(DUSK_LIGHT, s.dusk);
+  sunDirection.set(...s.sun).normalize();
+  sun.position.set(
+    sunDirection.x * 40,
+    Math.max(sunDirection.y, 0.15) * 40,
+    12,
+  );
+  skyDome.position.copy(camera.position);
+  sunDisc.position.copy(sunDirection).multiplyScalar(90);
+  moonDisc.position.copy(sunDirection).multiplyScalar(-90);
+  sunDisc.lookAt(camera.position);
+  moonDisc.lookAt(camera.position);
+  sunDisc.material.opacity = Math.min(1, s.daylight * 3);
+  moonDisc.material.opacity = 1 - s.daylight;
+  stars.material.opacity = Math.max(0, 1 - s.daylight * 1.6);
+  amber.emissiveIntensity = (1 - s.daylight) * 1.4;
+  music.night = s.night;
+  return s;
 }
 // Biel's original voxel explorer: short brown hair, brown eyes and orange jacket.
 const biel = new THREE.Group();
@@ -587,7 +767,9 @@ function spawn() {
 spawn();
 // Return to where Biel was standing last time, when that spot is still free.
 try {
-  const last = validatePlayer(JSON.parse(localStorage.getItem("biel-player")));
+  const raw = JSON.parse(localStorage.getItem("biel-player"));
+  if (Number.isFinite(raw?.time)) timeOfDay = ((raw.time % 1) + 1) % 1;
+  const last = validatePlayer(raw);
   if (last) {
     player.set(last.x, last.y, last.z);
     ({ yaw, pitch, firstPerson } = last);
@@ -623,6 +805,7 @@ app.addEventListener("pointerdown", (e) => {
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
   app.addEventListener(event, (e) => touchInput.release(e.pointerId));
 window.pauseNativeGame = () => {
+  pauseAudio(true);
   keys.clear();
   touchInput.clear();
   pointerDown = null;
@@ -650,11 +833,10 @@ function pick() {
     }
   }
 }
-let audio;
 function beep(build) {
   if (!settings.sound) return;
   try {
-    audio ??= new AudioContext();
+    const audio = audioContext();
     audio.resume();
     const osc = audio.createOscillator(),
       gain = audio.createGain();
@@ -690,9 +872,24 @@ function burst(p, type) {
     });
   }
 }
+const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
 function edit(place) {
   if (mode !== "playing" || !target) return;
   const p = [...target.p];
+  // Building on a door opens or closes it instead.
+  if (place && isDoor(blocks.get(key(...p)))) {
+    const changed = toggleDoor(blocks, ...p);
+    if (collides(blocks, player)) {
+      toggleDoor(blocks, ...p);
+      return;
+    }
+    for (const k of changed) edits.set(k, blocks.get(k));
+    beep(true);
+    rebuild();
+    pick();
+    scheduleSave();
+    return;
+  }
   if (place) {
     p[0] += Math.round(target.normal.x);
     p[1] += Math.round(target.normal.y);
@@ -709,10 +906,32 @@ function edit(place) {
       return;
     }
     edits.set(k, selected);
+    // Doors are two blocks tall when there is room above.
+    const above = key(p[0], p[1] + 1, p[2]);
+    if (selected === DOOR && p[1] < 30 && !blocks.has(above)) {
+      blocks.set(above, DOOR);
+      if (collides(blocks, player)) blocks.delete(above);
+      else edits.set(above, DOOR);
+    }
   } else {
-    burst(p, blocks.get(k));
-    blocks.delete(k);
-    edits.set(k, null);
+    const type = blocks.get(k);
+    burst(p, type);
+    // Breaking a door removes the whole door.
+    const removed = [p[1]];
+    if (isDoor(type)) {
+      for (let y = p[1] + 1; isDoor(blocks.get(key(p[0], y, p[2]))); y++)
+        removed.push(y);
+      for (
+        let y = p[1] - 1;
+        y >= 1 && isDoor(blocks.get(key(p[0], y, p[2])));
+        y--
+      )
+        removed.push(y);
+    }
+    for (const y of removed) {
+      blocks.delete(key(p[0], y, p[2]));
+      edits.set(key(p[0], y, p[2]), null);
+    }
   }
   beep(place);
   rebuild();
@@ -780,8 +999,8 @@ window.addEventListener("keydown", (e) => {
     )
       e.preventDefault();
     keys.add(e.code);
-    if (/^[1-8]$/.test(e.key)) {
-      selected = +e.key - 1;
+    if (/^[0-9]$/.test(e.key)) {
+      selected = e.key === "0" ? 9 : +e.key - 1;
       render();
     }
     if (e.code === "KeyV" && !e.repeat) togglePerspective();
@@ -801,7 +1020,14 @@ window.addEventListener("blur", () => {
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && mode === "playing") action("pause");
+  pauseAudio(document.hidden);
 });
+// Browsers only allow sound after the player touches or presses something.
+const startMusic = () => {
+  if (settings.music && !music.enabled) music.start();
+};
+window.addEventListener("pointerdown", startMusic);
+window.addEventListener("keydown", startMusic);
 window.addEventListener("pagehide", save);
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
@@ -816,6 +1042,10 @@ function frame(now) {
   const dt = Math.max(0, Math.min((now - last) / 1000, 0.04));
   last = now;
   elapsed += dt;
+  if (mode === "playing") scenery = "game";
+  if (mode === "menu" || mode === "splash") scenery = "menu";
+  if (mode === "playing" && settings.cycle === "cycle")
+    timeOfDay = (timeOfDay + dt / DAY_LENGTH) % 1;
   if (mode === "playing") {
     biel.scale.setScalar(1);
     let dx =
@@ -919,6 +1149,12 @@ function frame(now) {
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
     water.position.y = WATER_LEVEL + Math.sin(elapsed * 0.7) * 0.035;
   clouds.rotation.y = elapsed * 0.003;
+  // The menu always shows a sunny day; the game follows the clock.
+  applySky(
+    scenery === "game" && settings.cycle === "cycle" ? timeOfDay : NOON + 0.03,
+  );
+  const clockEl = app.querySelector(".clock");
+  if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= dt;
@@ -1035,6 +1271,59 @@ if (new URLSearchParams(location.search).has("test"))
     edit(false);
     check("break block", !blocks.has(key(x, y + 1, z)));
     check("quest counts standing blocks", placed() === 0);
+    // Glass keeps the block behind it visible; doors are two tall and open with Build.
+    const gx = -3,
+      gz = 3,
+      gy = height(gx, gz);
+    target = { p: [gx, gy, gz], normal: new THREE.Vector3(0, 1, 0) };
+    selected = GLASS;
+    edit(true);
+    check(
+      "glass shows the block below",
+      blocks.get(key(gx, gy + 1, gz)) === GLASS &&
+        mapping[blocks.get(key(gx, gy, gz))].some(
+          ([a, b, c]) => a === gx && b === gy && c === gz,
+        ),
+    );
+    target = {
+      p: [gx + 1, height(gx + 1, gz), gz],
+      normal: new THREE.Vector3(0, 1, 0),
+    };
+    selected = DOOR;
+    edit(true);
+    const doorY = height(gx + 1, gz) + 1;
+    check(
+      "door is two blocks tall",
+      blocks.get(key(gx + 1, doorY, gz)) === DOOR &&
+        blocks.get(key(gx + 1, doorY + 1, gz)) === DOOR,
+    );
+    target = { p: [gx + 1, doorY + 1, gz], normal: new THREE.Vector3(1, 0, 0) };
+    edit(true);
+    check(
+      "door opens and can be walked through",
+      blocks.get(key(gx + 1, doorY, gz)) === DOOR_OPEN &&
+        !collides(blocks, { x: gx + 1, y: doorY - 0.49, z: gz }),
+    );
+    target = { p: [gx + 1, doorY, gz], normal: new THREE.Vector3(0, 1, 0) };
+    edit(false);
+    check(
+      "breaking a door removes all of it",
+      !blocks.has(key(gx + 1, doorY + 1, gz)),
+    );
+    target = { p: [gx, gy + 1, gz], normal: new THREE.Vector3(0, 1, 0) };
+    edit(false);
+    const night = applySky(0.75);
+    check(
+      "night sky with glowing amber",
+      night.night && scene.background.r < 0.15 && amber.emissiveIntensity > 1,
+    );
+    check(
+      "day sky",
+      applySky(NOON).daylight === 1 && amber.emissiveIntensity === 0,
+    );
+    music.start();
+    check("music starts", music.enabled);
+    music.stop();
     // Swimming: drop Biel into a dug hole under the water and paddle up.
     let hole = null;
     for (let i = -SIZE + 2; i < SIZE - 2 && !hole; i++)
