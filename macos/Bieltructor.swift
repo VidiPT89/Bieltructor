@@ -8,9 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   var window: NSWindow!
   var web: WKWebView!
   let assets = LocalAssets()
-  let smoke =
-    CommandLine.arguments.contains("--smoke-test")
-    || Bundle.main.object(forInfoDictionaryKey: "BielSmokeTest") as? Bool == true
+  let smoke = CommandLine.arguments.contains("--smoke-test")
   func applicationDidFinishLaunching(_ notification: Notification) {
     let menu = NSMenu()
     let item = NSMenuItem()
@@ -18,6 +16,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     let appMenu = NSMenu()
     item.submenu = appMenu
     appMenu.addItem(withTitle: "Bieltructor", action: #selector(showAbout), keyEquivalent: "")
+    appMenu.addItem(.separator())
+    appMenu.addItem(
+      withTitle: "Hide Bieltructor", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+    appMenu.addItem(
+      withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)),
+      keyEquivalent: "h"
+    ).keyEquivalentModifierMask = [.option, .command]
     appMenu.addItem(.separator())
     appMenu.addItem(
       withTitle: "Quit Bieltructor", action: #selector(NSApplication.terminate(_:)),
@@ -35,13 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     let config = WKWebViewConfiguration()
     config.setURLSchemeHandler(assets, forURLScheme: "bieltructor")
     config.userContentController.add(self, name: "files")
-    config.userContentController.add(self, name: "diagnostics")
-    config.userContentController.addUserScript(
-      WKUserScript(
-        source:
-          "window.addEventListener('error', e => window.webkit.messageHandlers.diagnostics.postMessage(e.message + ' @ ' + e.filename + ':' + e.lineno));",
-        injectionTime: .atDocumentStart, forMainFrameOnly: true))
-    if smoke { config.websiteDataStore = .nonPersistent() }
+    if smoke {
+      // Test runs use a throwaway data store and report JavaScript errors to /tmp.
+      config.websiteDataStore = .nonPersistent()
+      config.userContentController.add(self, name: "diagnostics")
+      config.userContentController.addUserScript(
+        WKUserScript(
+          source:
+            "window.addEventListener('error', e => window.webkit.messageHandlers.diagnostics.postMessage(e.message + ' @ ' + e.filename + ':' + e.lineno));",
+          injectionTime: .atDocumentStart, forMainFrameOnly: true))
+    }
     web = WKWebView(frame: .zero, configuration: config)
     web.navigationDelegate = self
     web.uiDelegate = self
@@ -69,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
           "Developed by David Arsénio Martins\nhttps://ividi.dev/\nhttps://github.com/VidiPT89/"),
     ])
   }
+  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
   func webView(
     _ webView: WKWebView, decidePolicyFor action: WKNavigationAction,

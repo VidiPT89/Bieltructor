@@ -67,7 +67,8 @@ a:hover {
 }
 #app {
   position: fixed;
-  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  inset: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
   pointer-events: none;
 }
 #app button,
@@ -107,15 +108,9 @@ header {
   color: #f0a33c;
 }
 .brand-icon {
-  background: #ed8524;
-  color: #222;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 40px;
-  box-shadow: 4px 4px 0 #a45419;
-  transform: rotate(-5deg);
-  font-size: 32px;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 4px 8px #0006);
 }
 .edition {
   font-size: 10px;
@@ -286,20 +281,21 @@ footer {
   font-size: 12px;
   color: #a3aaa6;
 }
-.splash-cube {
-  margin: 0 auto 35px;
-  display: grid;
-  place-items: center;
-  background: #ec902e;
-  width: 82px;
-  height: 82px;
-  box-shadow: 10px 10px 0 #a8571d;
-  color: #271b12;
-  font:
-    900 74px "Barlow Condensed",
-    Impact,
-    sans-serif;
-  animation: float 2s ease-in-out infinite;
+.splash-logo {
+  display: block;
+  margin: 0 auto 30px;
+  width: min(240px, 52vw);
+  height: auto;
+  filter: drop-shadow(0 18px 30px #0008);
+  animation:
+    pop 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both,
+    float 3s ease-in-out 0.7s infinite;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.6) rotate(-6deg);
+    opacity: 0;
+  }
 }
 .splash > .credits {
   position: absolute;
@@ -373,11 +369,12 @@ option {
 }
 .file-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 24px 0 12px;
 }
 .file-actions button {
-  flex: 1;
+  flex: 1 1 40%;
   font-size: 11px;
   padding: 12px 6px;
 }
@@ -485,6 +482,7 @@ kbd {
   transition: width 0.2s;
 }
 .crosshair {
+  display: none;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -575,6 +573,9 @@ kbd {
   text-align: center;
   z-index: 10;
 }
+.first-person .crosshair {
+  display: block;
+}
 #toast.show {
   transform: translate(-50%, 0);
 }
@@ -625,9 +626,8 @@ kbd {
     font-size: 24px;
   }
   .brand-icon {
-    width: 30px;
-    height: 32px;
-    font-size: 27px;
+    width: 34px;
+    height: 34px;
   }
   .edition {
     display: none;
@@ -971,5 +971,29 @@ kbd {
   }
   [data-platform="ios"] .intro h1 {
     font-size: 44px;
+  }
+}
+.file-actions .danger {
+  flex-basis: 100%;
+  color: #e0664a;
+  border-color: #e0664a66;
+}
+.file-actions .danger.confirm {
+  background: #c94f35;
+  color: #fff8ee;
+}
+.menu header,
+.menu .intro,
+.menu .biel-label,
+.menu footer {
+  animation: fade-in 0.7s ease-out both;
+}
+.menu .intro {
+  animation-delay: 0.1s;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
 }

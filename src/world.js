@@ -1,4 +1,5 @@
 export const SIZE = 28;
+export const WATER_LEVEL = 2.2;
 export const key = (x, y, z) => `${x},${y},${z}`;
 export function height(x, z) {
   return Math.max(
@@ -35,7 +36,7 @@ export function generate() {
     }
   return blocks;
 }
-export function solid(blocks, x, y, z) {
+function solid(blocks, x, y, z) {
   return blocks.has(
     key(Math.floor(x + 0.5), Math.floor(y + 0.5), Math.floor(z + 0.5)),
   );
@@ -67,4 +68,19 @@ export function validateSave(raw) {
       (e[3] === null || (Number.isInteger(e[3]) && e[3] >= 0 && e[3] < 8)),
   );
   return edits;
+}
+export function validatePlayer(raw) {
+  if (!raw) return null;
+  const { x, y, z, yaw, pitch, firstPerson } = raw;
+  if (![x, y, z, yaw, pitch].every(Number.isFinite)) return null;
+  if (Math.abs(x) > SIZE || Math.abs(z) > SIZE || y < 0.5 || y > 40)
+    return null;
+  return {
+    x,
+    y,
+    z,
+    yaw,
+    pitch: Math.max(-0.25, Math.min(1.15, pitch)),
+    firstPerson: firstPerson === true,
+  };
 }

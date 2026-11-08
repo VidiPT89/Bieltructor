@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" width="160" alt="Bieltructor logo"></p>
+
 # Bieltructor 🧱
 
 > A creative voxel adventure for macOS, iPad and iPhone, starring Biel. Explore a peaceful block world, build your own shelter and turn little blocks into big adventures.
@@ -7,7 +9,10 @@
 [![Report Bug](https://img.shields.io/badge/Report-Bug-red)](https://github.com/VidiPT89/Bieltructor/issues)
 [![Request Feature](https://img.shields.io/badge/Request-Feature-blue)](https://github.com/VidiPT89/Bieltructor/issues)
 
-![Bieltructor on macOS](docs/screenshot.png)
+<p align="center">
+  <img src="docs/screenshot.jpg" width="68%" alt="Bieltructor on macOS">
+  <img src="docs/screenshot-ipad.jpg" width="27%" alt="Bieltructor on iPad">
+</p>
 
 ## ✨ Features
 
@@ -15,14 +20,16 @@
 - ✅ A 3D island with hills, trees, sandy shores, animated water and drifting clouds
 - ✅ Creative building with eight materials: grass, dirt, stone, sand, wood, leaves, brick and amber
 - ✅ Break and place blocks with particle effects and synthesized sounds
-- ✅ Walking, running, jumping, gravity, collisions and first/third-person views
-- ✅ A first-shelter building challenge
-- ✅ Automatic local world saving, plus JSON import and export through macOS file dialogs
+- ✅ Walking, running, jumping, swimming, gravity, collisions and first/third-person views
+- ✅ Crosshair aiming in first person with a mouse, tap-to-select on touch screens
+- ✅ A first-shelter building challenge that counts the blocks still standing
+- ✅ Automatic local saving of the world and of Biel's position and camera
+- ✅ JSON import and export through native file dialogs, plus a two-step "Start a new world" reset
 - ✅ Portuguese (Portugal) and English, selectable in Settings
 - ✅ Dark, Light and System appearance, with the iVidi.dev orange, burnt yellow and black palette
-- ✅ Animated introduction with developer credits, followed by the main menu
+- ✅ Animated introduction with the game logo and developer credits (tap or press a key to skip), followed by the main menu
 - ✅ Standalone macOS window with full-screen support, application icon and offline gameplay
-- ✅ Adjustable rendering quality and sound controls
+- ✅ Sound controls and two quality levels (Light turns shadows off for older devices)
 - ✅ iOS/iPadOS app with multi-touch movement, jumping, camera control and native Files import/export
 - ✅ Portrait and landscape layouts, safe-area support and automatic pause when leaving the app
 
@@ -88,16 +95,20 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 |--------|---------|
 | Move | W A S D or arrow keys |
 | Run | Shift + movement |
-| Jump | Space |
+| Jump / swim up | Space |
 | Look around | Drag the scene |
-| Break a block | Left-click a nearby block |
+| Break a block | Left-click a nearby block (in first person, the block under the crosshair) |
 | Place a block | Right-click, or Shift + click |
 | Select material | 1–8 or click the inventory |
 | Change perspective | V or the camera button |
 | Pause | Escape or the pause button |
 | Full screen | Control + Command + F |
 
-Building has a seven-block reach. The bottom layer is protected. Use **Return to spawn** in the pause menu if you need to find your way home. Export a world from Settings to keep a backup before importing another world.
+Building has a seven-block reach. Water is shallow, but holes dug below the waterline fill with water: hold Space to swim up. The bottom layer is protected. Use **Return to spawn** in the pause menu if you need to find your way home. Export a world from Settings to keep a backup before importing another world.
+
+## 🎨 App icon
+
+The logo lives in `doc/Bieltructor_logo.jpeg`. After changing it, run `npm run icons` (Python 3 with Pillow) to regenerate the macOS `.icns`, the iOS app icon, the in-game logo and the favicon.
 
 ## 🧪 Testing
 
@@ -109,11 +120,11 @@ npm run build:ios
 # In Xcode: select an iPad simulator, then Product > Test.
 ```
 
-The unit suite checks deterministic terrain, the protected floor, spawn clearance, collision boundaries and saved-world validation, independent fingers and clearing held touch controls. The integrated macOS smoke suite checks rendering, language, appearance, movement, jumping, block placement/removal, persistence and pause/resume. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
+The unit suite checks deterministic terrain, the protected floor, spawn clearance, collision boundaries, saved-world and saved-position validation, independent fingers and clearing held touch controls. The integrated smoke suite (23 checks, shared by the Mac and iPad apps) covers rendering, language, appearance, movement, jumping, swimming, block placement/removal, the quest counter, notifications, perspective, persistence, multi-touch, pause/resume and the two-step world reset. The iPad UI test also drives the touch controls in landscape and portrait. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
 
 ## Current scope
 
-Bieltructor is a single-player creative sandbox with a finite 57 × 57 block world, eight building materials and one building challenge. It does not yet include survival combat, crafting, multiplayer or an infinite world. World edits are saved locally; player position returns to the spawn point when reopening the app. The macOS build has been compiled and its integrated tests run on Apple Silicon. The iOS/iPadOS build has been tested on the iPad Pro 11-inch simulator, including touch movement, jumping, building and both orientations. Intel Macs and physical iPads/iPhones have not been tested yet.
+Bieltructor is a single-player creative sandbox with a finite 57 × 57 block world, eight building materials and one building challenge. It does not yet include survival combat, crafting, multiplayer or an infinite world. World edits, Biel's position and the camera are saved locally. The macOS build has been compiled and its integrated tests run on Apple Silicon. The iOS/iPadOS build has been tested on the iPad Pro 11-inch simulator, including touch movement, jumping, building and both orientations. Intel Macs and physical iPads/iPhones have not been tested yet.
 
 ## 📄 License
 

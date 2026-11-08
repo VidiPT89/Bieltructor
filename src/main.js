@@ -7,6 +7,8 @@ import {
   SIZE,
   collides,
   validateSave,
+  validatePlayer,
+  WATER_LEVEL,
 } from "./world.js";
 import "./style.css";
 const $ = (s) => document.querySelector(s),
@@ -30,7 +32,7 @@ const strings = {
     off: "Desligados",
     help: "Como jogar",
     helpText:
-      "W A S D ou setas para andar · Shift para correr · Espaço para saltar. Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–8 para escolher um material. V muda a perspetiva. Esc abre o menu.",
+      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–8 para escolher um material. V muda a perspetiva. Esc abre o menu.",
     world: "O vale do Biel",
     creative: "MODO CRIATIVO",
     saved: "Mundo guardado",
@@ -54,7 +56,6 @@ const strings = {
       "Tijolo",
       "Âmbar",
     ],
-    built: "blocos colocados",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -75,8 +76,12 @@ const strings = {
     high: "Alta",
     low: "Leve",
     storage: "O mundo é guardado neste dispositivo.",
-    start: "Começar",
-    close: "Fechar",
+    edition: "EDIÇÃO CRIATIVA / 01",
+    made: "Feito para imaginar",
+    resetWorld: "Recomeçar o mundo",
+    confirmReset: "Carrega outra vez para apagar tudo",
+    worldReset: "Mundo novo, pronto a construir!",
+    space: "Espaço",
   },
   en: {
     tag: "A WORLD OF YOUR OWN",
@@ -96,7 +101,7 @@ const strings = {
     off: "Off",
     help: "How to play",
     helpText:
-      "W A S D or arrow keys to move · Shift to run · Space to jump. Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–8 select a material. V changes perspective. Esc opens the menu.",
+      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–8 select a material. V changes perspective. Esc opens the menu.",
     world: "Biel’s valley",
     creative: "CREATIVE MODE",
     saved: "World saved",
@@ -119,7 +124,6 @@ const strings = {
       "Brick",
       "Amber",
     ],
-    built: "blocks placed",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -140,8 +144,12 @@ const strings = {
     high: "High",
     low: "Light",
     storage: "Your world is saved on this device.",
-    start: "Start",
-    close: "Close",
+    edition: "CREATIVE EDITION / 01",
+    made: "Made for imagination",
+    resetWorld: "Start a new world",
+    confirmReset: "Press again to erase everything",
+    worldReset: "A fresh world, ready to build!",
+    space: "Space",
   },
 };
 let settings = { lang: "pt", theme: "system", sound: true, quality: "high" };
@@ -158,8 +166,8 @@ let mode = "splash",
   previous = "menu",
   started = false,
   selected = 0,
-  count = 0,
   firstPerson = false,
+  confirmReset = false,
   toastTimer,
   saveTimer;
 const colors = [
@@ -168,7 +176,7 @@ const colors = [
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
-const logo = `<span class="brand-icon">B</span><span>BIEL<span class="brand-accent">TRUCTOR</span></span>`;
+const logo = `<img class="brand-icon" src="logo.webp" alt=""><span>BIEL<span class="brand-accent">TRUCTOR</span></span>`;
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.lang = settings.lang === "pt" ? "pt-PT" : "en";
@@ -177,6 +185,10 @@ function theme() {
   } catch {}
 }
 theme();
+const toastEl = document.createElement("div");
+toastEl.id = "toast";
+toastEl.setAttribute("role", "status");
+document.body.append(toastEl);
 function button(action, label, cls = "") {
   return `<button data-action="${action}" ${action === "view" || action === "pause" ? `aria-label="${t(action)}"` : ""} class="${cls}">${label}</button>`;
 }
@@ -185,22 +197,22 @@ function render() {
   if (mode !== "playing") touchInput.clear();
   let content = "";
   if (mode === "splash")
-    content = `<div class="splash-inner"><div class="splash-cube">B</div><div class="brand">BIEL<span class="brand-accent">TRUCTOR</span></div><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
+    content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
   if (mode === "menu")
-    content = `<header><a class="brand" href="#">${logo}</a><span class="edition">CREATIVE EDITION / 01</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${started ? t("resume") : t("play")} <span>↗︎</span>`, "primary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${t("world")}</strong><small>${t("creative")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${settings.lang === "pt" ? "Feito para imaginar" : "Made for imagination"}</span></footer>`;
+    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${started ? t("resume") : t("play")} <span>↗︎</span>`, "primary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${t("world")}</strong><small>${t("creative")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${t("world")}</b><small>${t("creative")}</small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${count >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (count / 12) * 100)}%"></i></div></div><small>${Math.min(count, 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${i + 1}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button></div></div>`;
+    content = `<div class="hud-top"><div class="world-title"><b>${t("world")}</b><small>${t("creative")}</small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${i + 1}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button></div></div>`;
   if (["settings", "help", "paused"].includes(mode)) {
     let inner = "";
     if (mode === "paused")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
     if (mode === "help")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>↵</kbd></div>${button("back", t("back"), "primary wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${button("export", t("export"))}${button("import", t("import"))}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${button("export", t("export"))}${button("import", t("import"))}${button("reset", confirmReset ? t("confirmReset") : t("resetWorld"), confirmReset ? "danger confirm" : "danger")}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t(mode === "paused" ? "pause" : mode)}">${inner}</section></div>`;
   }
-  app.innerHTML = content + '<div id="toast" role="status"></div>';
+  app.innerHTML = content;
   app
     .querySelectorAll("[data-action]")
     .forEach((b) => (b.onclick = () => action(b.dataset.action)));
@@ -222,9 +234,7 @@ function render() {
         settings[prop] =
           prop === "sound" ? e.target.value === "on" : e.target.value;
         theme();
-        renderer.setPixelRatio(
-          Math.min(devicePixelRatio, settings.quality === "high" ? 2 : 1),
-        );
+        applyQuality();
         render();
       };
   }
@@ -232,7 +242,15 @@ function render() {
     app.querySelector("button,select")?.focus();
 }
 function action(a) {
-  if (a === "play") {
+  if (a !== "reset") confirmReset = false;
+  if (a === "reset") {
+    if (!confirmReset) {
+      confirmReset = true;
+    } else {
+      confirmReset = false;
+      resetWorld();
+    }
+  } else if (a === "play") {
     mode = "playing";
     started = true;
     keys.clear();
@@ -249,7 +267,7 @@ function action(a) {
     mode = "menu";
     save();
   } else if (a === "view") {
-    firstPerson = !firstPerson;
+    togglePerspective();
   } else if (a === "spawn") {
     spawn();
     mode = "playing";
@@ -281,10 +299,10 @@ function action(a) {
   render();
 }
 function toast(message) {
-  $("#toast").textContent = message;
-  $("#toast").classList.add("show");
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $("#toast")?.classList.remove("show"), 3500);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3500);
 }
 const blocks = generate(),
   edits = new Map();
@@ -298,9 +316,10 @@ try {
       else blocks.set(k, type);
     }
     started = loaded.length > 0;
-    count = loaded.filter((e) => e[3] !== null).length;
   }
 } catch {}
+// Blocks Biel has placed that are still standing (drives the shelter quest).
+const placed = () => [...edits.values()].filter((v) => v !== null).length;
 function saveData() {
   return {
     version: 1,
@@ -310,6 +329,17 @@ function saveData() {
 function save() {
   try {
     localStorage.setItem("biel-world", JSON.stringify(saveData()));
+    localStorage.setItem(
+      "biel-player",
+      JSON.stringify({
+        x: player.x,
+        y: player.y,
+        z: player.z,
+        yaw,
+        pitch,
+        firstPerson,
+      }),
+    );
     return true;
   } catch {
     toast(t("saveError"));
@@ -360,9 +390,6 @@ try {
   throw Error("WebGL unavailable");
 }
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(
-  Math.min(devicePixelRatio, settings.quality === "high" ? 2 : 1),
-);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -383,6 +410,16 @@ Object.assign(sun.shadow.camera, {
 });
 sun.shadow.bias = -0.0005;
 scene.add(sun);
+// "Light" quality halves the pixel work and turns shadows off for older devices.
+function applyQuality() {
+  const high = settings.quality === "high";
+  renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 2 : 1));
+  if (sun.castShadow !== high) {
+    sun.castShadow = high;
+    scene.traverse((o) => o.material && (o.material.needsUpdate = true));
+  }
+}
+applyQuality();
 const cube = new THREE.BoxGeometry(1, 1, 1);
 const terrain = new THREE.Group();
 scene.add(terrain);
@@ -456,7 +493,7 @@ const water = new THREE.Mesh(
   }),
 );
 water.rotation.x = -Math.PI / 2;
-water.position.y = 2.2;
+water.position.y = WATER_LEVEL;
 scene.add(water);
 const clouds = new THREE.Group();
 scene.add(clouds);
@@ -548,6 +585,20 @@ function spawn() {
   velocity = 0;
 }
 spawn();
+// Return to where Biel was standing last time, when that spot is still free.
+try {
+  const last = validatePlayer(JSON.parse(localStorage.getItem("biel-player")));
+  if (last) {
+    player.set(last.x, last.y, last.z);
+    ({ yaw, pitch, firstPerson } = last);
+    if (collides(blocks, player)) spawn();
+  }
+} catch {}
+document.documentElement.classList.toggle("first-person", firstPerson);
+function togglePerspective() {
+  firstPerson = !firstPerson;
+  document.documentElement.classList.toggle("first-person", firstPerson);
+}
 const outline = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.025, 1.025, 1.025)),
   new THREE.LineBasicMaterial({ color: 0xfff3b6 }),
@@ -555,7 +606,9 @@ const outline = new THREE.LineSegments(
 scene.add(outline);
 outline.visible = false;
 const ray = new THREE.Raycaster(),
-  pointer = new THREE.Vector2(0, 0);
+  pointer = new THREE.Vector2(0, 0),
+  center = new THREE.Vector2(0, 0);
+let pointerKind = "mouse";
 let target = null,
   pointerDown = null;
 const keys = new Set();
@@ -579,7 +632,11 @@ window.pauseNativeGame = () => {
 window.nativeFileError = () => toast(t("invalid"));
 
 function pick() {
-  ray.setFromCamera(pointer, camera);
+  // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
+  ray.setFromCamera(
+    firstPerson && pointerKind !== "touch" ? center : pointer,
+    camera,
+  );
   const hits = ray.intersectObjects(meshes, false);
   target = null;
   outline.visible = false;
@@ -652,7 +709,6 @@ function edit(place) {
       return;
     }
     edits.set(k, selected);
-    count++;
   } else {
     burst(p, blocks.get(k));
     blocks.delete(k);
@@ -668,6 +724,7 @@ const canvas = $("#world");
 canvas.oncontextmenu = (e) => e.preventDefault();
 canvas.onpointerdown = (e) => {
   if (mode !== "playing" || pointerDown) return;
+  pointerKind = e.pointerType;
   pointer.set(
     (e.clientX / innerWidth) * 2 - 1,
     (-e.clientY / innerHeight) * 2 + 1,
@@ -727,7 +784,7 @@ window.addEventListener("keydown", (e) => {
       selected = +e.key - 1;
       render();
     }
-    if (e.code === "KeyV" && !e.repeat) firstPerson = !firstPerson;
+    if (e.code === "KeyV" && !e.repeat) togglePerspective();
   }
   if (e.code === "Escape" && !e.repeat) {
     if (mode === "playing") action("pause");
@@ -768,7 +825,9 @@ function frame(now) {
         Number(pressed("KeyW") || pressed("ArrowUp")) -
         Number(pressed("KeyS") || pressed("ArrowDown"));
     const len = Math.hypot(dx, dz) || 1,
-      speed = pressed("ShiftLeft") || pressed("ShiftRight") ? 6 : 3.8;
+      speed =
+        (pressed("ShiftLeft") || pressed("ShiftRight") ? 6 : 3.8) *
+        (player.y + 0.9 < WATER_LEVEL ? 0.6 : 1);
     dx /= len;
     dz /= len;
     const vx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) * speed * dt,
@@ -781,11 +840,19 @@ function frame(now) {
       if (collides(blocks, player)) player[axis] -= amount;
       player[axis] = Math.max(-SIZE + 0.3, Math.min(SIZE - 0.3, player[axis]));
     }
-    if (pressed("Space") && grounded) {
-      velocity = 7;
-      grounded = false;
+    // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
+    const swimming = player.y + 0.9 < WATER_LEVEL;
+    if (swimming) {
+      velocity = pressed("Space")
+        ? Math.min(velocity + 30 * dt, 3)
+        : Math.max(velocity - 6 * dt, -1.5);
+    } else {
+      if (pressed("Space") && grounded) {
+        velocity = 7;
+        grounded = false;
+      }
+      velocity -= 19 * dt;
     }
-    velocity -= 19 * dt;
     const steps = Math.ceil(Math.abs(velocity * dt) / 0.15) || 1;
     grounded = false;
     for (let i = 0; i < steps; i++) {
@@ -804,7 +871,7 @@ function frame(now) {
     if (dx || dz) biel.rotation.y = Math.atan2(vx, vz);
     const stride =
       dx || dz
-        ? Math.sin(elapsed * (speed === 6 ? 14 : 10)) * 0.65
+        ? Math.sin(elapsed * (speed > 4 ? 14 : 10)) * 0.65
         : Math.sin(elapsed * 2) * 0.035;
     leftLeg.rotation.x = stride;
     rightLeg.rotation.x = -stride;
@@ -850,7 +917,7 @@ function frame(now) {
     outline.visible = false;
   }
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
-    water.position.y = 2.2 + Math.sin(elapsed * 0.7) * 0.035;
+    water.position.y = WATER_LEVEL + Math.sin(elapsed * 0.7) * 0.035;
   clouds.rotation.y = elapsed * 0.003;
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -875,12 +942,15 @@ setInterval(() => {
   if (performance.now() - last > 100 && !document.hidden)
     frame(performance.now());
 }, 50);
-setTimeout(() => {
-  if (mode === "splash") {
-    mode = "menu";
-    render();
-  }
-}, 2200);
+// The intro shows for three seconds; a tap, click or key skips it.
+function leaveSplash() {
+  if (mode !== "splash") return;
+  mode = "menu";
+  render();
+}
+setTimeout(leaveSplash, 3000);
+app.addEventListener("click", leaveSplash);
+window.addEventListener("keydown", leaveSplash);
 
 function applyImportedWorld(json) {
   const data = JSON.parse(json),
@@ -896,11 +966,19 @@ function applyImportedWorld(json) {
     if (v === null) blocks.delete(k);
     else blocks.set(k, v);
   }
-  count = valid.filter((e) => e[3] !== null).length;
   rebuild();
   spawn();
   save();
   toast(t("saved"));
+}
+function resetWorld() {
+  blocks.clear();
+  for (const [k, v] of generate()) blocks.set(k, v);
+  edits.clear();
+  rebuild();
+  spawn();
+  save();
+  toast(t("worldReset"));
 }
 window.importNativeWorld = (json) => {
   try {
@@ -956,6 +1034,35 @@ if (new URLSearchParams(location.search).has("test"))
     target = { p: [x, y + 1, z], normal: new THREE.Vector3(0, 1, 0) };
     edit(false);
     check("break block", !blocks.has(key(x, y + 1, z)));
+    check("quest counts standing blocks", placed() === 0);
+    // Swimming: drop Biel into a dug hole under the water and paddle up.
+    let hole = null;
+    for (let i = -SIZE + 2; i < SIZE - 2 && !hole; i++)
+      for (let j = -SIZE + 2; j < SIZE - 2 && !hole; j++)
+        if (height(i, j) === 1) hole = [i, j];
+    const holeKey = key(hole[0], 1, hole[1]),
+      holeType = blocks.get(holeKey);
+    blocks.delete(holeKey);
+    player.set(hole[0], 0.51, hole[1]);
+    velocity = 0;
+    keys.add("Space");
+    for (let i = 0; i < 40; i++) frame(last + 16);
+    keys.delete("Space");
+    check("swim up", player.y > 1);
+    blocks.set(holeKey, holeType);
+    spawn();
+    toast("smoke");
+    render();
+    check(
+      "toast survives HUD render",
+      toastEl.isConnected && toastEl.classList.contains("show"),
+    );
+    togglePerspective();
+    check(
+      "first person crosshair",
+      document.documentElement.classList.contains("first-person"),
+    );
+    togglePerspective();
     check("save", save());
     check(
       "save round trip",
@@ -976,6 +1083,15 @@ if (new URLSearchParams(location.search).has("test"))
     check("pause menu", mode === "paused");
     action("play");
     check("resume", mode === "playing");
+    action("settings");
+    action("reset");
+    check(
+      "reset asks for confirmation",
+      edits.size > 0 && app.textContent.includes("outra vez"),
+    );
+    action("reset");
+    check("reset world", edits.size === 0 && placed() === 0);
+    action("back");
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };

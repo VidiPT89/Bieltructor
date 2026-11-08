@@ -6,6 +6,7 @@ import {
   key,
   collides,
   validateSave,
+  validatePlayer,
   SIZE,
 } from "../src/world.js";
 test("world is deterministic with an unbroken floor and safe spawn", () => {
@@ -44,5 +45,21 @@ test("save validation rejects unsupported versions and unsafe blocks", () => {
       [0, 1, 0, 6],
       [0, 2, 0, null],
     ],
+  );
+});
+test("saved player position is validated and clamped", () => {
+  assert.equal(validatePlayer(null), null);
+  assert.equal(validatePlayer({ x: 0, y: 3, z: 0, yaw: NaN, pitch: 0 }), null);
+  assert.equal(validatePlayer({ x: 999, y: 3, z: 0, yaw: 0, pitch: 0 }), null);
+  assert.deepEqual(
+    validatePlayer({
+      x: 1,
+      y: 3,
+      z: -2,
+      yaw: 0.5,
+      pitch: 9,
+      firstPerson: "yes",
+    }),
+    { x: 1, y: 3, z: -2, yaw: 0.5, pitch: 1.15, firstPerson: false },
   );
 });
