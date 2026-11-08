@@ -1,0 +1,22 @@
+{
+  "name": "bieltructor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.js",
+    "build:macos": "bash scripts/build-macos.sh",
+    "prepare:ios": "bash scripts/prepare-ios.sh",
+    "build:ios": "npm run prepare:ios && xcodebuild -project Bieltructor.xcodeproj -scheme Bieltructor-iOS -destination \"generic/platform=iOS Simulator\" -derivedDataPath build/ios-derived CODE_SIGNING_ALLOWED=NO build"
+  },
+  "dependencies": {
+    "three": "https://registry.npmjs.org/three/-/three-0.180.0.tgz"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9",
+    "vite": "8.3.5"
+  }
+}

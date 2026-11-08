@@ -1,0 +1,442 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02E085A4B6FD734441A393B6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BDA93582D5C22927B504D334 /* Assets.xcassets */; };
+		4227B7129B151E5BA3B75E01 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 6A7D324CBE685D82C4EA1E4F /* Web */; };
+		AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C2D41A078BE649D974AEBB /* LocalAssets.swift */; };
+		B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B277819F6D18035498A1E7 /* BieltructorApp.swift */; };
+		BA62B8AF10A1844C825D7A20 /* BieltructorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204580D7B0917563B3352488 /* BieltructorUITests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2D42324A960D2D71233009B2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 96695B4944A51AD334CFB805 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 12AE9CE0E60200D012F38F58;
+			remoteInfo = "Bieltructor-iOS";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		204580D7B0917563B3352488 /* BieltructorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BieltructorUITests.swift; sourceTree = "<group>"; };
+		6A7D324CBE685D82C4EA1E4F /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = build/ios/Web; sourceTree = SOURCE_ROOT; };
+		9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Bieltructor-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6C2D41A078BE649D974AEBB /* LocalAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAssets.swift; sourceTree = "<group>"; };
+		BDA93582D5C22927B504D334 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E3B277819F6D18035498A1E7 /* BieltructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BieltructorApp.swift; sourceTree = "<group>"; };
+		EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Bieltructor-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1FC5B17A92F1D40CDD5036C5 /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				B6C2D41A078BE649D974AEBB /* LocalAssets.swift */,
+			);
+			path = shared;
+			sourceTree = "<group>";
+		};
+		2BBCA4A4B930D188307308CF /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				204580D7B0917563B3352488 /* BieltructorUITests.swift */,
+			);
+			name = Tests;
+			path = ios/Tests;
+			sourceTree = "<group>";
+		};
+		5C9BB26AEA4DDE24B20996C2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */,
+				9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C201761C33170C797A38167E /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				BDA93582D5C22927B504D334 /* Assets.xcassets */,
+				E3B277819F6D18035498A1E7 /* BieltructorApp.swift */,
+			);
+			path = ios;
+			sourceTree = "<group>";
+		};
+		DB0197CD88492F5396B948B0 = {
+			isa = PBXGroup;
+			children = (
+				6A7D324CBE685D82C4EA1E4F /* Web */,
+				C201761C33170C797A38167E /* ios */,
+				1FC5B17A92F1D40CDD5036C5 /* shared */,
+				2BBCA4A4B930D188307308CF /* Tests */,
+				5C9BB26AEA4DDE24B20996C2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0BF339BE6F7222CC60DE5230 /* Bieltructor-iOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C93A6DD568BD5A42FEF13CFA /* Build configuration list for PBXNativeTarget "Bieltructor-iOSUITests" */;
+			buildPhases = (
+				BA4C16EF3DC41A088A676DDD /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D6BC5B2DE2F40B414ABBECC7 /* PBXTargetDependency */,
+			);
+			name = "Bieltructor-iOSUITests";
+			packageProductDependencies = (
+			);
+			productName = "Bieltructor-iOSUITests";
+			productReference = 9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		12AE9CE0E60200D012F38F58 /* Bieltructor-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A416B839353DF64BB8BF3FD8 /* Build configuration list for PBXNativeTarget "Bieltructor-iOS" */;
+			buildPhases = (
+				21FCD2BB58E1F14915D64C9B /* Sources */,
+				13FF3034E43D376AA1607733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Bieltructor-iOS";
+			packageProductDependencies = (
+			);
+			productName = "Bieltructor-iOS";
+			productReference = EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		96695B4944A51AD334CFB805 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0BF339BE6F7222CC60DE5230 = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = 12AE9CE0E60200D012F38F58;
+					};
+					12AE9CE0E60200D012F38F58 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 47DEC45399EB2C178E2C8210 /* Build configuration list for PBXProject "Bieltructor" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = DB0197CD88492F5396B948B0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5C9BB26AEA4DDE24B20996C2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				12AE9CE0E60200D012F38F58 /* Bieltructor-iOS */,
+				0BF339BE6F7222CC60DE5230 /* Bieltructor-iOSUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		13FF3034E43D376AA1607733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				02E085A4B6FD734441A393B6 /* Assets.xcassets in Resources */,
+				4227B7129B151E5BA3B75E01 /* Web in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		21FCD2BB58E1F14915D64C9B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */,
+				AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BA4C16EF3DC41A088A676DDD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BA62B8AF10A1844C825D7A20 /* BieltructorUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D6BC5B2DE2F40B414ABBECC7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 12AE9CE0E60200D012F38F58 /* Bieltructor-iOS */;
+			targetProxy = 2D42324A960D2D71233009B2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		31553F3A3ABD770C7D5C4AC4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		5A3F4DB1DCB70BB89C119927 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5BD9ED97B88F48E52C4E6AE5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Bieltructor-iOS";
+			};
+			name = Debug;
+		};
+		6B9BBEA7C798301E1016B408 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Bieltructor-iOS";
+			};
+			name = Release;
+		};
+		A5655E8C40C887ABCDFE1E14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Bieltructor;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor;
+				PRODUCT_NAME = Bieltructor;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D229D939A60ACBE92956579E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Bieltructor;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor;
+				PRODUCT_NAME = Bieltructor;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		47DEC45399EB2C178E2C8210 /* Build configuration list for PBXProject "Bieltructor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A3F4DB1DCB70BB89C119927 /* Debug */,
+				31553F3A3ABD770C7D5C4AC4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A416B839353DF64BB8BF3FD8 /* Build configuration list for PBXNativeTarget "Bieltructor-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5655E8C40C887ABCDFE1E14 /* Debug */,
+				D229D939A60ACBE92956579E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C93A6DD568BD5A42FEF13CFA /* Build configuration list for PBXNativeTarget "Bieltructor-iOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5BD9ED97B88F48E52C4E6AE5 /* Debug */,
+				6B9BBEA7C798301E1016B408 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 96695B4944A51AD334CFB805 /* Project object */;
+}
