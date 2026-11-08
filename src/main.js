@@ -27,6 +27,13 @@ import {
   cropInfo,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
+import {
+  LOOK,
+  nextWeather,
+  weatherLength,
+  validateWeather,
+  approach,
+} from "./weather.js";
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
 import { Inventory } from "./inventory.js";
 import {
@@ -200,6 +207,7 @@ const strings = {
     monsterNear: "Ouves um barulho estranho… 👀",
     cantSleep: "Não consegues dormir: há monstros por perto!",
     tilled: "Terra lavrada! Agora planta sementes.",
+    weather: "Clima",
     planted: "Plantaste: {item}. Cresce mais depressa ao pé de água.",
     fishing: "A pescar… 🎣",
     caught: "Apanhaste um peixe! 🐟",
@@ -466,6 +474,7 @@ const strings = {
     monsterNear: "You hear a funny noise… 👀",
     cantSleep: "You can’t sleep: there are monsters nearby!",
     tilled: "Soil tilled! Now plant some seeds.",
+    weather: "Weather",
     planted: "You planted: {item}. It grows faster near water.",
     fishing: "Fishing… 🎣",
     caught: "You caught a fish! 🐟",
@@ -667,6 +676,9 @@ let mode = "splash",
   lightBlocks = [],
   cropKeys = [],
   growClock = 5,
+  rainLevel = 0,
+  darkLevel = 0,
+  thunderClock = 8,
   fishing = null,
   peakY = null,
   draft = null,
@@ -713,8 +725,9 @@ const skyTime = () =>
       ? 0.75
       : timeOfDay;
 const isNight = () => sky(skyTime()).night;
+const WEATHER_ICON = { clear: "", cloudy: " ☁︎", rain: " 🌧", storm: " ⛈" };
 const clock = () =>
-  `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`} · ${t("dayCount", { n: world?.day ?? 1 })}`;
+  `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`}${WEATHER_ICON[world?.weather?.state ?? "clear"] ?? ""} · ${t("dayCount", { n: world?.day ?? 1 })}`;
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
   0xefad36, 0xbfe6ec, 0x8a5a33, 0x8a5a33, 0xc08a55, 0xa0703f, 0xf2b544,
@@ -815,6 +828,7 @@ function worldFields(o, withMode) {
       ["long", t("long")],
     ]),
     field("hunger", t("hunger"), o.hunger, yesNo),
+    field("weather", t("weather"), o.weather, yesNo),
     field("keepInventory", t("keepInventory"), o.keepInventory, yesNo),
     "</div>",
   ].join("");
@@ -2421,6 +2435,139 @@ function updateTorchLights(dt, daylight) {
     if (b) light.position.set(b[0], b[1] + 0.3, b[2]);
   });
 }
+// Weather: rain drops around the camera, a darker sky and soft thunder.
+const DROPS = 2000;
+const rainGeometry = new THREE.BufferGeometry();
+const rainPositions = new Float32Array(DROPS * 6);
+for (let i = 0; i < DROPS; i++) {
+  const x = (Math.random() - 0.5) * 26,
+    y = Math.random() * 24,
+    z = (Math.random() - 0.5) * 26;
+  rainPositions.set([x, y, z, x + 0.08, y - 0.8, z], i * 6);
+}
+rainGeometry.setAttribute(
+  "position",
+  new THREE.BufferAttribute(rainPositions, 3),
+);
+const rain = new THREE.LineSegments(
+  rainGeometry,
+  new THREE.LineBasicMaterial({
+    color: 0x5f7f99,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  }),
+);
+rain.frustumCulled = false;
+scene.add(rain);
+const STORM_SKY = new THREE.Color(0x5d6b73);
+let rainSound = null;
+function rainNoise(level) {
+  if (!settings.sound || level < 0.05) {
+    if (rainSound) rainSound.gain.gain.value = 0;
+    return;
+  }
+  try {
+    const audio = audioContext();
+    if (!rainSound) {
+      const buffer = audio.createBuffer(
+        1,
+        audio.sampleRate * 2,
+        audio.sampleRate,
+      );
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const source = audio.createBufferSource(),
+        filter = audio.createBiquadFilter(),
+        gain = audio.createGain();
+      source.buffer = buffer;
+      source.loop = true;
+      filter.type = "lowpass";
+      filter.frequency.value = 900;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(audio.destination);
+      source.start();
+      rainSound = { source, gain };
+    }
+    rainSound.gain.gain.value = level * 0.035;
+  } catch {}
+}
+function thunder() {
+  overlay.className = "flash";
+  setTimeout(() => (overlay.className = ""), 160);
+  if (!settings.sound) return;
+  try {
+    const audio = audioContext(),
+      at = audio.currentTime + 0.4,
+      osc = audio.createOscillator(),
+      gain = audio.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(55, at);
+    osc.frequency.exponentialRampToValueAtTime(30, at + 1.6);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.05, at + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 1.8);
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start(at);
+    osc.stop(at + 1.9);
+  } catch {}
+}
+function updateWeather(dt, inGame) {
+  let state = "clear";
+  if (inGame && world.options.weather) {
+    world.weather = validateWeather(world.weather);
+    if (world.age >= world.weather.until)
+      world.weather = {
+        state: nextWeather(Math.random, world.options.difficulty),
+        until: world.age + weatherLength(Math.random),
+      };
+    state = world.weather.state;
+  }
+  rainLevel = approach(rainLevel, LOOK[state].rain, dt);
+  darkLevel = approach(darkLevel, LOOK[state].dark, dt, 0.15);
+  // The sky, light and clouds turn grey with the weather.
+  scene.background.lerp(STORM_SKY, darkLevel);
+  scene.fog.color.copy(scene.background);
+  hemi.intensity *= 1 - darkLevel * 0.6;
+  sun.intensity *= 1 - darkLevel * 1.4;
+  cloudMat.color.setRGB(
+    1 - darkLevel * 0.5,
+    0.98 - darkLevel * 0.5,
+    0.92 - darkLevel * 0.45,
+  );
+  rain.visible = rainLevel > 0.01;
+  rain.material.opacity = rainLevel * 0.8;
+  if (rain.visible) {
+    const count = settings.quality === "high" ? DROPS : 700;
+    rain.geometry.setDrawRange(0, count * 2);
+    rain.position.set(
+      camera.position.x,
+      camera.position.y - 10,
+      camera.position.z,
+    );
+    const fall = dt * 22;
+    for (let i = 0; i < count; i++) {
+      const o = i * 6;
+      rainPositions[o + 1] -= fall;
+      rainPositions[o + 4] -= fall;
+      if (rainPositions[o + 1] < 0) {
+        rainPositions[o + 1] += 24;
+        rainPositions[o + 4] += 24;
+      }
+    }
+    rain.geometry.attributes.position.needsUpdate = true;
+  }
+  rainNoise(inGame ? rainLevel : 0);
+  if (inGame && state === "storm") {
+    thunderClock -= dt;
+    if (thunderClock <= 0) {
+      thunderClock = 6 + Math.random() * 12;
+      thunder();
+    }
+  }
+}
 function pick() {
   // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
   ray.setFromCamera(
@@ -2681,7 +2828,7 @@ function growCrops(dt) {
   }
   if (changed) rebuild();
 }
-const raining = () => false;
+const raining = () => rainLevel > 0.5;
 const bobber = new THREE.Mesh(
   new THREE.SphereGeometry(0.09, 8, 6),
   new THREE.MeshStandardMaterial({ color: 0xe6574a }),
@@ -3190,6 +3337,7 @@ function frame(now) {
   // The menu always shows a sunny day; the game follows the clock.
   const skyNow = applySky(scenery === "game" ? skyTime() : NOON + 0.03);
   updateTorchLights(dt, skyNow.daylight);
+  updateWeather(dt, scenery === "game" && !!world);
   const clockEl = app.querySelector(".clock");
   if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -3749,6 +3897,21 @@ if (new URLSearchParams(location.search).has("test"))
     const fishBefore = inventory.count("fish");
     updateFishing();
     check("fishing catches a fish", inventory.count("fish") === fishBefore + 1);
+    // Weather: rain comes in gently, waters the farm and greys the sky.
+    world.weather = { state: "rain", until: world.age + 999 };
+    timeOfDay = 0.3;
+    for (let i = 0; i < 320; i++) frame(last + 16);
+    check(
+      "rain falls and waters the farm",
+      rain.visible && raining() && darkLevel > 0.3,
+    );
+    check(
+      "the clock shows the rain",
+      app.querySelector(".clock").textContent.includes("🌧"),
+    );
+    world.options = normalizeOptions({ ...world.options, weather: false });
+    for (let i = 0; i < 320; i++) frame(last + 16);
+    check("no weather when switched off", !rain.visible && !raining());
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };

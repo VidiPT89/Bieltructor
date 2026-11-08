@@ -1365,3 +1365,8 @@ kbd {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+#overlay.flash {
+  opacity: 1;
+  transition: none;
+  background: #eef4ffcc;
+}

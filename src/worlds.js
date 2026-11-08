@@ -59,6 +59,7 @@ export function defaultOptions(difficulty = "easy") {
     dayLength: "normal",
     hunger: !gentle,
     keepInventory: gentle,
+    weather: true,
   };
 }
 
@@ -74,6 +75,7 @@ export function normalizeOptions(raw = {}) {
     dayLength: pick(raw.dayLength, Object.keys(DAY_LENGTHS), base.dayLength),
     hunger: flag(raw.hunger, base.hunger),
     keepInventory: flag(raw.keepInventory, base.keepInventory),
+    weather: flag(raw.weather, base.weather),
   };
   // Peaceful never has monsters, whatever the switch says.
   if (difficulty === "peaceful") options.monsters = false;
@@ -150,6 +152,8 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
   world.time = wrap(finite(raw.time, 0.3));
   world.day = Math.max(1, Math.floor(finite(raw.day, 1)));
   world.age = Math.max(0, finite(raw.age, 0));
+  if (raw.weather && typeof raw.weather === "object")
+    world.weather = raw.weather;
   world.animalsSpawned = raw.animalsSpawned === true;
   if (Number.isInteger(raw.tutorial?.step) && raw.tutorial.step >= 0)
     world.tutorial = {
