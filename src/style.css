@@ -1207,3 +1207,73 @@ kbd {
     grid-column: 1 / -1;
   }
 }
+.vitals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 18px;
+  margin-bottom: 8px;
+}
+.vitals span {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: #172324c4;
+}
+.vitals i {
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1;
+}
+.heart::before {
+  content: "♥";
+}
+.heart.full {
+  color: #ef5b4c;
+}
+.heart.half {
+  background: linear-gradient(90deg, #ef5b4c 50%, #ffffff38 50%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.heart.empty {
+  color: #ffffff38;
+}
+.drum::before {
+  content: "🍗";
+  font-size: 13px;
+}
+.drum.half {
+  opacity: 0.6;
+}
+.drum.empty {
+  opacity: 0.25;
+  filter: grayscale(1);
+}
+.bubble::before {
+  content: "●";
+  color: #8fd3f4;
+  font-size: 12px;
+}
+#overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+  z-index: 5;
+}
+#overlay.hurt {
+  opacity: 1;
+  transition: none;
+  box-shadow: inset 0 0 120px 30px #ff6a3d88;
+}
+#overlay.sleep {
+  opacity: 1;
+  background: #0b1020;
+}
+.asleep .panel {
+  text-align: center;
+}

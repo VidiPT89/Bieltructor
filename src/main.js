@@ -23,6 +23,14 @@ import {
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
 import { Inventory } from "./inventory.js";
 import { RECIPES, canCraft, craft } from "./recipes.js";
+import {
+  createVitals,
+  fallDamage,
+  hurt,
+  tick,
+  eat,
+  MAX_AIR,
+} from "./survival.js";
 import { sky, NOON } from "./daynight.js";
 import {
   createStore,
@@ -72,6 +80,8 @@ const strings = {
     invalid: "Este ficheiro não é um mundo Bieltructor válido.",
     ready: "Pronto para explorar?",
     hint: "Arrasta para olhar · Clica para partir · Botão direito para construir",
+    hintAdventure:
+      "Arrasta para olhar · Mantém clicado para partir · Botão direito para construir ou comer · E abre a mochila",
     items: {
       grass: "Relva",
       dirt: "Terra",
@@ -115,6 +125,18 @@ const strings = {
     swapHint: "Toca num espaço e depois noutro para trocar.",
     emptyHand: "Mão vazia",
     full: "A mochila está cheia!",
+    asleep: "O Biel adormeceu…",
+    asleepText:
+      "Foi uma aventura cansativa. Descansa um bocadinho e volta a casa.",
+    wake: "Voltar a casa",
+    backpackLeft: "A tua mochila ficou onde adormeceste. Vai buscá-la!",
+    backpackFound: "Recuperaste a mochila!",
+    yum: "Nham! {item}",
+    notHungry: "O Biel não tem fome.",
+    sleepNight: "Bom dia! Esta cama é agora a tua casa.",
+    sleepDay: "Só se dorme à noite, mas esta cama já é a tua casa.",
+    health: "Vida",
+    food: "Comida",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -216,6 +238,8 @@ const strings = {
     invalid: "This file is not a valid Bieltructor world.",
     ready: "Ready to explore?",
     hint: "Drag to look · Click to break · Right-click to build",
+    hintAdventure:
+      "Drag to look · Hold the click to break · Right-click to build or eat · E opens the backpack",
     items: {
       grass: "Grass",
       dirt: "Dirt",
@@ -259,6 +283,17 @@ const strings = {
     swapHint: "Tap a slot, then another one to swap them.",
     emptyHand: "Empty hand",
     full: "Your backpack is full!",
+    asleep: "Biel fell asleep…",
+    asleepText: "What a tiring adventure. Rest a little and head home.",
+    wake: "Go home",
+    backpackLeft: "Your backpack stayed where you fell asleep. Go and get it!",
+    backpackFound: "You got your backpack back!",
+    yum: "Yum! {item}",
+    notHungry: "Biel isn’t hungry.",
+    sleepNight: "Good morning! This bed is your home now.",
+    sleepDay: "You can only sleep at night, but this bed is your home now.",
+    health: "Health",
+    food: "Food",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -354,6 +389,8 @@ let mode = "splash",
   confirmDelete = null,
   invPick = null,
   inventory = new Inventory(),
+  vitals = createVitals(),
+  peakY = null,
   draft = null,
   flying = false,
   lastJump = 0,
@@ -493,7 +530,7 @@ function render() {
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
       .slice(0, 9)
       .map((slot, i) =>
         slotButton(
@@ -506,7 +543,9 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+  if (mode === "asleep")
+    content = `<div class="modal-backdrop asleep"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("asleep")}"><span class="eyebrow">☾︎ ${t("dayCount", { n: world.day })}</span><h2>${t("asleep")}</h2><p class="help-copy">${t("asleepText")}</p>${button("wake", t("wake"), "primary wide")}</section></div>`;
   if (MODALS.includes(mode)) {
     let inner = "";
     if (mode === "worlds") {
@@ -660,7 +699,8 @@ const MODALS = [
 // Screens opened on top of each other; "back" returns to the previous one.
 const history = [];
 function open(screen) {
-  history.push(mode === "playing" ? "paused" : mode);
+  // The backpack returns straight to the game; other screens go via the pause menu.
+  history.push(mode === "playing" && screen !== "inventory" ? "paused" : mode);
   mode = screen;
 }
 function action(a, arg) {
@@ -682,6 +722,10 @@ function action(a, arg) {
   } else if (a === "pause") {
     mode = "paused";
     save();
+  } else if (a === "wake") {
+    vitals = createVitals();
+    spawn();
+    mode = "playing";
   } else if (a === "inventory") {
     invPick = null;
     open("inventory");
@@ -788,8 +832,8 @@ function saveData() {
     yaw,
     pitch,
     firstPerson,
-    health: 20,
-    food: 20,
+    health: Math.max(1, vitals.health),
+    food: vitals.food,
   };
   world.time = timeOfDay;
   world.inventory = inventory.toJSON();
@@ -1256,7 +1300,10 @@ let velocity = 0,
   yaw = 0.7,
   pitch = 0.4;
 function spawn() {
-  player.set(0, height(0, 0) + 0.51, 0);
+  const bed = world?.spawnPoint;
+  if (bed && blocks.get(key(...bed)) === BED)
+    player.set(bed[0], bed[1] + 0.51, bed[2]);
+  else player.set(0, height(0, 0) + 0.51, 0);
   while (collides(blocks, player) && player.y < 33) player.y++;
   velocity = 0;
 }
@@ -1284,6 +1331,8 @@ function loadWorld(w) {
   timeOfDay = w.time;
   flying = false;
   inventory = Inventory.from(w.inventory);
+  vitals = createVitals(w.player?.health, w.player?.food);
+  rebuildBackpacks();
   selected = 0;
   if (!inventory.slots.some(Boolean)) {
     // A fresh backpack: building blocks in Creative, a few apples in Adventure.
@@ -1407,6 +1456,22 @@ function updateBreaking(dt) {
     breakCooldown = creative() ? 0.25 : 0;
   }
 }
+function beepAt(from, to, delay = 0) {
+  try {
+    const audio = audioContext(),
+      at = audio.currentTime + delay,
+      osc = audio.createOscillator(),
+      gain = audio.createGain();
+    osc.frequency.setValueAtTime(from, at);
+    osc.frequency.exponentialRampToValueAtTime(to, at + 0.1);
+    gain.gain.setValueAtTime(0.06, at);
+    gain.gain.exponentialRampToValueAtTime(0.001, at + 0.12);
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start(at);
+    osc.stop(at + 0.13);
+  } catch {}
+}
 function beep(build) {
   if (!settings.sound) return;
   try {
@@ -1448,6 +1513,89 @@ function burst(p, type) {
 }
 const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
 const heldId = () => inventory.slots[selected]?.id ?? null;
+// Beds: the newest one becomes home; at night, sleeping skips to the morning.
+function sleepIn(p) {
+  world.spawnPoint = [...p];
+  if (isNight() && world.options.cycle === "normal") {
+    fadeScreen();
+    timeOfDay = 0.02;
+    world.day++;
+    toast(t("sleepNight"));
+  } else toast(t("sleepDay"));
+  scheduleSave();
+}
+const overlay = document.createElement("div");
+overlay.id = "overlay";
+document.body.append(overlay);
+function fadeScreen() {
+  overlay.className = "sleep";
+  setTimeout(() => (overlay.className = ""), 1200);
+}
+function hurtFlash() {
+  overlay.className = "hurt";
+  setTimeout(() => (overlay.className = ""), 280);
+}
+function chomp() {
+  if (!settings.sound) return;
+  for (const delay of [0, 0.12]) beepAt(300, 200, delay);
+}
+// Backpacks left behind on harder difficulties, waiting to be picked up.
+const backpackGroup = new THREE.Group();
+scene.add(backpackGroup);
+const backpackMaterial = new THREE.MeshStandardMaterial({
+  color: 0xe9852b,
+  roughness: 0.8,
+});
+function rebuildBackpacks() {
+  backpackGroup.clear();
+  for (const pack of world?.backpacks ?? []) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.55, 0.35),
+      backpackMaterial,
+    );
+    m.position.set(pack.x, pack.y + 0.3, pack.z);
+    m.userData.pack = pack;
+    backpackGroup.add(m);
+  }
+}
+function fallAsleep() {
+  mode = "asleep";
+  keys.clear();
+  touchInput.clear();
+  if (!world.options.keepInventory && inventory.slots.some(Boolean)) {
+    world.backpacks.push({
+      x: player.x,
+      y: player.y,
+      z: player.z,
+      items: inventory.toJSON(),
+    });
+    inventory = new Inventory();
+    rebuildBackpacks();
+    setTimeout(() => toast(t("backpackLeft")), 300);
+  }
+  save();
+  render();
+}
+// Hearts, drumsticks and bubbles, only redrawn when something changes.
+let vitalsShown = "";
+function updateVitalsHud(underwater) {
+  const el = app.querySelector(".vitals");
+  if (!el) return;
+  const air = Math.ceil(vitals.air);
+  const sig = `${vitals.health}|${vitals.food}|${air}|${underwater}`;
+  if (sig === vitalsShown && el.childElementCount) return;
+  vitalsShown = sig;
+  const row = (value, cls) =>
+    Array.from({ length: 10 }, (_, i) => {
+      const v = value - i * 2;
+      return `<i class="${cls} ${v >= 2 ? "full" : v >= 1 ? "half" : "empty"}"></i>`;
+    }).join("");
+  el.innerHTML = `<span class="hearts" aria-label="${t("health")} ${vitals.health / 2}/10">${row(vitals.health, "heart")}</span>${
+    world.options.hunger
+      ? `<span class="foods" aria-label="${t("food")} ${Math.floor(vitals.food / 2)}/10">${row(vitals.food, "drum")}</span>`
+      : ""
+  }${underwater || air < MAX_AIR ? `<span class="bubbles">${'<i class="bubble"></i>'.repeat(air)}</span>` : ""}`;
+}
 // Advanced recipes need a workbench within four blocks.
 function nearBench() {
   const [px, py, pz] = [player.x, player.y, player.z].map(Math.round);
@@ -1471,8 +1619,24 @@ function flashLabel(text) {
   }, 1200);
 }
 function edit(place) {
-  if (mode !== "playing" || !target) return;
+  if (mode !== "playing") return;
+  // Holding food: eat it instead of building.
+  const food = ITEMS[heldId()]?.food;
+  if (place && food && !creative()) {
+    if (eat(vitals, food)) {
+      const name = itemName(inventory.takeFrom(selected));
+      toast(t("yum", { item: name }));
+      chomp();
+      render();
+    } else flashLabel(t("notHungry"));
+    return;
+  }
+  if (!target) return;
   const p = [...target.p];
+  if (place && blocks.get(key(...p)) === BED) {
+    sleepIn(p);
+    return;
+  }
   // Building on a door opens or closes it instead.
   if (place && isDoor(blocks.get(key(...p)))) {
     const changed = toggleDoor(blocks, ...p);
@@ -1732,6 +1896,51 @@ function frame(now) {
       }
     }
     if (player.y < -5) spawn();
+    // Adventure: falls, hunger, air and health.
+    if (!creative()) {
+      if (grounded || swimming || flying) {
+        if (peakY !== null && grounded) {
+          const before = vitals.health;
+          hurt(vitals, fallDamage(peakY - player.y), rules());
+          if (vitals.health < before) hurtFlash();
+        }
+        peakY = null;
+      } else peakY = Math.max(peakY ?? player.y, player.y);
+      const underwater = player.y + 1.6 < WATER_LEVEL,
+        moving = dx || dz,
+        running = pressed("ShiftLeft") || pressed("ShiftRight");
+      const before = vitals.health;
+      tick(vitals, dt, {
+        rules: rules(),
+        hunger: world.options.hunger,
+        exertion: moving ? (running ? 1 : 0.3) : 0,
+        underwater,
+      });
+      if (vitals.health < before) hurtFlash();
+      updateVitalsHud(underwater);
+      for (const m of [...backpackGroup.children]) {
+        m.rotation.y += dt;
+        const pack = m.userData.pack;
+        if (m.position.distanceTo(player) < 1.4 && !(pack.wait > elapsed)) {
+          // Whatever does not fit stays in the backpack on the ground.
+          pack.items = pack.items.flatMap((slot) => {
+            if (!slot) return [];
+            const left = inventory.add(slot[0], slot[1]);
+            return left ? [[slot[0], left]] : [];
+          });
+          if (pack.items.length) {
+            pack.wait = elapsed + 5;
+            toast(t("full"));
+          } else {
+            world.backpacks = world.backpacks.filter((b) => b !== pack);
+            rebuildBackpacks();
+            toast(t("backpackFound"));
+          }
+          render();
+        }
+      }
+      if (vitals.health <= 0) fallAsleep();
+    }
     biel.position.copy(player);
     biel.visible = !firstPerson;
     if (dx || dz) biel.rotation.y = Math.atan2(vx, vz);
@@ -2053,6 +2262,58 @@ if (new URLSearchParams(location.search).has("test"))
       app.querySelectorAll(".recipe").length === RECIPES.length,
     );
     action("back");
+    // Survival on Normal: damage, food, falls, beds, falling asleep.
+    hurt(vitals, 4, rules());
+    check("normal difficulty hurts", vitals.health === 16);
+    vitals.food = 10;
+    hold("apple");
+    edit(true);
+    check("eating an apple", vitals.food === 14 && heldId() === null);
+    vitals.hurtCooldown = 0;
+    const healthBeforeFall = vitals.health;
+    player.y += 9;
+    velocity = 0;
+    for (let i = 0; i < 90; i++) frame(last + 16);
+    check("a long fall hurts", vitals.health < healthBeforeFall && grounded);
+    const bedPos = [
+      Math.round(player.x) + 1,
+      Math.round(player.y),
+      Math.round(player.z) + 1,
+    ];
+    blocks.set(key(...bedPos), BED);
+    timeOfDay = 0.75;
+    target = { p: bedPos, normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    check(
+      "sleeping at night skips to morning",
+      timeOfDay < 0.1 &&
+        world.day === 2 &&
+        world.spawnPoint.join() === bedPos.join(),
+    );
+    inventory.add("stone", 5);
+    const awayFromHome = [player.x + 4, player.y, player.z];
+    player.set(...awayFromHome);
+    vitals.health = 0;
+    frame(last + 16);
+    check(
+      "falling asleep leaves the backpack behind on normal",
+      mode === "asleep" &&
+        world.backpacks.length === 1 &&
+        !inventory.count("stone"),
+    );
+    action("wake");
+    check(
+      "waking up at the bed",
+      mode === "playing" &&
+        vitals.health === 20 &&
+        Math.abs(player.x - bedPos[0]) < 0.5,
+    );
+    player.set(...awayFromHome);
+    frame(last + 16);
+    check(
+      "walking to the backpack gets everything back",
+      inventory.count("stone") === 5 && world.backpacks.length === 0,
+    );
     const secondId = world.id;
     action("pause");
     action("worlds");
