@@ -13,7 +13,16 @@ import {
   TYPES,
   seeThrough,
   toggleDoor,
+  PLANKS,
+  BENCH,
+  TORCH,
+  BED,
+  COAL,
+  WOOL,
 } from "./world.js";
+import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
+import { Inventory } from "./inventory.js";
+import { RECIPES, canCraft, craft } from "./recipes.js";
 import { sky, NOON } from "./daynight.js";
 import {
   createStore,
@@ -48,7 +57,7 @@ const strings = {
     off: "Desligados",
     help: "Como jogar",
     helpText:
-      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir. Botão direito ou Shift + clique para construir. Teclas 1–9 e 0 para escolher um material. Botão direito numa porta abre-a e fecha-a. À noite, o âmbar brilha como uma lanterna. V muda a perspetiva. Esc abre o menu.",
+      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir (na Aventura, mantém carregado). Botão direito ou Shift + clique para construir. Teclas 1–9 ou a roda do rato escolhem da barra; E abre a mochila e as receitas. Botão direito numa porta abre-a e fecha-a. À noite, o âmbar brilha como uma lanterna. V muda a perspetiva. Esc abre o menu.",
     world: "O vale do Biel",
     creative: "MODO CRIATIVO",
     adventureLabel: "AVENTURA",
@@ -63,18 +72,49 @@ const strings = {
     invalid: "Este ficheiro não é um mundo Bieltructor válido.",
     ready: "Pronto para explorar?",
     hint: "Arrasta para olhar · Clica para partir · Botão direito para construir",
-    blocks: [
-      "Relva",
-      "Terra",
-      "Pedra",
-      "Areia",
-      "Madeira",
-      "Folhas",
-      "Tijolo",
-      "Âmbar",
-      "Vidro",
-      "Porta",
-    ],
+    items: {
+      grass: "Relva",
+      dirt: "Terra",
+      stone: "Pedra",
+      sand: "Areia",
+      wood: "Madeira",
+      leaves: "Folhas",
+      brick: "Tijolo",
+      amber: "Lanterna de âmbar",
+      glass: "Vidro",
+      door: "Porta",
+      planks: "Tábuas",
+      bench: "Bancada",
+      torch: "Tocha",
+      bed: "Cama",
+      coal_ore: "Pedra com carvão",
+      wool: "Lã",
+      stick: "Pau",
+      coal: "Carvão",
+      apple: "Maçã",
+      egg: "Ovo",
+      milk: "Leite",
+      cake: "Bolo",
+      treat: "Biscoito para cão",
+      bone: "Osso",
+      slime: "Gelatina",
+      wooden_pickaxe: "Picareta de madeira",
+      stone_pickaxe: "Picareta de pedra",
+      wooden_sword: "Espada de madeira",
+      stone_sword: "Espada de pedra",
+    },
+    backpack: "Mochila",
+    recipes: "Receitas",
+    craftIt: "Fabricar",
+    needsBench: "Precisa de uma bancada por perto",
+    benchNear: "Estás perto de uma bancada: podes fabricar tudo.",
+    benchFar: "Algumas receitas precisam de uma bancada por perto.",
+    crafted: "Fabricaste: {item}",
+    allBlocks: "Todos os blocos",
+    pickBlock: "Escolhe um bloco para o espaço {n} da barra.",
+    swapHint: "Toca num espaço e depois noutro para trocar.",
+    emptyHand: "Mão vazia",
+    full: "A mochila está cheia!",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -90,7 +130,7 @@ const strings = {
     view: "Perspetiva",
     reset: "Regressar ao início",
     mobile:
-      "Usa os botões para andar. Arrasta o cenário para olhar e toca num bloco para o selecionar. Escolhe uma porta e carrega em Construir para a abrir ou fechar.",
+      "Usa os botões para andar. Arrasta o cenário para olhar e toca num bloco para o selecionar. Na Aventura, mantém Partir carregado. 🎒 abre a mochila e as receitas. Escolhe uma porta e carrega em Construir para a abrir ou fechar.",
     quality: "Qualidade",
     high: "Alta",
     low: "Leve",
@@ -162,7 +202,7 @@ const strings = {
     off: "Off",
     help: "How to play",
     helpText:
-      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it. Right-click or Shift + click to build. Keys 1–9 and 0 select a material. Right-click a door to open or close it. At night, amber glows like a lantern. V changes perspective. Esc opens the menu.",
+      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it (in Adventure, hold the button). Right-click or Shift + click to build. Keys 1–9 or the mouse wheel pick from the bar; E opens the backpack and recipes. Right-click a door to open or close it. At night, amber glows like a lantern. V changes perspective. Esc opens the menu.",
     world: "Biel’s valley",
     creative: "CREATIVE MODE",
     adventureLabel: "ADVENTURE",
@@ -176,18 +216,49 @@ const strings = {
     invalid: "This file is not a valid Bieltructor world.",
     ready: "Ready to explore?",
     hint: "Drag to look · Click to break · Right-click to build",
-    blocks: [
-      "Grass",
-      "Dirt",
-      "Stone",
-      "Sand",
-      "Wood",
-      "Leaves",
-      "Brick",
-      "Amber",
-      "Glass",
-      "Door",
-    ],
+    items: {
+      grass: "Grass",
+      dirt: "Dirt",
+      stone: "Stone",
+      sand: "Sand",
+      wood: "Wood",
+      leaves: "Leaves",
+      brick: "Brick",
+      amber: "Amber lantern",
+      glass: "Glass",
+      door: "Door",
+      planks: "Planks",
+      bench: "Workbench",
+      torch: "Torch",
+      bed: "Bed",
+      coal_ore: "Coal ore",
+      wool: "Wool",
+      stick: "Stick",
+      coal: "Coal",
+      apple: "Apple",
+      egg: "Egg",
+      milk: "Milk",
+      cake: "Cake",
+      treat: "Dog treat",
+      bone: "Bone",
+      slime: "Jelly",
+      wooden_pickaxe: "Wooden pickaxe",
+      stone_pickaxe: "Stone pickaxe",
+      wooden_sword: "Wooden sword",
+      stone_sword: "Stone sword",
+    },
+    backpack: "Backpack",
+    recipes: "Recipes",
+    craftIt: "Craft",
+    needsBench: "Needs a workbench nearby",
+    benchNear: "You are next to a workbench: you can craft everything.",
+    benchFar: "Some recipes need a workbench nearby.",
+    crafted: "You crafted: {item}",
+    allBlocks: "All blocks",
+    pickBlock: "Pick a block for slot {n} of the bar.",
+    swapHint: "Tap a slot, then another one to swap them.",
+    emptyHand: "Empty hand",
+    full: "Your backpack is full!",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -203,7 +274,7 @@ const strings = {
     view: "Perspective",
     reset: "Return to spawn",
     mobile:
-      "Use the buttons to move. Drag the scene to look and tap a block to select it. Select a door and press Build to open or close it.",
+      "Use the buttons to move. Drag the scene to look and tap a block to select it. In Adventure, hold Break. 🎒 opens the backpack and recipes. Select a door and press Build to open or close it.",
     quality: "Quality",
     high: "High",
     low: "Light",
@@ -271,6 +342,8 @@ try {
   );
 } catch {}
 if (!strings[settings.lang]) settings.lang = "pt";
+const itemName = (id) =>
+  id ? strings[settings.lang].items[id] : t("emptyHand");
 const t = (k, vars = {}) =>
   String(strings[settings.lang][k]).replace(/\{(\w+)\}/g, (_, v) => vars[v]);
 const touchInput = new TouchInput();
@@ -279,6 +352,8 @@ let mode = "splash",
   selected = 0,
   firstPerson = false,
   confirmDelete = null,
+  invPick = null,
+  inventory = new Inventory(),
   draft = null,
   flying = false,
   lastJump = 0,
@@ -322,7 +397,8 @@ const clock = () =>
   `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`} · ${t("dayCount", { n: world?.day ?? 1 })}`;
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
-  0xefad36, 0xbfe6ec, 0x8a5a33,
+  0xefad36, 0xbfe6ec, 0x8a5a33, 0x8a5a33, 0xc08a55, 0xa0703f, 0xf2b544,
+  0xc8473c, 0x5b5f60, 0xf1ede4,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -340,7 +416,15 @@ toastEl.id = "toast";
 toastEl.setAttribute("role", "status");
 document.body.append(toastEl);
 function button(action, label, cls = "", arg = "") {
-  return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${action === "view" || action === "pause" ? `aria-label="${t(action)}"` : ""} class="${cls}">${label}</button>`;
+  return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${["view", "pause"].includes(action) ? `aria-label="${t(action)}"` : action === "inventory" ? `aria-label="${t("backpack")}"` : ""} class="${cls}">${label}</button>`;
+}
+// Blocks show their colour; other items show a picture.
+const icon = (id) =>
+  ITEMS[id].block !== undefined
+    ? `<i class="swatch" style="--block:#${colors[ITEMS[id].block].toString(16).padStart(6, "0")}"></i>`
+    : `<span class="item-icon">${ITEMS[id].icon}</span>`;
+function slotButton(slot, i, attrs, active, label = "") {
+  return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}</button>`;
 }
 const escapeHtml = (text) =>
   String(text).replace(
@@ -409,7 +493,20 @@ function render() {
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${t("blocks")[selected]}</div><div class="hotbar">${colors.map((c, i) => `<button data-slot="${i}" aria-label="${t("blocks")[i]}" aria-pressed="${i === selected}" class="slot ${i === selected ? "selected" : ""}"><small>${(i + 1) % 10}</small><i style="--block:#${c.toString(16)}"></i></button>`).join("")}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button>${button("break", t("break"))}${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap"><div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
+      .slice(0, 9)
+      .map((slot, i) =>
+        slotButton(
+          slot,
+          i,
+          `data-slot="${i}" aria-pressed="${i === selected}"`,
+          i === selected,
+          i + 1,
+        ),
+      )
+      .join(
+        "",
+      )}</div><div class="hint">${t("hint")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
   if (MODALS.includes(mode)) {
     let inner = "";
     if (mode === "worlds") {
@@ -427,6 +524,26 @@ function render() {
     }
     if (mode === "newworld")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("newWorld")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(draft.name)}"></label>${worldFields(draft.options, true)}${button("create", t("create"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
+    if (mode === "inventory" && creative())
+      inner = `<span class="eyebrow">${t("creativeMode")}</span><h2>${t("allBlocks")}</h2><p class="field-hint">${t("pickBlock", { n: selected + 1 })}</p><div class="inv-grid">${CREATIVE_BLOCKS.map((id) => slotButton({ id, count: 1 }, 0, `data-give="${id}" title="${itemName(id)}"`, heldId() === id)).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    else if (mode === "inventory") {
+      const bench = nearBench();
+      inner = `<span class="eyebrow">${t("adventure")}</span><h2>${t("backpack")}</h2><p class="field-hint">${t("swapHint")}</p><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-inv="${i}" title="${itemName(slot?.id)}"`, invPick === i, i < 9 ? i + 1 : "")).join("")}</div><h3>${t("recipes")}</h3><p class="field-hint">${bench ? t("benchNear") : t("benchFar")}</p><div class="recipes">${RECIPES.map(
+        (r) => {
+          const ok = canCraft(inventory, r, bench);
+          return `<div class="recipe ${ok ? "ok" : ""}">${icon(r.out[0])}<div><strong>${itemName(r.out[0])}${r.out[1] > 1 ? ` ×${r.out[1]}` : ""}</strong><span class="needs">${Object.entries(
+            r.needs,
+          )
+            .map(
+              ([id, n]) =>
+                `<em class="${inventory.count(id) >= n ? "have" : ""}">${n} ${itemName(id)}</em>`,
+            )
+            .join(
+              "",
+            )}</span>${r.bench ? `<small class="${bench ? "have" : ""}">🔨 ${t("needsBench")}</small>` : ""}</div><button data-action="craft" data-arg="${r.id}" class="${ok ? "primary" : ""}" ${ok ? "" : "disabled"}>${t("craftIt")}</button></div>`;
+        },
+      ).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    }
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
@@ -435,7 +552,7 @@ function render() {
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
       inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
-    content = `<div class="modal-backdrop"><section class="panel ${mode === "newworld" || mode === "worldsettings" ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings" }[mode] ?? mode)}">${inner}</section></div>`;
+    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
   app
@@ -469,6 +586,26 @@ function render() {
         render();
       };
   }
+  // Backpack: tap one slot, then another, to swap them.
+  app.querySelectorAll("[data-inv]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const i = +b.dataset.inv;
+        if (invPick === null) invPick = i;
+        else {
+          if (invPick !== i) inventory.swap(invPick, i);
+          invPick = null;
+        }
+        render();
+      }),
+  );
+  app.querySelectorAll("[data-give]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        inventory.slots[selected] = { id: b.dataset.give, count: 1 };
+        action("back");
+      }),
+  );
   // World options: the new-world draft, or the live world from the pause menu.
   app.querySelectorAll("[data-option]").forEach(
     (el) =>
@@ -504,7 +641,12 @@ function render() {
         scheduleSave();
       }
     };
-  if (MODALS.includes(mode)) app.querySelector("button,select")?.focus();
+  if (MODALS.includes(mode))
+    app
+      .querySelector(
+        mode === "inventory" ? '[data-action="back"]' : "button,select",
+      )
+      ?.focus({ preventScroll: true });
 }
 const MODALS = [
   "settings",
@@ -513,6 +655,7 @@ const MODALS = [
   "worlds",
   "newworld",
   "worldsettings",
+  "inventory",
 ];
 // Screens opened on top of each other; "back" returns to the previous one.
 const history = [];
@@ -539,6 +682,16 @@ function action(a, arg) {
   } else if (a === "pause") {
     mode = "paused";
     save();
+  } else if (a === "inventory") {
+    invPick = null;
+    open("inventory");
+  } else if (a === "craft") {
+    const recipe = RECIPES.find((r) => r.id === arg);
+    if (recipe && craft(inventory, recipe, nearBench())) {
+      toast(t("crafted", { item: itemName(recipe.out[0]) }));
+      beep(true);
+      scheduleSave();
+    }
   } else if (["settings", "help", "worlds", "worldsettings"].includes(a)) {
     if (a === "worlds" && world) save();
     open(a);
@@ -609,8 +762,8 @@ function action(a, arg) {
   } else if (a === "import") {
     importWorld();
     return;
-  } else if (a === "break" || a === "place") {
-    edit(a === "place");
+  } else if (a === "place") {
+    edit(true);
     return;
   }
   render();
@@ -639,6 +792,7 @@ function saveData() {
     food: 20,
   };
   world.time = timeOfDay;
+  world.inventory = inventory.toJSON();
   world.updatedAt = Date.now();
   return world;
 }
@@ -775,6 +929,69 @@ function doorTexture() {
   ctx.fillRect(12, 9, 2, 2);
   return pixelTexture(canvas);
 }
+// Small hand-drawn textures for the crafted blocks.
+function drawTexture(draw) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 16;
+  draw(canvas.getContext("2d"));
+  return pixelTexture(canvas);
+}
+const plankLines = (ctx, base, line) => {
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 16, 16);
+  ctx.fillStyle = line;
+  for (const y of [3, 7, 11, 15]) ctx.fillRect(0, y, 16, 1);
+  for (const [x, y] of [
+    [5, 0],
+    [11, 4],
+    [3, 8],
+    [9, 12],
+  ])
+    ctx.fillRect(x, y, 1, 3);
+};
+const blockTextures = {
+  [PLANKS]: () => drawTexture((ctx) => plankLines(ctx, "#c08a55", "#9a6a3c")),
+  [BENCH]: () =>
+    drawTexture((ctx) => {
+      plankLines(ctx, "#a0703f", "#7a522c");
+      ctx.fillStyle = "#4a4f50";
+      ctx.fillRect(2, 2, 5, 2);
+      ctx.fillStyle = "#d9d2c3";
+      ctx.fillRect(10, 1, 2, 6);
+    }),
+  [TORCH]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#7a522c";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#ffd25e";
+      ctx.fillRect(0, 0, 16, 4);
+      ctx.fillStyle = "#ff8a2b";
+      ctx.fillRect(4, 1, 8, 2);
+    }),
+  [BED]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#c8473c";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#f4efe6";
+      ctx.fillRect(0, 0, 16, 5);
+      ctx.fillStyle = "#a8382f";
+      for (const x of [3, 8, 13]) ctx.fillRect(x, 6, 1, 10);
+    }),
+  [COAL]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#8e9797";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#24282a";
+      for (const [x, y] of [
+        [2, 3],
+        [9, 2],
+        [5, 9],
+        [12, 10],
+        [3, 13],
+      ])
+        ctx.fillRect(x, y, 3, 2);
+    }),
+};
 function pixelTexture(canvas) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
@@ -799,13 +1016,27 @@ const materials = colors.map((c, i) =>
       : new THREE.MeshStandardMaterial({ map: texture(c), roughness: 1 }),
 );
 materials[DOOR_OPEN] = doorMaterial;
+for (const [type, make] of Object.entries(blockTextures))
+  materials[type] = new THREE.MeshStandardMaterial({
+    map: make(),
+    roughness: 0.95,
+  });
+// Torches always glow a little, and more at night.
+const torchMaterial = materials[TORCH];
+torchMaterial.emissive.set(0xffb347);
+torchMaterial.emissiveMap = torchMaterial.map;
+torchMaterial.emissiveIntensity = 0.6;
+// Torches are thin sticks and beds are low, so they get their own shapes.
+const shapes = {
+  [DOOR_OPEN]: new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0),
+  [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
+  [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
+};
 // Amber works as a lantern: it glows as night falls.
 const amber = materials[7];
 amber.emissive.set(0xffa040);
 amber.emissiveMap = amber.map;
 amber.emissiveIntensity = 0;
-// An open door folds against the side of its block.
-const doorPanel = new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0);
 function rebuild() {
   for (const m of meshes) {
     terrain.remove(m);
@@ -834,14 +1065,14 @@ function rebuild() {
   const matrix = new THREE.Matrix4();
   groups.forEach((group, i) => {
     const mesh = new THREE.InstancedMesh(
-      i === DOOR_OPEN ? doorPanel : cube,
+      shapes[i] ?? cube,
       materials[i],
       group.length,
     );
     group.forEach(([x, y, z], j) =>
       mesh.setMatrixAt(j, matrix.makeTranslation(x, y, z)),
     );
-    mesh.castShadow = i !== GLASS;
+    mesh.castShadow = i !== GLASS && i !== TORCH;
     mesh.receiveShadow = true;
     mesh.userData.type = i;
     terrain.add(mesh);
@@ -957,6 +1188,7 @@ function applySky(time) {
   moonDisc.material.opacity = 1 - s.daylight;
   stars.material.opacity = Math.max(0, 1 - s.daylight * 1.6);
   amber.emissiveIntensity = (1 - s.daylight) * 1.4;
+  torchMaterial.emissiveIntensity = 0.6 + (1 - s.daylight) * 1.2;
   music.night = s.night;
   return s;
 }
@@ -1051,6 +1283,24 @@ function loadWorld(w) {
   }
   timeOfDay = w.time;
   flying = false;
+  inventory = Inventory.from(w.inventory);
+  selected = 0;
+  if (!inventory.slots.some(Boolean)) {
+    // A fresh backpack: building blocks in Creative, a few apples in Adventure.
+    if (creative())
+      [
+        "grass",
+        "dirt",
+        "stone",
+        "wood",
+        "planks",
+        "brick",
+        "glass",
+        "door",
+        "torch",
+      ].forEach((id, i) => (inventory.slots[i] = { id, count: 1 }));
+    else inventory.add("apple", 3);
+  }
   started = true;
   document.documentElement.classList.toggle("first-person", firstPerson);
 }
@@ -1086,7 +1336,10 @@ const ray = new THREE.Raycaster(),
   center = new THREE.Vector2(0, 0);
 let pointerKind = "mouse";
 let target = null,
-  pointerDown = null;
+  pointerDown = null,
+  mouseBreak = false,
+  breaking = { key: null, time: 0 },
+  breakCooldown = 0;
 const keys = new Set();
 const pressed = (code) => keys.has(code) || touchInput.has(code);
 app.addEventListener("pointerdown", (e) => {
@@ -1126,6 +1379,32 @@ function pick() {
       outline.visible = true;
       break;
     }
+  }
+}
+// Holding Break (button, touch or mouse) chips away at the targeted block.
+function updateBreaking(dt) {
+  breakCooldown -= dt;
+  const holding = pressed("Break") || mouseBreak;
+  if (!holding || !target) {
+    breaking = { key: null, time: 0 };
+    outline.material.color.set(0xfff3b6);
+    return;
+  }
+  const k = key(...target.p);
+  if (breaking.key !== k) breaking = { key: k, time: 0 };
+  breaking.time += dt;
+  const needed = creative() ? 0 : breakTime(blocks.get(k), heldId());
+  const progress = needed ? Math.min(1, breaking.time / needed) : 1;
+  outline.material.color.setHSL(
+    0.12 - progress * 0.1,
+    1,
+    0.75 - progress * 0.2,
+  );
+  if (progress >= 1 && breakCooldown <= 0) {
+    edit(false);
+    breaking = { key: null, time: 0 };
+    // In Creative, holding Break keeps breaking at a calm pace.
+    breakCooldown = creative() ? 0.25 : 0;
   }
 }
 function beep(build) {
@@ -1168,6 +1447,29 @@ function burst(p, type) {
   }
 }
 const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
+const heldId = () => inventory.slots[selected]?.id ?? null;
+// Advanced recipes need a workbench within four blocks.
+function nearBench() {
+  const [px, py, pz] = [player.x, player.y, player.z].map(Math.round);
+  for (let x = px - 4; x <= px + 4; x++)
+    for (let y = py - 2; y <= py + 3; y++)
+      for (let z = pz - 4; z <= pz + 4; z++)
+        if (blocks.get(key(x, y, z)) === BENCH) return true;
+  return false;
+}
+// A short "+1 Wood" note above the hotbar when something is collected.
+let labelTimer;
+function flashLabel(text) {
+  const label = app.querySelector(".material-label");
+  if (!label) return;
+  label.textContent = text;
+  label.classList.add("flash");
+  clearTimeout(labelTimer);
+  labelTimer = setTimeout(() => {
+    label.textContent = itemName(heldId());
+    label.classList.remove("flash");
+  }, 1200);
+}
 function edit(place) {
   if (mode !== "playing" || !target) return;
   const p = [...target.p];
@@ -1193,17 +1495,20 @@ function edit(place) {
   if (Math.abs(p[0]) > SIZE || Math.abs(p[2]) > SIZE || p[1] < 1 || p[1] > 30)
     return;
   const k = key(...p);
+  const held = ITEMS[heldId()];
   if (place) {
-    if (blocks.has(k)) return;
-    blocks.set(k, selected);
+    if (held?.block === undefined || blocks.has(k)) return;
+    const type = held.block;
+    blocks.set(k, type);
     if (collides(blocks, player)) {
       blocks.delete(k);
       return;
     }
-    edits.set(k, selected);
+    edits.set(k, type);
+    if (!creative()) inventory.takeFrom(selected);
     // Doors are two blocks tall when there is room above.
     const above = key(p[0], p[1] + 1, p[2]);
-    if (selected === DOOR && p[1] < 30 && !blocks.has(above)) {
+    if (type === DOOR && p[1] < 30 && !blocks.has(above)) {
       blocks.set(above, DOOR);
       if (collides(blocks, player)) blocks.delete(above);
       else edits.set(above, DOOR);
@@ -1211,6 +1516,13 @@ function edit(place) {
   } else {
     const type = blocks.get(k);
     burst(p, type);
+    // Adventure: what you break goes into the backpack.
+    if (!creative()) {
+      const got = drops(type, heldId(), Math.random());
+      for (const [id, n] of got) if (inventory.add(id, n)) toast(t("full"));
+      if (got.length)
+        setTimeout(() => flashLabel(`+${got[0][1]} ${itemName(got[0][0])}`));
+    }
     // Breaking a door removes the whole door.
     const removed = [p[1]];
     if (isDoor(type)) {
@@ -1250,6 +1562,9 @@ canvas.onpointerdown = (e) => {
     moved: false,
     button: e.button,
   };
+  // Adventure: holding the left mouse button breaks the block under it.
+  mouseBreak =
+    !creative() && e.pointerType !== "touch" && e.button === 0 && !e.shiftKey;
   canvas.setPointerCapture(e.pointerId);
 };
 canvas.onpointermove = (e) => {
@@ -1261,7 +1576,10 @@ canvas.onpointermove = (e) => {
   if (pointerDown) {
     const dx = e.clientX - pointerDown.x,
       dy = e.clientY - pointerDown.y;
-    if (Math.abs(dx) + Math.abs(dy) > 2) pointerDown.moved = true;
+    if (Math.abs(dx) + Math.abs(dy) > 2) {
+      pointerDown.moved = true;
+      mouseBreak = false;
+    }
     yaw -= dx * 0.006;
     pitch = Math.max(-0.25, Math.min(1.15, pitch + dy * 0.005));
     pointerDown.x = e.clientX;
@@ -1276,16 +1594,26 @@ canvas.onpointerup = (e) => {
   );
   if (pointerDown && !pointerDown.moved) {
     pick();
-    if (e.pointerType !== "touch") edit(pointerDown.button === 2 || e.shiftKey);
+    const place = pointerDown.button === 2 || e.shiftKey;
+    // Creative breaks on click; Adventure breaks while the button is held.
+    if (e.pointerType !== "touch" && (place || creative())) edit(place);
   }
   pointerDown = null;
+  mouseBreak = false;
 };
 canvas.onpointercancel = (e) => {
   if (pointerDown?.id === e.pointerId) pointerDown = null;
+  mouseBreak = false;
+};
+canvas.onwheel = (e) => {
+  if (mode !== "playing" || !e.deltaY) return;
+  selected = (selected + Math.sign(e.deltaY) + 9) % 9;
+  render();
 };
 window.addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName))
     return;
+  const wasMode = mode;
   if (mode === "playing") {
     if (
       ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
@@ -1295,16 +1623,19 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
     keys.add(e.code);
     if (e.code === "Space" && !e.repeat) jumpTapped();
-    if (/^[0-9]$/.test(e.key)) {
-      selected = e.key === "0" ? 9 : +e.key - 1;
+    if (/^[1-9]$/.test(e.key)) {
+      selected = +e.key - 1;
       render();
     }
+    if (e.code === "KeyE" && !e.repeat) action("inventory");
     if (e.code === "KeyV" && !e.repeat) togglePerspective();
   }
   if (e.code === "Escape" && !e.repeat) {
     if (mode === "playing") action("pause");
     else if (mode === "paused") action("play");
     else if (MODALS.includes(mode)) action("back");
+  } else if (e.code === "KeyE" && !e.repeat && wasMode === "inventory") {
+    action("back");
   }
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
@@ -1439,6 +1770,7 @@ function frame(now) {
       camera.lookAt(look);
     }
     pick();
+    updateBreaking(dt);
   } else if (mode === "menu" || mode === "splash") {
     biel.visible = true;
     biel.scale.setScalar(2.1);
@@ -1516,6 +1848,10 @@ window.importNativeWorld = (json) => {
 if (new URLSearchParams(location.search).has("test"))
   window.runSmokeTests = async () => {
     const checks = [];
+    const hold = (id) => {
+      inventory.slots[0] = { id, count: 1 };
+      selected = 0;
+    };
     const check = (name, ok) => {
       checks.push({ name, ok: !!ok });
       if (!ok) throw Error(name);
@@ -1564,7 +1900,7 @@ if (new URLSearchParams(location.search).has("test"))
       z = 2,
       y = height(x, z);
     target = { p: [x, y, z], normal: new THREE.Vector3(0, 1, 0) };
-    selected = 6;
+    hold("brick");
     edit(true);
     check("place block", blocks.get(key(x, y + 1, z)) === 6);
     target = { p: [x, y + 1, z], normal: new THREE.Vector3(0, 1, 0) };
@@ -1576,7 +1912,7 @@ if (new URLSearchParams(location.search).has("test"))
       gz = 3,
       gy = height(gx, gz);
     target = { p: [gx, gy, gz], normal: new THREE.Vector3(0, 1, 0) };
-    selected = GLASS;
+    hold("glass");
     edit(true);
     check(
       "glass shows the block below",
@@ -1589,7 +1925,7 @@ if (new URLSearchParams(location.search).has("test"))
       p: [gx + 1, height(gx + 1, gz), gz],
       normal: new THREE.Vector3(0, 1, 0),
     };
-    selected = DOOR;
+    hold("door");
     edit(true);
     const doorY = height(gx + 1, gz) + 1;
     check(
@@ -1680,6 +2016,43 @@ if (new URLSearchParams(location.search).has("test"))
       "adventure world on normal",
       world.mode === "adventure" && world.options.monsters,
     );
+    check("adventure starts with apples", inventory.count("apple") === 3);
+    target = { p: [2, height(2, 2), 2], normal: new THREE.Vector3(0, 1, 0) };
+    touchInput.press(201, "Break");
+    updateBreaking(0.1);
+    check(
+      "breaking takes time in adventure",
+      blocks.has(key(2, height(2, 2), 2)),
+    );
+    for (let i = 0; i < 12; i++) {
+      target = { p: [2, height(2, 2), 2], normal: new THREE.Vector3(0, 1, 0) };
+      updateBreaking(0.1);
+    }
+    touchInput.release(201);
+    check("holding Break collects dirt", inventory.count("dirt") === 1);
+    inventory.add("wood", 1);
+    action("craft", "planks");
+    check("craft planks from wood", inventory.count("planks") === 4);
+    inventory.add("planks", 2);
+    const doorRecipe = RECIPES.find((r) => r.id === "door");
+    check(
+      "door needs a workbench",
+      !canCraft(inventory, doorRecipe, nearBench()),
+    );
+    blocks.set(
+      key(Math.round(player.x) + 2, Math.round(player.y), Math.round(player.z)),
+      BENCH,
+    );
+    check(
+      "workbench nearby unlocks the door",
+      canCraft(inventory, doorRecipe, nearBench()),
+    );
+    action("inventory");
+    check(
+      "backpack screen lists recipes",
+      app.querySelectorAll(".recipe").length === RECIPES.length,
+    );
+    action("back");
     const secondId = world.id;
     action("pause");
     action("worlds");

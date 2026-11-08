@@ -1075,3 +1075,135 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+.slot .item-icon {
+  display: block;
+  margin-top: 6px;
+  font-size: 24px;
+  line-height: 1;
+  text-align: center;
+}
+.slot .count {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff8e9;
+  text-shadow: 0 1px 2px #000;
+}
+.material-label.flash {
+  background: #e98d2b;
+  color: #1d1308;
+  font-weight: 700;
+}
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 6px;
+  margin: 14px 0 22px;
+}
+.inv-grid .slot {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+  padding: 4px;
+  background: #00000024;
+  border-color: var(--border);
+}
+.inv-grid .slot:nth-child(-n + 9) {
+  background: #e7a34214;
+}
+.inv-grid .slot small {
+  color: var(--muted);
+}
+.inv-grid .slot .count {
+  color: var(--text);
+}
+.panel h3 {
+  margin: 8px 0 4px;
+  font-size: 18px;
+}
+.recipes {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.recipe {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  opacity: 0.72;
+}
+.recipe.ok {
+  opacity: 1;
+  border-color: #e7a34266;
+  background: #e7a34210;
+}
+.recipe > .swatch,
+.recipe > .item-icon {
+  justify-self: center;
+}
+.recipe > .swatch {
+  display: block;
+  width: 28px;
+  height: 28px;
+  background: var(--block);
+  box-shadow:
+    inset -7px -5px 0 #0002,
+    inset 0 6px 0 #fff2;
+  transform: rotate(-8deg);
+}
+.recipe > .item-icon {
+  font-size: 26px;
+}
+.recipe strong {
+  display: block;
+  font-size: 14px;
+}
+.needs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.needs em,
+.recipe small {
+  font-style: normal;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #80808026;
+  color: var(--muted);
+}
+.recipe small {
+  display: inline-block;
+  margin-top: 4px;
+}
+.needs em.have,
+.recipe small.have {
+  background: #4caf6a2e;
+  color: #6fd38c;
+}
+.recipe button {
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.recipe button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (max-width: 560px) {
+  .inv-grid {
+    gap: 4px;
+  }
+  .recipe {
+    grid-template-columns: 32px 1fr;
+  }
+  .recipe button {
+    grid-column: 1 / -1;
+  }
+}

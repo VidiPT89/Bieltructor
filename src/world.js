@@ -4,10 +4,18 @@ export const WATER_LEVEL = 2.2;
 export const GLASS = 8,
   DOOR = 9,
   DOOR_OPEN = 10,
-  TYPES = 11;
-// Biel walks through open doors; light passes through glass and open doors.
-export const passable = (type) => type === DOOR_OPEN;
-export const seeThrough = (type) => type === GLASS || type === DOOR_OPEN;
+  PLANKS = 11,
+  BENCH = 12,
+  TORCH = 13,
+  BED = 14,
+  COAL = 15,
+  WOOL = 16,
+  TYPES = 17;
+// Biel walks through open doors and torches; light passes through the
+// blocks that do not fill their whole space.
+export const passable = (type) => type === DOOR_OPEN || type === TORCH;
+export const seeThrough = (type) =>
+  type === GLASS || type === DOOR_OPEN || type === TORCH || type === BED;
 export const key = (x, y, z) => `${x},${y},${z}`;
 export function height(x, z) {
   return Math.max(
@@ -28,6 +36,9 @@ export function generate() {
       let h = height(x, z);
       for (let y = 0; y <= h; y++)
         put(x, y, z, y === h ? (h <= 2 ? 3 : 0) : y < h - 2 ? 2 : 1);
+      // Coal hides in the stone a few blocks down.
+      for (let y = 1; y < h - 2; y++)
+        if ((((x * 7 + y * 13 + z * 31) % 9) + 9) % 9 === 0) put(x, y, z, COAL);
       if (
         h > 3 &&
         Math.abs(x) > 3 &&
