@@ -130,6 +130,131 @@ function dog() {
   return g;
 }
 
+function pig() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.62, 0.5, 0.9], [0, 0.55, 0], 0xf2a7b0);
+  const head = new THREE.Group();
+  head.position.set(0, 0.66, 0.52);
+  g.add(head);
+  box(head, [0.46, 0.42, 0.34], [0, 0, 0], 0xf2a7b0);
+  box(head, [0.22, 0.16, 0.08], [0, -0.06, 0.2], 0xe58893);
+  for (const x of [-0.05, 0.05])
+    box(head, [0.04, 0.05, 0.02], [x, -0.06, 0.25], 0x8c4a52);
+  for (const x of [-0.17, 0.17])
+    box(head, [0.12, 0.1, 0.06], [x, 0.22, 0.04], 0xe58893);
+  eyes(head, 0.08, 0.175, 0.12);
+  g.userData.head = head;
+  for (const [x, z] of [
+    [-0.18, 0.28],
+    [0.18, 0.28],
+    [-0.18, -0.28],
+    [0.18, -0.28],
+  ])
+    leg(g, [0.16, 0.3, 0.16], [x, 0.3, z], 0xe58893);
+  return g;
+}
+
+function rabbit() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.3, 0.28, 0.42], [0, 0.26, 0], 0xd9c3a5);
+  box(g, [0.12, 0.12, 0.1], [0, 0.32, -0.24], 0xf6f2ea);
+  const head = new THREE.Group();
+  head.position.set(0, 0.46, 0.2);
+  g.add(head);
+  box(head, [0.24, 0.22, 0.22], [0, 0, 0], 0xd9c3a5);
+  for (const x of [-0.06, 0.06])
+    box(head, [0.06, 0.24, 0.04], [x, 0.22, -0.03], 0xd9c3a5);
+  box(head, [0.06, 0.04, 0.02], [0, -0.04, 0.115], 0xe58893);
+  eyes(head, 0.03, 0.115, 0.07, 0.045);
+  g.userData.head = head;
+  for (const [x, z] of [
+    [-0.09, 0.12],
+    [0.09, 0.12],
+    [-0.09, -0.12],
+    [0.09, -0.12],
+  ])
+    leg(g, [0.08, 0.14, 0.12], [x, 0.14, z], 0xc9b08f);
+  return g;
+}
+
+function cat() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  const body = new THREE.Group();
+  body.userData.legs = [];
+  g.add(body);
+  g.userData.body = body;
+  box(body, [0.3, 0.28, 0.62], [0, 0.38, 0], 0xe39a4e);
+  for (const z of [-0.15, 0.05])
+    box(body, [0.31, 0.29, 0.06], [0, 0.38, z], 0xc77a34);
+  const head = new THREE.Group();
+  head.position.set(0, 0.56, 0.34);
+  body.add(head);
+  box(head, [0.3, 0.26, 0.24], [0, 0, 0], 0xe39a4e);
+  for (const x of [-0.1, 0.1])
+    box(head, [0.08, 0.1, 0.06], [x, 0.17, 0], 0xe39a4e);
+  box(head, [0.05, 0.04, 0.02], [0, -0.03, 0.125], 0xe58893);
+  eyes(head, 0.04, 0.125, 0.075, 0.05);
+  g.userData.head = head;
+  g.userData.collar = box(body, [0.32, 0.06, 0.1], [0, 0.5, 0.24], 0x4fa3d8);
+  g.userData.collar.visible = false;
+  const tail = box(body, [0.06, 0.06, 0.36], [0, 0.55, -0.42], 0xe39a4e);
+  tail.rotation.x = 0.9;
+  g.userData.tail = tail;
+  for (const [x, z] of [
+    [-0.09, 0.2],
+    [0.09, 0.2],
+    [-0.09, -0.2],
+    [0.09, -0.2],
+  ])
+    leg(body, [0.08, 0.24, 0.08], [x, 0.24, z], 0xd98a3f);
+  g.userData.legs = body.userData.legs;
+  return g;
+}
+
+function horse() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.56, 0.6, 1.3], [0, 1.0, 0], 0x8b5a34);
+  const head = new THREE.Group();
+  head.position.set(0, 1.42, 0.68);
+  head.rotation.x = -0.35;
+  g.add(head);
+  box(head, [0.3, 0.6, 0.32], [0, 0, 0], 0x8b5a34);
+  box(head, [0.28, 0.24, 0.42], [0, 0.18, 0.2], 0x8b5a34);
+  box(head, [0.08, 0.5, 0.2], [0, 0.05, -0.2], 0x3d2a1c);
+  for (const x of [-0.08, 0.08])
+    box(head, [0.06, 0.12, 0.04], [x, 0.36, 0.06], 0x6f4628);
+  eyes(head, 0.24, 0.415, 0.08);
+  g.userData.head = head;
+  box(g, [0.1, 0.5, 0.1], [0, 1.02, -0.68], 0x3d2a1c);
+  // A saddle shows that the horse is Biel's friend.
+  g.userData.collar = box(g, [0.6, 0.12, 0.5], [0, 1.34, 0.05], 0xc8473c);
+  g.userData.collar.visible = false;
+  for (const [x, z] of [
+    [-0.18, 0.48],
+    [0.18, 0.48],
+    [-0.18, -0.48],
+    [0.18, -0.48],
+  ])
+    leg(g, [0.16, 0.72, 0.16], [x, 0.72, z], 0x7a4d2c, 0x2b2016);
+  return g;
+}
+
+export function bird() {
+  const g = new THREE.Group();
+  box(g, [0.18, 0.14, 0.3], [0, 0, 0], 0x5d7fa8);
+  box(g, [0.08, 0.06, 0.08], [0, 0, 0.18], 0xf2a33a);
+  g.userData.wings = [-1, 1].map((side) => {
+    const w = box(g, [0.3, 0.03, 0.16], [side * 0.22, 0.03, 0], 0x4b6b93);
+    w.userData.side = side;
+    return w;
+  });
+  return g;
+}
+
 // Monsters: silly rather than scary.
 function sleepy() {
   const g = new THREE.Group();
@@ -220,7 +345,19 @@ export function arrow() {
   return g;
 }
 
-export const MODELS = { chicken, cow, sheep, dog, sleepy, jelly, archer };
+export const MODELS = {
+  chicken,
+  cow,
+  sheep,
+  dog,
+  pig,
+  rabbit,
+  cat,
+  horse,
+  sleepy,
+  jelly,
+  archer,
+};
 
 // A floating name tag drawn on a canvas.
 export function nameTag(text) {

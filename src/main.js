@@ -41,8 +41,10 @@ import {
   initialAnimals,
   validateAnimals,
   interact,
+  findCouples,
+  makeBaby,
 } from "./creatures.js";
-import { MODELS, nameTag, arrow } from "./models.js";
+import { MODELS, nameTag, arrow, bird } from "./models.js";
 import {
   CHALLENGES,
   createProgress,
@@ -196,10 +198,30 @@ const strings = {
     gave_cow: "A vaca deu-te leite! 🥛",
     gave_sheep: "Tosquiaste a ovelha: +2 lã",
     notReady: "Ainda não… volta daqui a pouco.",
-    wantsTreat: "O cão abana a cauda. Dá-lhe um biscoito para ficar teu amigo!",
-    tamed: "O cão ficou teu amigo! 🐶",
-    nameDog: "Como se chama o teu cão?",
-    dogDefault: "Bobi",
+    animalNames: {
+      chicken: "A galinha",
+      cow: "A vaca",
+      sheep: "A ovelha",
+      pig: "O porco",
+      rabbit: "O coelho",
+      dog: "O cão",
+      cat: "O gato",
+      horse: "O cavalo",
+    },
+    animalNouns: { dog: "cão", cat: "gato", horse: "cavalo" },
+    petDefaults: { dog: "Bobi", cat: "Tareco", horse: "Trovão" },
+    wants_dog: "O cão abana a cauda. Dá-lhe um biscoito para ficar teu amigo!",
+    wants_cat: "O gato mia… parece que gosta de peixe.",
+    wants_horse: "O cavalo relincha. Experimenta dar-lhe uma maçã!",
+    tryAgain: "O cavalo comeu a maçã… tenta outra vez!",
+    tamed: "{animal} ficou teu amigo! 💛",
+    nameDog: "Como se chama o teu {animal}?",
+    love: "{animal} ficou contente! ❤️",
+    happy: "{animal} gosta de festinhas!",
+    baby: "É um bebé! Ainda está a crescer.",
+    born: "Nasceu um bebé! 🐣",
+    mount: "A cavalgar! Carrega em C ou Descer para desmontar.",
+    dismount: "Desmontaste.",
     done: "Pronto",
     sit: "{name} senta-se e espera por ti.",
     follow: "{name} vem contigo!",
@@ -463,10 +485,30 @@ const strings = {
     gave_cow: "The cow gave you milk! 🥛",
     gave_sheep: "You sheared the sheep: +2 wool",
     notReady: "Not yet… come back in a little while.",
-    wantsTreat: "The dog wags its tail. Give it a treat to make friends!",
-    tamed: "The dog is your friend now! 🐶",
-    nameDog: "What is your dog called?",
-    dogDefault: "Buddy",
+    animalNames: {
+      chicken: "The chicken",
+      cow: "The cow",
+      sheep: "The sheep",
+      pig: "The pig",
+      rabbit: "The rabbit",
+      dog: "The dog",
+      cat: "The cat",
+      horse: "The horse",
+    },
+    animalNouns: { dog: "dog", cat: "cat", horse: "horse" },
+    petDefaults: { dog: "Buddy", cat: "Whiskers", horse: "Thunder" },
+    wants_dog: "The dog wags its tail. Give it a treat to make friends!",
+    wants_cat: "The cat meows… it seems to like fish.",
+    wants_horse: "The horse neighs. Try giving it an apple!",
+    tryAgain: "The horse ate the apple… try again!",
+    tamed: "{animal} is your friend now! 💛",
+    nameDog: "What is your {animal} called?",
+    love: "{animal} is happy! ❤️",
+    happy: "{animal} loves a pat!",
+    baby: "It’s a baby! It’s still growing.",
+    born: "A baby was born! 🐣",
+    mount: "Riding! Press C or Down to get off.",
+    dismount: "You got off.",
     done: "Done",
     sit: "{name} sits and waits for you.",
     follow: "{name} is coming with you!",
@@ -664,6 +706,7 @@ let mode = "splash",
   animals = [],
   targetAnimal = null,
   namingDog = null,
+  riding = null,
   progress = null,
   gate = null,
   playSeconds = 0,
@@ -855,11 +898,11 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying || riding ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
   if (mode === "rest")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("restTitle")}"><span class="eyebrow">👪 ${t("parents")}</span><h2>${t("restTitle")}</h2><p class="help-copy">${t("restText", { n: settings.parents.reminder })}</p>${button("restdone", t("continue"), "primary wide")}</section></div>`;
   if (mode === "namedog")
-    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog")}"><span class="eyebrow">🐶</span><h2>${t("nameDog")}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(t("dogDefault"))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
+    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog", { animal: nested("animalNouns", namingDog.type) })}"><span class="eyebrow">💛</span><h2>${t("nameDog", { animal: nested("animalNouns", namingDog.type) })}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(nested("petDefaults", namingDog.type))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
   if (mode === "asleep")
     content = `<div class="modal-backdrop asleep"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("asleep")}"><span class="eyebrow">☾︎ ${t("dayCount", { n: world.day })}</span><h2>${t("asleep")}</h2><p class="help-copy">${t("asleepText")}</p>${button("wake", t("wake"), "primary wide")}</section></div>`;
   if (MODALS.includes(mode)) {
@@ -1186,7 +1229,9 @@ function action(a, arg) {
     mode = "paused";
     save();
   } else if (a === "namedone") {
-    const name = $("#dog-name")?.value.trim().slice(0, 20) || t("dogDefault");
+    const name =
+      $("#dog-name")?.value.trim().slice(0, 20) ||
+      nested("petDefaults", namingDog?.type ?? "dog");
     if (namingDog) {
       namingDog.name = name;
       dressAnimal(namingDog);
@@ -1916,6 +1961,7 @@ function loadWorld(w) {
   vitals = createVitals(w.player?.health, w.player?.food);
   applyParentLimits();
   questShown = "";
+  riding = null;
   setupAnimals();
   for (const m of [...monsters]) removeMonster(m, false);
   for (const a of arrows) scene.remove(a.mesh);
@@ -1990,6 +2036,7 @@ app.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   touchInput.press(e.pointerId, control.dataset.key);
   if (control.dataset.key === "Space") jumpTapped();
+  if (control.dataset.key === "KeyC" && riding) dismount();
   app.setPointerCapture(e.pointerId);
 });
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
@@ -2048,30 +2095,115 @@ function dressAnimal(a) {
   }
 }
 function interactWith(a) {
-  const res = interact(
-    a,
-    creative() && a.type === "dog" ? "treat" : heldId(),
-    world.age,
-  );
+  if (a === riding) return;
+  const kind = ANIMALS[a.type],
+    held = creative() && kind.tameWith && !a.tamed ? kind.tameWith : heldId();
+  const res = interact(a, held, world.age, Math.random());
+  const who = nested("animalNames", a.type);
+  if (res.use && !creative()) inventory.remove(res.use, 1);
   if (res.result === "gave") {
     if (!creative() && inventory.add(...res.give)) toast(t("full"));
     else toast(t("gave_" + a.type));
     beepAt(620, 920);
   } else if (res.result === "tamed") {
-    if (!creative()) inventory.remove("treat", 1);
-    burst([a.x, a.y + 0.8, a.z], 6);
+    hearts(a);
     beepAt(420, 260);
     beepAt(440, 280, 0.18);
     dressAnimal(a);
-    toast(t("tamed"));
-    emit("tame:dog");
+    toast(t("tamed", { animal: who }));
+    emit("tame:" + a.type);
     namingDog = a;
     mode = "namedog";
+  } else if (res.result === "mount") {
+    mount(a);
+  } else if (res.result === "love") {
+    hearts(a);
+    toast(t("love", { animal: who }));
   } else if (res.result === "sit" || res.result === "follow")
-    toast(t(res.result, { name: a.name || t("dogDefault") }));
-  else toast(t(res.result));
+    toast(t(res.result, { name: a.name || nested("petDefaults", a.type) }));
+  else if (res.result === "wants") toast(t("wants_" + a.type));
+  else toast(t(res.result, { animal: who }));
   scheduleSave();
   render();
+}
+// Little pink hearts above a happy animal.
+const heartMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b8a });
+function hearts(a) {
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(cube, heartMaterial);
+    m.scale.setScalar(0.12);
+    m.position.set(a.x, a.y + 1.2, a.z);
+    scene.add(m);
+    particles.push({
+      m,
+      v: new THREE.Vector3(
+        (Math.random() - 0.5) * 1.5,
+        1.5 + Math.random(),
+        (Math.random() - 0.5) * 1.5,
+      ),
+      life: 1,
+    });
+  }
+}
+// Riding a friendly horse: Biel sits on top and goes faster.
+function mount(a) {
+  riding = a;
+  flying = false;
+  player.set(a.x, Math.max(player.y, a.y), a.z);
+  toast(t("mount"));
+  render();
+}
+function dismount() {
+  if (!riding) return;
+  riding.x = player.x;
+  riding.z = player.z;
+  riding.y = player.y;
+  riding = null;
+  toast(t("dismount"));
+  render();
+}
+// Birds circle over the island during the day.
+const flock = new THREE.Group();
+scene.add(flock);
+for (let i = 0; i < 6; i++) {
+  const b = bird();
+  b.userData.phase = (i / 6) * Math.PI * 2;
+  b.userData.radius = 9 + (i % 3) * 3;
+  flock.add(b);
+}
+function updateBirds(dt, daylight) {
+  flock.visible = daylight > 0.5 && (world?.options.animals ?? true);
+  if (!flock.visible) return;
+  for (const b of flock.children) {
+    const a = elapsed * 0.25 + b.userData.phase;
+    b.position.set(
+      Math.cos(a) * b.userData.radius,
+      16 + Math.sin(a * 2) * 1.5,
+      Math.sin(a) * b.userData.radius,
+    );
+    b.rotation.y = -a;
+    for (const w of b.userData.wings)
+      w.rotation.z =
+        Math.sin(elapsed * 12 + b.userData.phase) * 0.6 * w.userData.side;
+  }
+}
+let breedClock = 1;
+function breedAnimals(dt) {
+  breedClock -= dt;
+  if (breedClock > 0) return;
+  breedClock = 1;
+  const limit = settings.quality === "high" ? 30 : 14;
+  for (const [a, b] of findCouples(animals, world.age)) {
+    if (animals.length >= limit) break;
+    const baby = makeBaby(a, b, world.age);
+    baby.mesh = MODELS[baby.type]();
+    baby.mesh.userData.animal = baby;
+    animalGroup.add(baby.mesh);
+    animals.push(baby);
+    hearts(baby);
+    toast(t("born"));
+    jingle();
+  }
 }
 function updateAnimals(dt) {
   for (const a of animals) {
@@ -2080,11 +2212,39 @@ function updateAnimals(dt) {
     m.visible = active;
     if (!active) continue;
     let speed = 0;
-    if (a.type === "dog" && a.tamed) {
-      // A friendly dog follows Biel, or chases a monster close to him.
-      const foe = a.sitting
-        ? null
-        : monsters.find((m) => Math.hypot(m.x - player.x, m.z - player.z) < 7);
+    if (a.baby && world.age >= a.grownAt) a.baby = false;
+    m.scale.setScalar(a.baby ? 0.55 : 1);
+    if (a === riding) {
+      // The horse carries Biel: it simply stays under him.
+      a.x = player.x;
+      a.z = player.z;
+      a.y = player.y;
+      a.yaw = biel.rotation.y;
+      m.position.set(a.x, a.y - 0.01, a.z);
+      m.rotation.y = a.yaw;
+      const gallop =
+        pressed("KeyW") ||
+        pressed("KeyA") ||
+        pressed("KeyS") ||
+        pressed("KeyD") ||
+        pressed("ArrowUp") ||
+        pressed("ArrowDown") ||
+        pressed("ArrowLeft") ||
+        pressed("ArrowRight");
+      const swingRide = gallop ? Math.sin(elapsed * 14) * 0.7 : 0;
+      m.userData.legs.forEach(
+        (l, i) => (l.rotation.x = i % 2 ? swingRide : -swingRide),
+      );
+      continue;
+    }
+    if (ANIMALS[a.type].companion && a.tamed) {
+      // Friendly dogs and cats follow Biel; a dog also chases monsters away.
+      const foe =
+        a.sitting || a.type !== "dog"
+          ? null
+          : monsters.find(
+              (m) => Math.hypot(m.x - player.x, m.z - player.z) < 7,
+            );
       const goal = foe ?? player;
       const dx = goal.x - a.x,
         dz = goal.z - a.z,
@@ -2104,6 +2264,13 @@ function updateAnimals(dt) {
         a.yaw = Math.atan2(dx, dz);
         speed = d > 6 ? 4.2 : 2.6;
       }
+    } else if (
+      ANIMALS[a.type].shy &&
+      Math.hypot(player.x - a.x, player.z - a.z) < 4
+    ) {
+      // Rabbits hop away when Biel comes close.
+      a.yaw = Math.atan2(a.x - player.x, a.z - player.z);
+      speed = 3.2;
     } else {
       a.timer = (a.timer ?? 0) - dt;
       if (a.timer <= 0) {
@@ -2347,6 +2514,12 @@ function updateMonsters(dt) {
       m.hop += dt * 5;
       speed *= Math.sin(m.hop) > 0 ? 1.7 : 0.2;
     }
+    // A friendly cat scares the sleepwalkers and jellies away.
+    const cat = animals.find(
+      (a) =>
+        a.type === "cat" && a.tamed && Math.hypot(a.x - m.x, a.z - m.z) < 6,
+    );
+    if (cat && m.type !== "archer") dir = Math.atan2(m.x - cat.x, m.z - cat.z);
     m.yaw = Math.atan2(dx, dz);
     if (speed) {
       const nx = m.x + Math.sin(dir) * speed * dt,
@@ -2593,7 +2766,11 @@ function pick() {
   if (animalHit && (!hits[0] || animalHit.distance < hits[0].distance)) {
     let o = animalHit.object;
     while (o && !o.userData.animal) o = o.parent;
-    if (o && o.position.distanceTo(player) < 5) {
+    if (
+      o &&
+      o.userData.animal !== riding &&
+      o.position.distanceTo(player) < 5
+    ) {
       targetAnimal = o.userData.animal;
       return;
     }
@@ -3117,6 +3294,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "KeyE" && !e.repeat) action("inventory");
     if (e.code === "KeyF" && !e.repeat) attack();
+    if (e.code === "KeyC" && !e.repeat && riding) dismount();
     if (e.code === "KeyV" && !e.repeat) togglePerspective();
   }
   if (e.code === "Escape" && !e.repeat) {
@@ -3179,6 +3357,7 @@ function frame(now) {
     const len = Math.hypot(dx, dz) || 1,
       speed =
         (pressed("ShiftLeft") || pressed("ShiftRight") ? 6 : 3.8) *
+        (riding ? 2 : 1) *
         (player.y + 0.9 < WATER_LEVEL ? 0.6 : 1);
     dx /= len;
     dz /= len;
@@ -3202,7 +3381,7 @@ function frame(now) {
         : Math.max(velocity - 6 * dt, -1.5);
     } else {
       if (pressed("Space") && grounded) {
-        velocity = 7;
+        velocity = riding ? 8.5 : 7;
         grounded = false;
       }
       velocity -= 19 * dt;
@@ -3232,6 +3411,7 @@ function frame(now) {
     }
     if (dx || dz) tutorialEvent("walk", speed * dt);
     updateAnimals(dt);
+    breedAnimals(dt);
     updateMonsters(dt);
     growCrops(dt);
     updateFishing();
@@ -3281,6 +3461,7 @@ function frame(now) {
       if (vitals.health <= 0) fallAsleep();
     }
     biel.position.copy(player);
+    if (riding) biel.position.y += 0.75;
     biel.visible = !firstPerson;
     if (dx || dz) biel.rotation.y = Math.atan2(vx, vz);
     const stride =
@@ -3337,6 +3518,7 @@ function frame(now) {
   // The menu always shows a sunny day; the game follows the clock.
   const skyNow = applySky(scenery === "game" ? skyTime() : NOON + 0.03);
   updateTorchLights(dt, skyNow.daylight);
+  updateBirds(dt, skyNow.daylight);
   updateWeather(dt, scenery === "game" && !!world);
   const clockEl = app.querySelector(".clock");
   if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
@@ -3662,7 +3844,7 @@ if (new URLSearchParams(location.search).has("test"))
     // Animals: products, waiting time and a dog that becomes a friend.
     check(
       "animals in the new world",
-      animals.length === 11 && animalGroup.children.length === 11,
+      animals.length === 19 && animalGroup.children.length === 19,
     );
     const cow = animals.find((x) => x.type === "cow"),
       dog = animals.find((x) => x.type === "dog");
@@ -3694,6 +3876,62 @@ if (new URLSearchParams(location.search).has("test"))
       "animals are saved",
       store.load(world.id).creatures.find((x) => x.type === "dog").name ===
         "Faísca",
+    );
+    // More animals: babies, a shy rabbit, a cat friend and a horse to ride.
+    const [cowA, cowB] = animals.filter((x) => x.type === "cow");
+    cowB.x = cowA.x + 1;
+    cowB.z = cowA.z;
+    for (const c of [cowA, cowB]) {
+      inventory.add("wheat", 1);
+      hold("wheat");
+      interactWith(c);
+    }
+    const herdBefore = animals.length;
+    breedClock = 0;
+    frame(last + 16);
+    const calf = animals.find((x) => x.baby && x.type === "cow");
+    check("two happy cows have a calf", animals.length === herdBefore + 1 && calf);
+    world.age = calf.grownAt + 1;
+    frame(last + 16);
+    check("the calf grows up", !calf.baby);
+    const bunny = animals.find((x) => x.type === "rabbit");
+    bunny.x = player.x + 1.5;
+    bunny.z = player.z;
+    bunny.y = surfaceY(bunny.x, bunny.z, player.y + 2);
+    frame(last + 16);
+    for (let i = 0; i < 30; i++) frame(last + 16);
+    check(
+      "the rabbit hops away",
+      Math.hypot(bunny.x - player.x, bunny.z - player.z) > 2,
+    );
+    const kitty = animals.find((x) => x.type === "cat");
+    inventory.add("fish", 1);
+    hold("fish");
+    interactWith(kitty);
+    check("fish makes the cat a friend", kitty.tamed && mode === "namedog");
+    action("namedone");
+    const pony = animals.find((x) => x.type === "horse");
+    inventory.add("apple", 30);
+    hold("apple");
+    inventory.slots[0].count = 30;
+    for (let i = 0; i < 30 && !pony.tamed; i++) interactWith(pony);
+    check("apples make the horse a friend", pony.tamed);
+    action("namedone");
+    interactWith(pony);
+    check("riding the horse", riding === pony);
+    const rideStart = player.clone();
+    keys.add("KeyW");
+    for (let i = 0; i < 30; i++) frame(last + 16);
+    keys.delete("KeyW");
+    const rideDistance = player.distanceTo(rideStart);
+    dismount();
+    const walkStart = player.clone();
+    keys.add("KeyW");
+    for (let i = 0; i < 30; i++) frame(last + 16);
+    keys.delete("KeyW");
+    check(
+      "the horse is faster than walking",
+      rideDistance > player.distanceTo(walkStart) * 1.3 && riding === null,
     );
     // Monsters on Normal at night: appear, hurt, get chased off, vanish at dawn.
     dog.sitting = true;

@@ -1,13 +1,42 @@
 // Friendly animals: where they start, what they give and how they behave.
 import { height, SIZE } from "./world.js";
 
+// `food` makes two of them have a baby; `tameWith` makes a friend.
 export const ANIMALS = {
-  chicken: { speed: 1.1, product: "egg", count: 1, cooldown: 90 },
-  cow: { speed: 0.9, product: "milk", count: 1, cooldown: 120 },
-  sheep: { speed: 0.9, product: "wool", count: 2, cooldown: 120 },
-  dog: { speed: 1.4 },
+  chicken: {
+    speed: 1.1,
+    product: "egg",
+    count: 1,
+    cooldown: 90,
+    food: "wheat_seeds",
+  },
+  cow: { speed: 0.9, product: "milk", count: 1, cooldown: 120, food: "wheat" },
+  sheep: {
+    speed: 0.9,
+    product: "wool",
+    count: 2,
+    cooldown: 120,
+    food: "wheat",
+  },
+  pig: { speed: 1, food: "carrot" },
+  rabbit: { speed: 1.6, food: "carrot", shy: true },
+  dog: { speed: 1.4, tameWith: "treat", companion: true },
+  cat: { speed: 1.3, tameWith: "fish", companion: true },
+  horse: { speed: 1.5, tameWith: "apple", ride: true, tameChance: 0.4 },
 };
-const START = { chicken: 4, cow: 3, sheep: 3, dog: 1 };
+const START = {
+  chicken: 4,
+  cow: 3,
+  sheep: 3,
+  dog: 1,
+  pig: 2,
+  rabbit: 3,
+  cat: 1,
+  horse: 2,
+};
+export const BABY_SECONDS = 300,
+  LOVE_SECONDS = 30,
+  BREED_REST = 300;
 
 // A small repeatable random generator, so every new world starts the same.
 export function seeded(seed) {
@@ -64,26 +93,82 @@ export function validateAnimals(raw) {
       z: a.z,
       yaw: Number.isFinite(a.yaw) ? a.yaw : 0,
       readyAt: Number.isFinite(a.readyAt) ? a.readyAt : 0,
-      tamed: a.type === "dog" && a.tamed === true,
+      tamed: !!ANIMALS[a.type].tameWith && a.tamed === true,
       sitting: a.sitting === true,
       name: typeof a.name === "string" ? a.name.slice(0, 20) : "",
+      baby: a.baby === true,
+      grownAt: Number.isFinite(a.grownAt) ? a.grownAt : 0,
+      love: Number.isFinite(a.love) ? a.love : 0,
+      breedAt: Number.isFinite(a.breedAt) ? a.breedAt : 0,
     }));
 }
 
 // What happens when Biel uses something on an animal at a given game time.
-export function interact(animal, heldId, now) {
+// `roll` (0 to 1) decides whether a wild horse accepts the apple.
+export function interact(animal, heldId, now, roll = 0) {
   const kind = ANIMALS[animal.type];
-  if (animal.type === "dog") {
-    if (animal.tamed) {
-      animal.sitting = !animal.sitting;
-      return { result: animal.sitting ? "sit" : "follow" };
-    }
-    if (heldId !== "treat") return { result: "wantsTreat" };
+  if (kind.tameWith && !animal.tamed) {
+    if (heldId !== kind.tameWith) return { result: "wants" };
+    if (kind.tameChance && roll >= kind.tameChance)
+      return { result: "tryAgain", use: heldId };
     animal.tamed = true;
     animal.sitting = false;
-    return { result: "tamed", use: "treat" };
+    return { result: "tamed", use: heldId };
   }
+  if (kind.ride) return { result: "mount" };
+  if (kind.companion) {
+    animal.sitting = !animal.sitting;
+    return { result: animal.sitting ? "sit" : "follow" };
+  }
+  if (animal.baby) return { result: "baby" };
+  if (heldId && heldId === kind.food) {
+    if (now < animal.breedAt || now < animal.love)
+      return { result: "notReady" };
+    animal.love = now + LOVE_SECONDS;
+    return { result: "love", use: heldId };
+  }
+  if (!kind.product) return { result: "happy" };
   if (now < animal.readyAt) return { result: "notReady" };
   animal.readyAt = now + kind.cooldown;
   return { result: "gave", give: [kind.product, kind.count] };
+}
+
+// Two grown-ups of the same kind, both happy and close, have a baby.
+export function findCouples(animals, now) {
+  const couples = [],
+    taken = new Set();
+  for (const a of animals)
+    for (const b of animals)
+      if (
+        a !== b &&
+        a.type === b.type &&
+        !taken.has(a) &&
+        !taken.has(b) &&
+        a.love > now &&
+        b.love > now &&
+        Math.hypot(a.x - b.x, a.z - b.z) < 4
+      ) {
+        couples.push([a, b]);
+        taken.add(a).add(b);
+      }
+  return couples;
+}
+export function makeBaby(a, b, now) {
+  a.love = b.love = 0;
+  a.breedAt = b.breedAt = now + BREED_REST;
+  return {
+    type: a.type,
+    x: (a.x + b.x) / 2,
+    y: Math.max(a.y, b.y),
+    z: (a.z + b.z) / 2,
+    yaw: a.yaw,
+    readyAt: 0,
+    tamed: false,
+    sitting: false,
+    name: "",
+    baby: true,
+    grownAt: now + BABY_SECONDS,
+    love: 0,
+    breedAt: now + BREED_REST,
+  };
 }
