@@ -1290,3 +1290,78 @@ kbd {
 .attack-btn.hidden {
   display: none;
 }
+.quest-kicker {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #f5ad49;
+}
+.quest.tutorial {
+  border-color: #f5ad4966;
+}
+.quest .skip {
+  align-self: start;
+  padding: 6px 10px;
+  font-size: 11px;
+  pointer-events: auto;
+}
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+.sticker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  background: #00000014;
+}
+.sticker.done {
+  border: 1px solid #f5ad4988;
+  background: radial-gradient(circle at 50% 30%, #f5ad4926, transparent 70%);
+}
+.sticker-face {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  font-size: 30px;
+  background: #80808024;
+  color: var(--muted);
+}
+.sticker.done .sticker-face {
+  background: #fff6e4;
+  box-shadow:
+    0 3px 0 #e2b46b,
+    0 6px 14px #0003;
+  transform: rotate(-6deg);
+}
+.sticker strong {
+  font-size: 13px;
+}
+.sticker small {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sticker em {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+}
+@media (max-width: 560px) {
+  .sticker-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

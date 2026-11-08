@@ -31,6 +31,23 @@ import {
 } from "./creatures.js";
 import { MODELS, nameTag, arrow } from "./models.js";
 import {
+  CHALLENGES,
+  createProgress,
+  record,
+  nextChallenge,
+  progressOf,
+  goalOf,
+} from "./challenges.js";
+import { TUTORIAL, advance } from "./tutorial.js";
+import {
+  normalizeParents,
+  gateQuestion,
+  allowedDifficulties,
+  clampDifficulty,
+  reminderDue,
+  REMINDERS,
+} from "./parents.js";
+import {
   MONSTERS,
   allowedMonsters,
   canSpawn,
@@ -167,6 +184,89 @@ const strings = {
     attack: "Atacar",
     monsterNear: "Ouves um barulho estranho… 👀",
     cantSleep: "Não consegues dormir: há monstros por perto!",
+    challenges: {
+      shelter: [
+        "O primeiro abrigo",
+        "Coloca 12 blocos e dá uma casa à imaginação.",
+      ],
+      bench: ["Mesa de inventor", "Faz uma bancada de trabalho."],
+      torches: ["Luz na escuridão", "Coloca 5 tochas."],
+      night: ["Corajoso da noite", "Sobrevive à primeira noite na Aventura."],
+      sleep: ["Bons sonhos", "Faz uma cama e dorme nela à noite."],
+      coalIron: ["Caçador de minérios", "Encontra carvão e ferro."],
+      ironPickaxe: ["Ferramenta a sério", "Faz uma picareta de ferro."],
+      wheat: ["Pequeno agricultor", "Planta e colhe trigo."],
+      dog: ["Melhor amigo", "Faz amizade com um cão e dá-lhe um nome."],
+      crystal: ["Tesouro azul", "Encontra um cristal azul."],
+      house: [
+        "Casa a sério",
+        "Dorme numa casa com porta, janela de vidro e cama.",
+      ],
+      biomes: ["Explorador", "Visita 3 biomas diferentes."],
+    },
+    stickers: "Caderneta",
+    stickerBook: "A minha caderneta",
+    stickerCount: "{n} de 12 autocolantes",
+    newSticker: "Autocolante novo! {sticker} {title}",
+    allDone: "Caderneta completa! És um verdadeiro Bieltructor! 🏆",
+    nextGoal: "PRÓXIMO AUTOCOLANTE",
+    tutorial: "Tutorial",
+    tutorialOption: "Tutorial guiado",
+    startTutorial: "Começar o tutorial",
+    skip: "Saltar",
+    tutorialDone: "Tutorial completo! Agora o vale é todo teu. 🎓",
+    tutorialSteps: {
+      move: [
+        "Anda um bocadinho com W A S D ou as setas.",
+        "Anda com os botões das setas.",
+      ],
+      look: [
+        "Arrasta o rato para olhar à volta.",
+        "Arrasta o cenário com o dedo para olhar à volta.",
+      ],
+      break: [
+        "Mantém o clique num bloco para o partir.",
+        "Toca num bloco e mantém Partir carregado.",
+      ],
+      place: [
+        "Escolhe um bloco na barra e usa o botão direito para o pôr.",
+        "Toca num sítio e carrega em Construir.",
+      ],
+      backpack: [
+        "Abre a mochila com a tecla E.",
+        "Abre a mochila com o botão 🎒.",
+      ],
+      bench: [
+        "Parte madeira de uma árvore, faz tábuas e depois uma bancada.",
+        "Parte madeira de uma árvore, faz tábuas e depois uma bancada.",
+      ],
+      torch: [
+        "Faz paus e cava na pedra até achar carvão. Depois faz uma tocha.",
+        "Faz paus e cava na pedra até achar carvão. Depois faz uma tocha.",
+      ],
+      shelter: [
+        "Constrói um abrigo: coloca 12 blocos.",
+        "Constrói um abrigo: coloca 12 blocos.",
+      ],
+      sleep: [
+        "Faz uma cama (com lã das ovelhas) e dorme nela à noite.",
+        "Faz uma cama (com lã das ovelhas) e dorme nela à noite.",
+      ],
+    },
+    parents: "Pais",
+    parentsQuestion: "Para os pais: quanto é {a} mais {b}?",
+    enter: "Entrar",
+    wrongAnswer: "Resposta errada. Esta parte é para os pais.",
+    reminder: "Lembrete de pausa",
+    reminderOff: "Desligado",
+    minutes: "{n} minutos",
+    maxDifficulty: "Dificuldade máxima",
+    noMonstersOption: "Monstros sempre desligados",
+    parentsNote:
+      "Sem Internet, sem contas, sem anúncios e sem recolha de dados.",
+    restTitle: "Hora de uma pausa! 👀",
+    restText:
+      "Já jogaste {n} minutos. Descansa os olhos, bebe água e depois continua.",
     break: "Partir",
     place: "Construir",
     jump: "Saltar",
@@ -338,6 +438,91 @@ const strings = {
     attack: "Attack",
     monsterNear: "You hear a funny noise… 👀",
     cantSleep: "You can’t sleep: there are monsters nearby!",
+    challenges: {
+      shelter: [
+        "First shelter",
+        "Place 12 blocks and give your imagination a home.",
+      ],
+      bench: ["Inventor’s table", "Make a workbench."],
+      torches: ["Light in the dark", "Place 5 torches."],
+      night: [
+        "Brave of the night",
+        "Get through your first night in Adventure.",
+      ],
+      sleep: ["Sweet dreams", "Make a bed and sleep in it at night."],
+      coalIron: ["Ore hunter", "Find coal and iron."],
+      ironPickaxe: ["A proper tool", "Make an iron pickaxe."],
+      wheat: ["Little farmer", "Plant and harvest wheat."],
+      dog: ["Best friend", "Make friends with a dog and give it a name."],
+      crystal: ["Blue treasure", "Find a blue crystal."],
+      house: [
+        "A real home",
+        "Sleep in a house with a door, a glass window and a bed.",
+      ],
+      biomes: ["Explorer", "Visit 3 different biomes."],
+    },
+    stickers: "Stickers",
+    stickerBook: "My sticker book",
+    stickerCount: "{n} of 12 stickers",
+    newSticker: "New sticker! {sticker} {title}",
+    allDone: "Sticker book complete! You are a true Bieltructor! 🏆",
+    nextGoal: "NEXT STICKER",
+    tutorial: "Tutorial",
+    tutorialOption: "Guided tutorial",
+    startTutorial: "Start the tutorial",
+    skip: "Skip",
+    tutorialDone: "Tutorial complete! The valley is all yours. 🎓",
+    tutorialSteps: {
+      move: [
+        "Walk a little with W A S D or the arrow keys.",
+        "Walk with the arrow buttons.",
+      ],
+      look: [
+        "Drag the mouse to look around.",
+        "Drag the scene with your finger to look around.",
+      ],
+      break: [
+        "Hold the click on a block to break it.",
+        "Tap a block and hold Break.",
+      ],
+      place: [
+        "Pick a block in the bar and right-click to place it.",
+        "Tap a spot and press Build.",
+      ],
+      backpack: [
+        "Open the backpack with the E key.",
+        "Open the backpack with the 🎒 button.",
+      ],
+      bench: [
+        "Break wood from a tree, make planks and then a workbench.",
+        "Break wood from a tree, make planks and then a workbench.",
+      ],
+      torch: [
+        "Make sticks and dig into the stone to find coal. Then make a torch.",
+        "Make sticks and dig into the stone to find coal. Then make a torch.",
+      ],
+      shelter: [
+        "Build a shelter: place 12 blocks.",
+        "Build a shelter: place 12 blocks.",
+      ],
+      sleep: [
+        "Make a bed (with wool from the sheep) and sleep in it at night.",
+        "Make a bed (with wool from the sheep) and sleep in it at night.",
+      ],
+    },
+    parents: "Parents",
+    parentsQuestion: "For parents: what is {a} plus {b}?",
+    enter: "Enter",
+    wrongAnswer: "Wrong answer. This part is for parents.",
+    reminder: "Break reminder",
+    reminderOff: "Off",
+    minutes: "{n} minutes",
+    maxDifficulty: "Highest difficulty",
+    noMonstersOption: "Monsters always off",
+    parentsNote: "No Internet, no accounts, no ads and no data collection.",
+    restTitle: "Time for a break! 👀",
+    restText:
+      "You have played for {n} minutes. Rest your eyes, drink some water and then carry on.",
     break: "Break",
     place: "Build",
     jump: "Jump",
@@ -421,8 +606,10 @@ try {
   );
 } catch {}
 if (!strings[settings.lang]) settings.lang = "pt";
+settings.parents = normalizeParents(settings.parents);
 const itemName = (id) =>
   id ? strings[settings.lang].items[id] : t("emptyHand");
+const nested = (group, id) => strings[settings.lang][group][id];
 const t = (k, vars = {}) =>
   String(strings[settings.lang][k]).replace(/\{(\w+)\}/g, (_, v) => vars[v]);
 const touchInput = new TouchInput();
@@ -437,6 +624,10 @@ let mode = "splash",
   animals = [],
   targetAnimal = null,
   namingDog = null,
+  progress = null,
+  gate = null,
+  playSeconds = 0,
+  questShown = "",
   monsters = [],
   arrows = [],
   targetMonster = null,
@@ -469,6 +660,11 @@ const storage = {
   },
 };
 const store = createStore(storage);
+try {
+  progress = createProgress(JSON.parse(storage.getItem("biel-stickers")));
+} catch {
+  progress = createProgress();
+}
 const makeId = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 store.migrate(makeId);
@@ -535,6 +731,12 @@ function field(id, label, value, choices) {
     )
     .join("")}</select></label>`;
 }
+function parentField(id, label, value, choices) {
+  return field(id, label, value, choices).replace(
+    'data-option="',
+    'data-parent="',
+  );
+}
 function worldFields(o, withMode) {
   const yesNo = [
     [true, t("yes")],
@@ -546,16 +748,22 @@ function worldFields(o, withMode) {
           ["adventure", t("adventure")],
           ["creative", t("creativeMode")],
         ]) +
-        `<p class="field-hint">${draft.mode === "creative" ? t("creativeHint") : t("adventureHint")}</p>`
+        `<p class="field-hint">${draft.mode === "creative" ? t("creativeHint") : t("adventureHint")}</p>` +
+        (draft.mode === "adventure"
+          ? field("tutorial", t("tutorialOption"), draft.tutorial, [
+              [true, t("yes")],
+              [false, t("no")],
+            ])
+          : "")
       : "",
     '<div class="options-grid">',
     field(
       "difficulty",
       t("difficulty"),
       o.difficulty,
-      DIFFICULTIES.map((d) => [d, t(d)]),
+      allowedDifficulties(settings.parents.maxDifficulty).map((d) => [d, t(d)]),
     ),
-    o.difficulty === "peaceful"
+    o.difficulty === "peaceful" || settings.parents.noMonsters
       ? ""
       : field("monsters", t("monsters"), o.monsters, yesNo),
     field("animals", t("animals"), o.animals, yesNo),
@@ -581,9 +789,9 @@ function render() {
   if (mode === "splash")
     content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
   if (mode === "menu")
-    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
+    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest"><span>✦</span><div><b>${t("quest")}</b><p>${placed() >= 12 ? t("done") : t("questText")}</p><div class="progress"><i style="width:${Math.min(100, (placed() / 12) * 100)}%"></i></div></div><small>${Math.min(placed(), 12)}/12</small></div><div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div><div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
       .slice(0, 9)
       .map((slot, i) =>
         slotButton(
@@ -597,6 +805,8 @@ function render() {
       .join(
         "",
       )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+  if (mode === "rest")
+    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("restTitle")}"><span class="eyebrow">👪 ${t("parents")}</span><h2>${t("restTitle")}</h2><p class="help-copy">${t("restText", { n: settings.parents.reminder })}</p>${button("restdone", t("continue"), "primary wide")}</section></div>`;
   if (mode === "namedog")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog")}"><span class="eyebrow">🐶</span><h2>${t("nameDog")}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(t("dogDefault"))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
   if (mode === "asleep")
@@ -638,15 +848,47 @@ function render() {
         },
       ).join("")}</div>${button("back", t("back"), "primary wide")}`;
     }
+    if (mode === "stickers") {
+      const n = Object.keys(progress.done).length;
+      inner = `<span class="eyebrow">${t("stickerCount", { n })}</span><h2>${t("stickerBook")}</h2><div class="sticker-grid">${CHALLENGES.map(
+        (c) => {
+          const [title, text] = nested("challenges", c.id),
+            done = progress.done[c.id];
+          return `<div class="sticker ${done ? "done" : ""}"><span class="sticker-face">${done ? c.sticker : "?"}</span><strong>${title}</strong><small>${text}</small>${done ? "" : `<em>${progressOf(progress, c)}/${goalOf(c)}</em>`}</div>`;
+        },
+      ).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    }
+    if (mode === "parentsgate")
+      inner = `<span class="eyebrow">👪 ${t("parents")}</span><h2>${t("parents")}</h2><label>${t("parentsQuestion", { a: gate.a, b: gate.b })}<input id="parents-answer" inputmode="numeric" autocomplete="off"></label>${button("parentscheck", t("enter"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
+    if (mode === "parents") {
+      const pr = settings.parents;
+      inner = `<span class="eyebrow">👪 ${t("parents")}</span><h2>${t("parents")}</h2>${parentField(
+        "reminder",
+        t("reminder"),
+        pr.reminder,
+        REMINDERS.map((m) => [
+          m,
+          m ? t("minutes", { n: m }) : t("reminderOff"),
+        ]),
+      )}${parentField(
+        "maxDifficulty",
+        t("maxDifficulty"),
+        pr.maxDifficulty,
+        DIFFICULTIES.map((d) => [d, t(d)]),
+      )}${parentField("noMonsters", t("noMonstersOption"), pr.noMonsters, [
+        [true, t("yes")],
+        [false, t("no")],
+      ])}<p class="field-hint">${t("parentsNote")}</p>${button("back", t("back"), "primary wide")}`;
+    }
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
     if (mode === "help")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${button("back", t("back"), "primary wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div><small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
-    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack" }[mode] ?? mode)}">${inner}</section></div>`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
   app
@@ -700,6 +942,21 @@ function render() {
         action("back");
       }),
   );
+  app.querySelectorAll("[data-parent]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        const raw =
+          el.value === "true" ? true : el.value === "false" ? false : el.value;
+        settings.parents = normalizeParents({
+          ...settings.parents,
+          [el.dataset.parent]:
+            el.dataset.parent === "reminder" ? Number(raw) : raw,
+        });
+        theme();
+        if (world) applyParentLimits();
+        render();
+      }),
+  );
   // World options: the new-world draft, or the live world from the pause menu.
   app.querySelectorAll("[data-option]").forEach(
     (el) =>
@@ -708,6 +965,7 @@ function render() {
         const raw =
           el.value === "true" ? true : el.value === "false" ? false : el.value;
         if (el.dataset.option === "mode") draft.mode = raw;
+        else if (el.dataset.option === "tutorial") draft.tutorial = raw;
         else if (el.dataset.option === "difficulty")
           // A new difficulty brings its own sensible defaults.
           target.options = normalizeOptions({
@@ -742,6 +1000,106 @@ function render() {
       )
       ?.focus({ preventScroll: true });
 }
+// A new world suggests Adventure on Easy (within the parents' limit), with the tutorial.
+function newDraft() {
+  return {
+    name: t("defaultName"),
+    mode: "adventure",
+    tutorial: true,
+    options: normalizeOptions({
+      difficulty: clampDifficulty("easy", settings.parents.maxDifficulty),
+    }),
+  };
+}
+function applyParentLimits() {
+  const capped = clampDifficulty(
+    world.options.difficulty,
+    settings.parents.maxDifficulty,
+  );
+  if (capped !== world.options.difficulty)
+    world.options = normalizeOptions({
+      ...world.options,
+      difficulty: capped,
+      monsters: capped !== "peaceful" && world.options.monsters,
+    });
+}
+// Only events that some sticker cares about are kept in the progress.
+const STICKER_EVENTS = new Set(
+  CHALLENGES.flatMap((c) => [c.event, ...(c.all ?? []), c.distinct]).filter(
+    Boolean,
+  ),
+);
+function saveProgress() {
+  try {
+    storage.setItem("biel-stickers", JSON.stringify(progress));
+  } catch {}
+}
+function emit(event, amount = 1) {
+  if (STICKER_EVENTS.has(event) || STICKER_EVENTS.has(event.split(":")[0])) {
+    const fresh = record(progress, event, amount);
+    saveProgress();
+    fresh.forEach((id, i) => setTimeout(() => celebrate(id), i * 1800));
+  }
+  tutorialEvent(event, amount);
+  updateQuestBox();
+}
+function tutorialEvent(event, amount = 1) {
+  if (!world?.tutorial) return;
+  const r = advance(world.tutorial, event, amount);
+  world.tutorial = r.state;
+  if (r.moved) {
+    jingle();
+    if (r.finished) toast(t("tutorialDone"));
+    scheduleSave();
+  }
+  updateQuestBox();
+}
+function celebrate(id) {
+  const c = CHALLENGES.find((x) => x.id === id);
+  toast(
+    t("newSticker", { sticker: c.sticker, title: nested("challenges", id)[0] }),
+  );
+  if (Object.keys(progress.done).length === CHALLENGES.length)
+    setTimeout(() => toast(t("allDone")), 3800);
+  jingle();
+  sparkle([player.x, player.y + 1.6, player.z]);
+}
+function jingle() {
+  if (!settings.sound) return;
+  [523, 659, 784].forEach((f, i) => beepAt(f, f * 1.01, i * 0.11));
+}
+// The card at the top left: the tutorial step, or the next sticker to earn.
+function questBox() {
+  if (!world) return "";
+  const touch =
+    document.documentElement.dataset.platform === "ios" ||
+    matchMedia("(pointer: coarse)").matches;
+  if (world.tutorial) {
+    const step = TUTORIAL[world.tutorial.step],
+      ratio = Math.min(1, world.tutorial.amount / (step.goal ?? 1));
+    return `<div class="quest tutorial"><span>🎓</span><div><b>${t("tutorial")} ${world.tutorial.step + 1}/${TUTORIAL.length}</b><p>${nested("tutorialSteps", step.id)[touch ? 1 : 0]}</p><div class="progress"><i style="width:${Math.round(ratio * 100)}%"></i></div></div>${button("skiptutorial", t("skip"), "quiet skip")}</div>`;
+  }
+  const c = nextChallenge(progress);
+  if (!c)
+    return `<div class="quest"><span>🏆</span><div><b>${t("stickerBook")}</b><p>${t("allDone")}</p></div></div>`;
+  const [title, text] = nested("challenges", c.id),
+    have = progressOf(progress, c),
+    goal = goalOf(c);
+  return `<div class="quest"><span>${c.sticker}</span><div><small class="quest-kicker">${t("nextGoal")}</small><b>${title}</b><p>${text}</p><div class="progress"><i style="width:${Math.round((have / goal) * 100)}%"></i></div></div><small>${have}/${goal}</small></div>`;
+}
+function updateQuestBox() {
+  const slot = app.querySelector(".quest-slot");
+  if (!slot) return;
+  const html = questBox();
+  if (html === questShown) return;
+  questShown = html;
+  slot.innerHTML = html;
+  slot
+    .querySelectorAll("[data-action]")
+    .forEach(
+      (b) => (b.onclick = () => action(b.dataset.action, b.dataset.arg)),
+    );
+}
 const MODALS = [
   "settings",
   "help",
@@ -750,6 +1108,9 @@ const MODALS = [
   "newworld",
   "worldsettings",
   "inventory",
+  "stickers",
+  "parentsgate",
+  "parents",
 ];
 // Screens opened on top of each other; "back" returns to the previous one.
 const history = [];
@@ -762,11 +1123,7 @@ function action(a, arg) {
   if (a !== "deleteworld") confirmDelete = null;
   if (a === "play") {
     if (!world) {
-      draft = {
-        name: t("defaultName"),
-        mode: "adventure",
-        options: normalizeOptions({}),
-      };
+      draft = newDraft();
       open("newworld");
     } else {
       mode = "playing";
@@ -787,6 +1144,24 @@ function action(a, arg) {
     namingDog = null;
     mode = "playing";
     scheduleSave();
+  } else if (a === "stickers") {
+    open("stickers");
+  } else if (a === "parentsgate") {
+    gate = gateQuestion(Math.random, settings.lang);
+    open("parentsgate");
+  } else if (a === "parentscheck") {
+    if (Number($("#parents-answer")?.value) === gate?.answer) mode = "parents";
+    else toast(t("wrongAnswer"));
+  } else if (a === "restdone") {
+    playSeconds = 0;
+    mode = "playing";
+  } else if (a === "starttutorial") {
+    world.tutorial = { step: 0, amount: 0 };
+    mode = "playing";
+    history.length = 0;
+  } else if (a === "skiptutorial") {
+    world.tutorial = null;
+    scheduleSave();
   } else if (a === "wake") {
     vitals = createVitals();
     spawn();
@@ -794,10 +1169,12 @@ function action(a, arg) {
   } else if (a === "inventory") {
     invPick = null;
     open("inventory");
+    tutorialEvent("open:inventory");
   } else if (a === "craft") {
     const recipe = RECIPES.find((r) => r.id === arg);
     if (recipe && craft(inventory, recipe, nearBench())) {
       toast(t("crafted", { item: itemName(recipe.out[0]) }));
+      emit("craft:" + recipe.id);
       beep(true);
       scheduleSave();
     }
@@ -805,11 +1182,7 @@ function action(a, arg) {
     if (a === "worlds" && world) save();
     open(a);
   } else if (a === "newworld") {
-    draft = {
-      name: t("defaultName"),
-      mode: "adventure",
-      options: normalizeOptions({}),
-    };
+    draft = newDraft();
     open("newworld");
   } else if (a === "create") {
     if (store.list().length >= MAX_WORLDS) {
@@ -818,6 +1191,8 @@ function action(a, arg) {
     }
     if (world) save();
     const created = newWorld({ id: makeId(), ...draft });
+    if (created.mode === "adventure" && draft.tutorial)
+      created.tutorial = { step: 0, amount: 0 };
     store.save(created);
     loadWorld(created);
     mode = "playing";
@@ -1405,6 +1780,8 @@ function loadWorld(w) {
   flying = false;
   inventory = Inventory.from(w.inventory);
   vitals = createVitals(w.player?.health, w.player?.food);
+  applyParentLimits();
+  questShown = "";
   setupAnimals();
   for (const m of [...monsters]) removeMonster(m, false);
   for (const a of arrows) scene.remove(a.mesh);
@@ -1547,6 +1924,7 @@ function interactWith(a) {
     beepAt(440, 280, 0.18);
     dressAnimal(a);
     toast(t("tamed"));
+    emit("tame:dog");
     namingDog = a;
     mode = "namedog";
   } else if (res.result === "sit" || res.result === "follow")
@@ -1639,6 +2017,7 @@ const monsterGroup = new THREE.Group();
 scene.add(monsterGroup);
 const monstersAllowed = () =>
   world &&
+  !settings.parents.noMonsters &&
   world.mode === "adventure" &&
   world.options.monsters &&
   world.options.difficulty !== "peaceful";
@@ -2040,6 +2419,19 @@ function burst(p, type) {
 const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
 const heldId = () => inventory.slots[selected]?.id ?? null;
 // Beds: the newest one becomes home; at night, sleeping skips to the morning.
+// A real home: a bed with a door and a glass window close by.
+function isHouse(p) {
+  let door = false,
+    glass = false;
+  for (let x = p[0] - 5; x <= p[0] + 5; x++)
+    for (let y = p[1] - 2; y <= p[1] + 3; y++)
+      for (let z = p[2] - 5; z <= p[2] + 5; z++) {
+        const type = blocks.get(key(x, y, z));
+        if (type === DOOR || type === DOOR_OPEN) door = true;
+        if (type === GLASS) glass = true;
+      }
+  return door && glass;
+}
 function sleepIn(p) {
   if (monsters.some((m) => Math.hypot(m.x - player.x, m.z - player.z) < 10)) {
     toast(t("cantSleep"));
@@ -2051,6 +2443,8 @@ function sleepIn(p) {
     timeOfDay = 0.02;
     world.day++;
     toast(t("sleepNight"));
+    emit("sleep");
+    if (isHouse(p)) emit("house");
   } else toast(t("sleepDay"));
   scheduleSave();
 }
@@ -2204,6 +2598,8 @@ function edit(place) {
     }
     edits.set(k, type);
     if (!creative()) inventory.takeFrom(selected);
+    emit("place");
+    if (type === TORCH) emit("place:torch");
     // Doors are two blocks tall when there is room above.
     const above = key(p[0], p[1] + 1, p[2]);
     if (type === DOOR && p[1] < 30 && !blocks.has(above)) {
@@ -2214,9 +2610,11 @@ function edit(place) {
   } else {
     const type = blocks.get(k);
     burst(p, type);
+    tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
       const got = drops(type, heldId(), Math.random());
+      for (const [id] of got) emit("got:" + id);
       for (const [id, n] of got) if (inventory.add(id, n)) toast(t("full"));
       if (got.length)
         setTimeout(() => flashLabel(`+${got[0][1]} ${itemName(got[0][0])}`));
@@ -2283,6 +2681,7 @@ canvas.onpointermove = (e) => {
       mouseBreak = false;
     }
     yaw -= dx * 0.006;
+    if (mode === "playing") tutorialEvent("look", Math.abs(dx) * 0.006);
     pitch = Math.max(-0.25, Math.min(1.15, pitch + dy * 0.005));
     pointerDown.x = e.clientX;
     pointerDown.y = e.clientY;
@@ -2382,6 +2781,7 @@ function frame(now) {
     if (timeOfDay >= 1) {
       timeOfDay -= 1;
       world.day++;
+      if (!creative()) emit("night");
     }
   }
   if (mode === "playing") {
@@ -2439,6 +2839,14 @@ function frame(now) {
     }
     if (player.y < -5) spawn();
     world.age += dt;
+    // Break reminder set by the parents.
+    playSeconds += dt;
+    if (reminderDue(playSeconds, settings.parents.reminder)) {
+      save();
+      mode = "rest";
+      render();
+    }
+    if (dx || dz) tutorialEvent("walk", speed * dt);
     updateAnimals(dt);
     updateMonsters(dt);
     // Adventure: falls, hunger, air and health.
@@ -2991,6 +3399,69 @@ if (new URLSearchParams(location.search).has("test"))
     check("world deleted", store.list().length === 1 && world === null);
     action("openworld", firstId);
     check("first world reopened", world?.id === firstId && edits.size > 0);
+    // Tutorial, sticker book and the parents' corner.
+    action("pause");
+    action("worlds");
+    action("newworld");
+    check("new worlds offer the tutorial", draft.tutorial === true);
+    action("create");
+    check(
+      "the tutorial starts in a new adventure world",
+      world.tutorial?.step === 0 && app.querySelector(".quest.tutorial"),
+    );
+    tutorialEvent("walk", 5);
+    check("walking moves the tutorial on", world.tutorial.step === 1);
+    action("skiptutorial");
+    check(
+      "the tutorial can be skipped",
+      world.tutorial === null && !app.querySelector(".quest.tutorial"),
+    );
+    check(
+      "placing blocks counts for the shelter sticker",
+      (progress.counters.place ?? 0) >= 1,
+    );
+    inventory.add("planks", 4);
+    action("craft", "bench");
+    check("a workbench earns a sticker", !!progress.done.bench);
+    check("the dog sticker from earlier", !!progress.done.dog);
+    action("stickers");
+    check(
+      "the sticker book shows twelve stickers",
+      app.querySelectorAll(".sticker").length === 12 &&
+        app.querySelectorAll(".sticker.done").length >= 2,
+    );
+    action("back");
+    action("pause");
+    action("settings");
+    action("parentsgate");
+    $("#parents-answer").value = "1";
+    action("parentscheck");
+    check(
+      "a wrong answer keeps the parents' corner closed",
+      mode === "parentsgate",
+    );
+    $("#parents-answer").value = String(gate.answer);
+    action("parentscheck");
+    check("the right answer opens the parents' corner", mode === "parents");
+    settings.parents = normalizeParents({
+      ...settings.parents,
+      noMonsters: true,
+      maxDifficulty: "easy",
+      reminder: 30,
+    });
+    world.options = normalizeOptions({ ...world.options, difficulty: "hard" });
+    applyParentLimits();
+    check(
+      "parents can switch monsters off and cap the difficulty",
+      !monstersAllowed() && world.options.difficulty === "easy",
+    );
+    mode = "playing";
+    playSeconds = 30 * 60 - 0.001;
+    frame(last + 16);
+    check("the break reminder appears", mode === "rest");
+    action("restdone");
+    check("and play goes on", mode === "playing" && playSeconds === 0);
+    settings.parents = normalizeParents({});
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };
