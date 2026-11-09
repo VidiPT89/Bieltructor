@@ -1370,3 +1370,41 @@ kbd {
   transition: none;
   background: #eef4ffcc;
 }
+.furnace {
+  display: grid;
+  grid-template-columns: 70px 70px 1fr 70px;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0 22px;
+}
+.furnace-cell {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+.furnace-cell small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.furnace-cell .slot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  padding: 4px;
+}
+.furnace-cell.burning .slot {
+  box-shadow: 0 0 16px #ff8a2b88;
+  border-color: #ff8a2b;
+}
+.furnace-progress {
+  height: 10px;
+  margin-bottom: 26px;
+  border-radius: 6px;
+  background: #80808033;
+  overflow: hidden;
+}
+.furnace-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f5ad49, #ff6a3d);
+}

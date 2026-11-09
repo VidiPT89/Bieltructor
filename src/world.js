@@ -80,6 +80,11 @@ function legacyGenerate() {
       // Coal hides in the stone a few blocks down.
       for (let y = 1; y < h - 2; y++)
         if ((((x * 7 + y * 13 + z * 31) % 9) + 9) % 9 === 0) put(x, y, z, COAL);
+        // A little iron, and on the very bottom a rare blue crystal.
+        else if ((((x * 11 + y * 17 + z * 23) % 13) + 13) % 13 === 0)
+          put(x, y, z, IRON_ORE);
+        else if (y === 1 && (((x * 5 + z * 29) % 61) + 61) % 61 === 0)
+          put(x, y, z, CRYSTAL_ORE);
       if (
         h > 3 &&
         Math.abs(x) > 3 &&
@@ -251,7 +256,15 @@ export function makeTerrain(seed, size) {
           let t = 2;
           if (y === h) t = sandy ? 3 : b === "snow" ? SNOW : 0;
           else if (y >= h - 3) t = sandy ? 3 : 1;
-          else if (y > 0 && spot(seed, x * 31 + y, z, 1) < 0.06) t = COAL;
+          else if (y > 0) {
+            // Ores: deeper means rarer and shinier.
+            const o = spot(seed, x * 31 + y, z, 1);
+            if (o < 0.06) t = COAL;
+            else if (o < 0.085 && y < 16) t = IRON_ORE;
+            else if (o < 0.095 && y < 9) t = GOLD_ORE;
+            else if (o < 0.1 && y < 6) t = CRYSTAL_ORE;
+            else if (o < 0.104 && y < 11) t = GLOWSTONE;
+          }
           put(x, y, z, t);
         }
         // Frozen water in the snow, plants and trees on land.
@@ -269,6 +282,40 @@ export function makeTerrain(seed, size) {
         else if ((b === "plains" || b === "forest") && r < 0.12)
           put(x, h + 1, z, r < 0.05 ? FLOWER : TALL_GRASS);
         else if (b === "swamp" && r < 0.12) put(x, h + 1, z, MUSHROOM);
+      }
+    // Ruins and cabins, each with a treasure chest.
+    for (let cx = -size + 6; cx < size - 6; cx += 24)
+      for (let cz = -size + 6; cz < size - 6; cz += 24) {
+        const x = cx + Math.floor(spot(seed, cx, cz, 5) * 14),
+          z = cz + Math.floor(spot(seed, cz, cx, 6) * 14),
+          b = biome(x, z),
+          h = height(x, z);
+        if (h <= SEA + 1 || spot(seed, x, z, 8) > 0.55) continue;
+        const cabin = b === "forest" || b === "plains";
+        for (let dx = -2; dx <= 2; dx++)
+          for (let dz = -2; dz <= 2; dz++) {
+            for (let y = h + 1; y <= h + 5; y++)
+              blocks.delete(key(x + dx, y, z + dz));
+            put(x + dx, h, z + dz, cabin ? PLANKS : STONE_BRICK);
+            const wall = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+            if (!wall) continue;
+            // Ruins have broken walls; cabins have a door and a window.
+            const top = cabin
+              ? 3
+              : 1 + Math.floor(spot(seed, x + dx, z + dz, 9) * 3);
+            for (let y = h + 1; y <= h + top; y++)
+              put(x + dx, y, z + dz, cabin ? PLANKS : STONE_BRICK);
+          }
+        if (cabin) {
+          for (let dx = -2; dx <= 2; dx++)
+            for (let dz = -2; dz <= 2; dz++) put(x + dx, h + 4, z + dz, 4);
+          put(x, h + 1, z + 2, DOOR);
+          put(x, h + 2, z + 2, DOOR);
+          put(x + 2, h + 2, z, GLASS);
+          put(x - 1, h + 1, z - 1, BED);
+          put(x + 1, h + 1, z - 1, TORCH);
+        }
+        put(x + (cabin ? 1 : 0), h + 1, z + (cabin ? 1 : 0), CHEST);
       }
     return blocks;
   }

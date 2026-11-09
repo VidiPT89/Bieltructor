@@ -58,6 +58,38 @@ export const RECIPES = [
     needs: { stick: 3, wool: 1 },
     bench: true,
   },
+  { id: "chest", out: ["chest", 1], needs: { planks: 8 }, bench: true },
+  { id: "furnace", out: ["furnace", 1], needs: { stone: 8 }, bench: true },
+  {
+    id: "stone_brick",
+    out: ["stone_brick", 4],
+    needs: { stone: 4 },
+    bench: true,
+  },
+  {
+    id: "iron_pickaxe",
+    out: ["iron_pickaxe", 1],
+    needs: { iron_ingot: 3, stick: 2 },
+    bench: true,
+  },
+  {
+    id: "iron_sword",
+    out: ["iron_sword", 1],
+    needs: { iron_ingot: 2, stick: 1 },
+    bench: true,
+  },
+  {
+    id: "crystal_pickaxe",
+    out: ["crystal_pickaxe", 1],
+    needs: { crystal: 3, stick: 2 },
+    bench: true,
+  },
+  {
+    id: "crystal_sword",
+    out: ["crystal_sword", 1],
+    needs: { crystal: 2, stick: 1 },
+    bench: true,
+  },
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

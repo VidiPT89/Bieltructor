@@ -19,6 +19,13 @@ import {
   TALL_GRASS,
   MUSHROOM,
   isPlant,
+  IRON_ORE,
+  GOLD_ORE,
+  CRYSTAL_ORE,
+  GLOWSTONE,
+  CHEST,
+  FURNACE,
+  STONE_BRICK,
   GLASS,
   DOOR,
   DOOR_OPEN,
@@ -39,6 +46,14 @@ import {
   cropInfo,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
+import {
+  SMELT,
+  FUEL,
+  tickFurnace,
+  validateFurnace,
+  emptyFurnace,
+  chestLoot,
+} from "./smelting.js";
 import {
   LOOK,
   nextWeather,
@@ -186,6 +201,21 @@ const strings = {
       cactus: "Cato",
       flower: "Flor",
       mushroom: "Cogumelo",
+      iron_ore: "Minério de ferro",
+      gold_ore: "Minério de ouro",
+      glowstone: "Pedra luminosa",
+      chest: "Baú",
+      furnace: "Forno",
+      stone_brick: "Tijolo de pedra",
+      crystal: "Cristal azul",
+      iron_ingot: "Barra de ferro",
+      gold_ingot: "Barra de ouro",
+      iron_pickaxe: "Picareta de ferro",
+      crystal_pickaxe: "Picareta de cristal",
+      iron_sword: "Espada de ferro",
+      crystal_sword: "Espada de cristal",
+      baked_potato: "Batata assada",
+      cooked_fish: "Peixe grelhado",
     },
     backpack: "Mochila",
     recipes: "Receitas",
@@ -248,6 +278,13 @@ const strings = {
     tilled: "Terra lavrada! Agora planta sementes.",
     weather: "Clima",
     worldSize: "Tamanho do mundo",
+    chestHint: "Toca num objeto para o passar entre o baú e a mochila.",
+    furnaceHint:
+      "Toca num minério ou comida para o pôr a cozinhar, e em carvão, madeira, tábuas ou paus para dar lume.",
+    toCook: "Para cozinhar",
+    fuelSlot: "Lume",
+    ready: "Pronto",
+    notForFurnace: "Isto não vai ao forno.",
     classic: "Vale clássico (57 × 57)",
     small: "Pequeno (57 × 57)",
     medium: "Médio (97 × 97)",
@@ -495,6 +532,21 @@ const strings = {
       cactus: "Cactus",
       flower: "Flower",
       mushroom: "Mushroom",
+      iron_ore: "Iron ore",
+      gold_ore: "Gold ore",
+      glowstone: "Glowstone",
+      chest: "Chest",
+      furnace: "Furnace",
+      stone_brick: "Stone bricks",
+      crystal: "Blue crystal",
+      iron_ingot: "Iron bar",
+      gold_ingot: "Gold bar",
+      iron_pickaxe: "Iron pickaxe",
+      crystal_pickaxe: "Crystal pickaxe",
+      iron_sword: "Iron sword",
+      crystal_sword: "Crystal sword",
+      baked_potato: "Baked potato",
+      cooked_fish: "Grilled fish",
     },
     backpack: "Backpack",
     recipes: "Recipes",
@@ -556,6 +608,13 @@ const strings = {
     tilled: "Soil tilled! Now plant some seeds.",
     weather: "Weather",
     worldSize: "World size",
+    chestHint: "Tap something to move it between the chest and your backpack.",
+    furnaceHint:
+      "Tap an ore or some food to cook it, and coal, wood, planks or sticks to light the fire.",
+    toCook: "To cook",
+    fuelSlot: "Fire",
+    ready: "Ready",
+    notForFurnace: "That doesn’t go in the furnace.",
     classic: "Classic valley (57 × 57)",
     small: "Small (57 × 57)",
     medium: "Medium (97 × 97)",
@@ -774,6 +833,8 @@ let mode = "splash",
   cropKeys = [],
   growClock = 5,
   rainLevel = 0,
+  container = null,
+  containerClock = 0,
   menuAnchor = [0, 0],
   lastBiome = null,
   biomeClock = 0,
@@ -1009,6 +1070,16 @@ function render() {
         },
       ).join("")}</div>${button("back", t("back"), "primary wide")}`;
     }
+    if (mode === "chest") {
+      const chest = chestAt(container.key);
+      inner = `<span class="eyebrow">📦</span><h2>${itemName("chest")}</h2><p class="field-hint">${t("chestHint")}</p><div class="inv-grid">${chest.slots.map((slot, i) => slotButton(slot, i, `data-move="chest" data-index="${i}" title="${itemName(slot?.id)}"`, false)).join("")}</div><h3>${t("backpack")}</h3><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-move="bag" data-index="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    }
+    if (mode === "furnace") {
+      const f = validateFurnace(world.furnaces[container.key]);
+      const cell = (slot, label, cls = "") =>
+        `<div class="furnace-cell ${cls}"><small>${label}</small>${slotButton(f[slot] ? { id: f[slot][0], count: f[slot][1] } : null, 0, `data-move="${slot}" data-index="0"`, false)}</div>`;
+      inner = `<span class="eyebrow">🔥</span><h2>${itemName("furnace")}</h2><p class="field-hint">${t("furnaceHint")}</p><div class="furnace">${cell("input", t("toCook"))}${cell("fuel", t("fuelSlot"), f.burn > 0 ? "burning" : "")}<div class="furnace-progress"><i style="width:${Math.round(f.progress * 100)}%"></i></div>${cell("output", t("ready"))}</div><h3>${t("backpack")}</h3><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-move="bag" data-index="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    }
     if (mode === "stickers") {
       const n = Object.keys(progress.done).length;
       inner = `<span class="eyebrow">${t("stickerCount", { n })}</span><h2>${t("stickerBook")}</h2><div class="sticker-grid">${CHALLENGES.map(
@@ -1049,7 +1120,7 @@ function render() {
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
       inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
-    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
+    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
   app
@@ -1083,6 +1154,12 @@ function render() {
         render();
       };
   }
+  app
+    .querySelectorAll("[data-move]")
+    .forEach(
+      (b) =>
+        (b.onclick = () => moveStack(b.dataset.move, Number(b.dataset.index))),
+    );
   // Backpack: tap one slot, then another, to swap them.
   app.querySelectorAll("[data-inv]").forEach(
     (b) =>
@@ -1161,7 +1238,9 @@ function render() {
   if (MODALS.includes(mode))
     app
       .querySelector(
-        mode === "inventory" ? '[data-action="back"]' : "button,select",
+        ["inventory", "chest", "furnace"].includes(mode)
+          ? '[data-action="back"]'
+          : "button,select",
       )
       ?.focus({ preventScroll: true });
 }
@@ -1275,6 +1354,8 @@ const MODALS = [
   "newworld",
   "worldsettings",
   "inventory",
+  "chest",
+  "furnace",
   "stickers",
   "parentsgate",
   "parents",
@@ -1283,7 +1364,11 @@ const MODALS = [
 const history = [];
 function open(screen) {
   // The backpack returns straight to the game; other screens go via the pause menu.
-  history.push(mode === "playing" && screen !== "inventory" ? "paused" : mode);
+  history.push(
+    mode === "playing" && !["inventory", "chest", "furnace"].includes(screen)
+      ? "paused"
+      : mode,
+  );
   mode = screen;
 }
 function action(a, arg) {
@@ -1626,7 +1711,71 @@ const plankLines = (ctx, base, line) => {
   ])
     ctx.fillRect(x, y, 1, 3);
 };
+// Stone with coloured specks for each ore.
+const oreTexture = (speck) => () =>
+  drawTexture((ctx) => {
+    ctx.fillStyle = "#8e9797";
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = speck;
+    for (const [x, y] of [
+      [2, 3],
+      [9, 2],
+      [5, 9],
+      [12, 10],
+      [3, 13],
+      [11, 14],
+    ])
+      ctx.fillRect(x, y, 2, 2);
+  });
 const blockTextures = {
+  [IRON_ORE]: oreTexture("#d6a77a"),
+  [GOLD_ORE]: oreTexture("#f2c94c"),
+  [CRYSTAL_ORE]: oreTexture("#5fd0f2"),
+  [GLOWSTONE]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#ffd36b";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#fff2b8";
+      for (const [x, y] of [
+        [1, 1],
+        [8, 4],
+        [4, 10],
+        [12, 12],
+        [11, 1],
+      ])
+        ctx.fillRect(x, y, 3, 3);
+    }),
+  [CHEST]: () =>
+    drawTexture((ctx) => {
+      plankLines(ctx, "#9a6a3c", "#6c4325");
+      ctx.fillStyle = "#4a3320";
+      ctx.fillRect(0, 6, 16, 2);
+      ctx.fillStyle = "#f2c14e";
+      ctx.fillRect(7, 6, 2, 4);
+    }),
+  [FURNACE]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#6b6f70";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#2c2f30";
+      ctx.fillRect(4, 8, 8, 6);
+      ctx.fillStyle = "#ff8a2b";
+      ctx.fillRect(5, 11, 6, 2);
+    }),
+  [STONE_BRICK]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#8a9090";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#6e7474";
+      for (const y of [0, 7, 15]) ctx.fillRect(0, y, 16, 1);
+      for (const [x, y] of [
+        [0, 0],
+        [8, 0],
+        [4, 8],
+        [12, 8],
+      ])
+        ctx.fillRect(x, y, 1, 7);
+    }),
   [SNOW]: () =>
     drawTexture((ctx) => {
       ctx.fillStyle = "#f4f8fb";
@@ -1833,6 +1982,12 @@ for (const crop of CROPS)
       side: THREE.DoubleSide,
       roughness: 1,
     });
+// Glowstone and furnaces glow.
+for (const type of [GLOWSTONE, FURNACE]) {
+  materials[type].emissive.set(type === GLOWSTONE ? 0xffd36b : 0xff8a2b);
+  materials[type].emissiveMap = materials[type].map;
+  materials[type].emissiveIntensity = type === GLOWSTONE ? 0.9 : 0.25;
+}
 // Torches always glow a little, and more at night.
 const torchMaterial = materials[TORCH];
 torchMaterial.emissive.set(0xffb347);
@@ -3312,6 +3467,81 @@ function updateFishing() {
     render();
   }
 }
+// Chests and furnaces. A chest found in ruins or cabins is filled with
+// treasure the first time it is opened.
+function chestAt(k) {
+  if (!world.chests[k]) {
+    const [x, y, z] = k.split(",").map(Number);
+    const inv = new Inventory(27);
+    for (const [id, n] of chestLoot(world.seed ?? 1, x, y, z)) inv.add(id, n);
+    world.chests[k] = inv.toJSON();
+  }
+  return Inventory.from(world.chests[k], 27);
+}
+function openContainer(type, k) {
+  container = { type, key: k };
+  invPick = null;
+  open(type === CHEST ? "chest" : "furnace");
+  render();
+}
+function emptyContainer(type, k, p) {
+  const items =
+    type === CHEST
+      ? chestAt(k)
+          .slots.filter(Boolean)
+          .map((s) => [s.id, s.count])
+      : ["input", "fuel", "output"]
+          .map((slot) => validateFurnace(world.furnaces[k])[slot])
+          .filter(Boolean);
+  for (const [id, n] of items) if (inventory.add(id, n)) toast(t("full"));
+  delete world.chests[k];
+  delete world.furnaces[k];
+}
+// Moves a whole stack between the backpack and the open chest or furnace.
+function moveStack(from, index) {
+  if (container.type === CHEST) {
+    const chest = chestAt(container.key);
+    const [source, dest] =
+      from === "bag" ? [inventory, chest] : [chest, inventory];
+    const slot = source.slots[index];
+    if (!slot) return;
+    const left = dest.add(slot.id, slot.count);
+    source.slots[index] = left ? { id: slot.id, count: left } : null;
+    world.chests[container.key] = chest.toJSON();
+  } else {
+    const f = validateFurnace(world.furnaces[container.key]);
+    if (from === "bag") {
+      const slot = inventory.slots[index];
+      if (!slot) return;
+      const where = SMELT[slot.id] ? "input" : FUEL[slot.id] ? "fuel" : null;
+      if (!where) return toast(t("notForFurnace"));
+      if (f[where] && f[where][0] !== slot.id) inventory.add(...f[where]);
+      const total = (f[where]?.[0] === slot.id ? f[where][1] : 0) + slot.count;
+      f[where] = [slot.id, Math.min(64, total)];
+      inventory.slots[index] =
+        total > 64 ? { id: slot.id, count: total - 64 } : null;
+    } else if (f[from]) {
+      const left = inventory.add(...f[from]);
+      f[from] = left ? [f[from][0], left] : null;
+    }
+    world.furnaces[container.key] = f;
+  }
+  scheduleSave();
+  render();
+}
+// Furnaces keep cooking even when nobody is looking.
+function updateFurnaces(dt) {
+  for (const [k, raw] of Object.entries(world.furnaces)) {
+    const f = validateFurnace(raw);
+    tickFurnace(f, dt);
+    world.furnaces[k] = f;
+  }
+  containerClock -= dt;
+  if (mode === "furnace" && containerClock <= 0) {
+    containerClock = 0.5;
+    render();
+  }
+}
 // Advanced recipes need a workbench within four blocks.
 function nearBench() {
   const [px, py, pz] = [player.x, player.y, player.z].map(Math.round);
@@ -3387,6 +3617,11 @@ function edit(place) {
     render();
     return;
   }
+  const usedType = blocks.get(key(...p));
+  if (place && (usedType === CHEST || usedType === FURNACE)) {
+    openContainer(usedType, key(...p));
+    return;
+  }
   if (place && blocks.get(key(...p)) === BED) {
     sleepIn(p);
     return;
@@ -3429,6 +3664,8 @@ function edit(place) {
     }
     edits.set(k, type);
     if (!creative()) inventory.takeFrom(selected);
+    if (type === CHEST) world.chests[k] = [];
+    if (type === FURNACE) world.furnaces[k] = emptyFurnace();
     emit("place");
     if (type === TORCH) emit("place:torch");
     // Doors are two blocks tall when there is room above.
@@ -3441,13 +3678,17 @@ function edit(place) {
   } else {
     const type = blocks.get(k);
     burst(p, type);
+    if (type === CHEST || type === FURNACE) emptyContainer(type, k, p);
     tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
       const got = drops(type, heldId(), Math.random());
       if (cropInfo(type)?.crop === "wheat" && cropInfo(type).stage === 3)
         emit("harvest:wheat");
-      for (const [id] of got) emit("got:" + id);
+      for (const [id] of got) {
+        emit("got:" + id);
+        if (id === "iron_ore") emit("got:iron");
+      }
       for (const [id, n] of got) if (inventory.add(id, n)) toast(t("full"));
       if (got.length)
         setTimeout(() => flashLabel(`+${got[0][1]} ${itemName(got[0][0])}`));
@@ -3694,6 +3935,7 @@ function frame(now) {
     if (dx || dz) tutorialEvent("walk", speed * dt);
     updateAnimals(dt);
     breedAnimals(dt);
+    updateFurnaces(dt);
     updateMonsters(dt);
     growCrops(dt);
     updateFishing();
@@ -4445,6 +4687,87 @@ if (new URLSearchParams(location.search).has("test"))
     world.options = normalizeOptions({ ...world.options, weather: false });
     for (let i = 0; i < 320; i++) frame(last + 16);
     check("no weather when switched off", !rain.visible && !raining());
+    // Chests, the furnace, iron tools and treasure.
+    const cx0 = Math.round(player.x) + 2,
+      cz0 = Math.round(player.z) - 2,
+      cy0 = topAt(cx0, cz0);
+    inventory.add("chest", 1);
+    hold("chest");
+    target = { p: [cx0, cy0, cz0], normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    const chestKey = key(cx0, cy0 + 1, cz0);
+    check(
+      "a chest is placed empty",
+      blocks.get(chestKey) === CHEST && world.chests[chestKey].length === 0,
+    );
+    target = { p: [cx0, cy0 + 1, cz0], normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    check("using a chest opens it", mode === "chest");
+    inventory.add("dirt", 5);
+    moveStack(
+      "bag",
+      inventory.slots.findIndex((x) => x?.id === "dirt"),
+    );
+    check(
+      "things move into the chest",
+      chestAt(chestKey).count("dirt") >= 5 && !inventory.count("dirt"),
+    );
+    action("back");
+    const fx0 = cx0 + 1;
+    inventory.add("furnace", 1);
+    hold("furnace");
+    target = {
+      p: [fx0, topAt(fx0, cz0), cz0],
+      normal: new THREE.Vector3(0, 1, 0),
+    };
+    edit(true);
+    const furnaceKey = key(fx0, topAt(fx0, cz0), cz0);
+    target = {
+      p: furnaceKey.split(",").map(Number),
+      normal: new THREE.Vector3(0, 1, 0),
+    };
+    edit(true);
+    check("using a furnace opens it", mode === "furnace");
+    inventory.add("iron_ore", 3);
+    inventory.add("coal", 1);
+    moveStack(
+      "bag",
+      inventory.slots.findIndex((x) => x?.id === "iron_ore"),
+    );
+    moveStack(
+      "bag",
+      inventory.slots.findIndex((x) => x?.id === "coal"),
+    );
+    for (let i = 0; i < 40; i++) updateFurnaces(0.5);
+    moveStack("output", 0);
+    check("the furnace melts iron bars", inventory.count("iron_ingot") === 3);
+    action("back");
+    setBlock(
+      [Math.round(player.x) - 2, Math.round(player.y), Math.round(player.z)],
+      BENCH,
+    );
+    inventory.add("stick", 2);
+    action("craft", "iron_pickaxe");
+    check(
+      "an iron pickaxe earns its sticker",
+      inventory.count("iron_pickaxe") === 1 && !!progress.done.ironPickaxe,
+    );
+    const oreAt = [Math.round(player.x) + 3, 1, Math.round(player.z) + 3];
+    setBlock(oreAt, IRON_ORE);
+    hold("iron_pickaxe");
+    target = { p: oreAt, normal: new THREE.Vector3(0, 1, 0) };
+    edit(false);
+    check(
+      "iron ore needs a pickaxe and counts for the ore hunter",
+      inventory.count("iron_ore") >= 1 &&
+        (progress.counters["got:iron"] ?? 0) >= 1,
+    );
+    const treasureKey = key(5, 30, 5);
+    delete world.chests[treasureKey];
+    check(
+      "chests in ruins and cabins hold treasure",
+      chestAt(treasureKey).slots.some(Boolean),
+    );
     // The new terrain: a seeded medium island, drawn chunk by chunk.
     action("pause");
     action("worlds");

@@ -18,6 +18,13 @@ import {
   TALL_GRASS,
   MUSHROOM,
   isPlant,
+  IRON_ORE,
+  GOLD_ORE,
+  CRYSTAL_ORE,
+  GLOWSTONE,
+  CHEST,
+  FURNACE,
+  STONE_BRICK,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -64,6 +71,21 @@ export const ITEMS = {
   cactus: { block: CACTUS },
   flower: { block: FLOWER },
   mushroom: { block: MUSHROOM, food: 1 },
+  iron_ore: { block: IRON_ORE },
+  gold_ore: { block: GOLD_ORE },
+  glowstone: { block: GLOWSTONE },
+  chest: { block: CHEST },
+  furnace: { block: FURNACE },
+  stone_brick: { block: STONE_BRICK },
+  crystal: { icon: "💎" },
+  iron_ingot: { icon: "🔩" },
+  gold_ingot: { icon: "🪙" },
+  iron_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 3 },
+  crystal_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 4 },
+  iron_sword: { icon: "🗡️", tool: "sword", tier: 3, damage: 4 },
+  crystal_sword: { icon: "🗡️", tool: "sword", tier: 4, damage: 5 },
+  baked_potato: { icon: "🥔", food: 6 },
+  cooked_fish: { icon: "🍣", food: 5 },
 };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);
@@ -101,14 +123,30 @@ const HARDNESS = {
   [SNOW]: 0.3,
   [ICE]: 0.5,
   [CACTUS]: 0.4,
+  [IRON_ORE]: 2.4,
+  [GOLD_ORE]: 2.6,
+  [CRYSTAL_ORE]: 2.8,
+  [GLOWSTONE]: 0.6,
+  [CHEST]: 0.8,
+  [FURNACE]: 2,
+  [STONE_BRICK]: 1.8,
 };
-const STONY = new Set([2, 6, COAL]);
+const STONY = new Set([
+  2,
+  6,
+  COAL,
+  IRON_ORE,
+  GOLD_ORE,
+  CRYSTAL_ORE,
+  FURNACE,
+  STONE_BRICK,
+]);
 export function breakTime(type, toolId) {
   const tool = ITEMS[toolId];
   if (cropInfo(type) || isPlant(type)) return 0.05;
   const base = HARDNESS[type] ?? 1;
   if (STONY.has(type) && tool?.tool === "pickaxe")
-    return base / (tool.tier === 2 ? 5 : 3);
+    return base / [1, 3, 5, 8, 12][tool.tier];
   return base;
 }
 
@@ -133,6 +171,12 @@ export function drops(type, toolId, roll) {
   }
   if (type === FARMLAND) return [["dirt", 1]];
   if (type === TALL_GRASS) return roll < 0.35 ? [["wheat_seeds", 1]] : [];
+  // Ores need a pickaxe that is strong enough.
+  const tier = ITEMS[toolId]?.tool === "pickaxe" ? ITEMS[toolId].tier : 0;
+  if (type === IRON_ORE) return tier >= 2 ? [["iron_ore", 1]] : [];
+  if (type === GOLD_ORE) return tier >= 3 ? [["gold_ore", 1]] : [];
+  if (type === CRYSTAL_ORE)
+    return tier >= 3 ? [["crystal", 1 + (roll < 0.4)]] : [];
   const crop = cropInfo(type);
   if (crop) {
     const seed = crop.crop === "wheat" ? "wheat_seeds" : crop.crop;

@@ -61,3 +61,31 @@ test("caves exist underground and stay dry", () => {
     assert(!inWater(blocks, sx, deep + 2, sz), "a cave under land is dry");
   useTerrain({});
 });
+
+test("ores need the right pickaxe and islands hide treasure chests", async () => {
+  const { drops, breakTime } = await import("../src/items.js");
+  const { IRON_ORE, GOLD_ORE, CRYSTAL_ORE, CHEST } =
+    await import("../src/world.js");
+  assert.deepEqual(drops(IRON_ORE, "wooden_pickaxe", 0.5), []);
+  assert.deepEqual(drops(IRON_ORE, "stone_pickaxe", 0.5), [["iron_ore", 1]]);
+  assert.deepEqual(drops(GOLD_ORE, "stone_pickaxe", 0.5), []);
+  assert.deepEqual(drops(CRYSTAL_ORE, "iron_pickaxe", 0.9), [["crystal", 1]]);
+  assert(
+    breakTime(IRON_ORE, "crystal_pickaxe") <
+      breakTime(IRON_ORE, "iron_pickaxe"),
+  );
+  useTerrain({ seed: 11, size: "medium" });
+  const island = [...generate().values()];
+  assert(
+    island.filter((t) => t === CHEST).length >= 2,
+    "chests in ruins and cabins",
+  );
+  for (const ore of [IRON_ORE, GOLD_ORE, CRYSTAL_ORE])
+    assert(island.includes(ore), `ore ${ore}`);
+  useTerrain({});
+  const valley = [...generate().values()];
+  assert(
+    valley.includes(IRON_ORE) && valley.includes(CRYSTAL_ORE),
+    "the classic valley has iron and crystal too",
+  );
+});

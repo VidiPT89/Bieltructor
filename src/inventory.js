@@ -4,12 +4,15 @@ import { isItem, maxStack } from "./items.js";
 export const SLOTS = 36;
 
 export class Inventory {
-  slots = Array(SLOTS).fill(null);
+  constructor(size = SLOTS) {
+    this.size = size;
+    this.slots = Array(size).fill(null);
+  }
 
   // Adds items, filling existing stacks first. Returns how many did not fit.
   add(id, count = 1) {
     for (const pass of ["stack", "empty"])
-      for (let i = 0; i < SLOTS && count > 0; i++) {
+      for (let i = 0; i < this.size && count > 0; i++) {
         const slot = this.slots[i];
         if (pass === "stack" && slot?.id === id && slot.count < maxStack(id)) {
           const n = Math.min(count, maxStack(id) - slot.count);
@@ -31,7 +34,7 @@ export class Inventory {
   // Removes items only if there are enough of them.
   remove(id, count = 1) {
     if (this.count(id) < count) return false;
-    for (let i = SLOTS - 1; i >= 0 && count > 0; i--) {
+    for (let i = this.size - 1; i >= 0 && count > 0; i--) {
       const slot = this.slots[i];
       if (slot?.id !== id) continue;
       const n = Math.min(count, slot.count);
@@ -59,10 +62,10 @@ export class Inventory {
     return this.slots.map((s) => (s ? [s.id, s.count] : null));
   }
 
-  static from(raw) {
-    const inv = new Inventory();
+  static from(raw, size = SLOTS) {
+    const inv = new Inventory(size);
     if (!Array.isArray(raw)) return inv;
-    raw.slice(0, SLOTS).forEach((s, i) => {
+    raw.slice(0, size).forEach((s, i) => {
       if (
         Array.isArray(s) &&
         isItem(s[0]) &&

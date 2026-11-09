@@ -117,6 +117,8 @@ export function newWorld({
     creatures: [],
     monsters: [],
     backpacks: [],
+    chests: {},
+    furnaces: {},
   };
 }
 
@@ -192,6 +194,17 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     world.creatures = raw.creatures.slice(0, 60);
   if (Array.isArray(raw.backpacks))
     world.backpacks = raw.backpacks.slice(0, 10);
+  // Chests and furnaces are stored by block position ("x,y,z").
+  const byPlace = (o) =>
+    o && typeof o === "object" && !Array.isArray(o)
+      ? Object.fromEntries(
+          Object.entries(o)
+            .filter(([k]) => /^-?\d+,-?\d+,-?\d+$/.test(k))
+            .slice(0, 200),
+        )
+      : {};
+  world.chests = byPlace(raw.chests);
+  world.furnaces = byPlace(raw.furnaces);
   if (Array.isArray(raw.monsters)) world.monsters = raw.monsters.slice(0, 12);
   return world;
 }
