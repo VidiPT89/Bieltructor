@@ -2893,7 +2893,9 @@ function updateMonsters(dt) {
   for (const m of [...monsters]) {
     // At sunrise they fizzle away in sparkles.
     if (!night) {
-      if (Math.random() < dt * 1.5) removeMonster(m);
+      // Each one fizzles at its own moment, within two seconds.
+      m.dawn = (m.dawn ?? Math.random() * 2) - dt;
+      if (m.dawn <= 0) removeMonster(m);
       continue;
     }
     const dx = player.x - m.x,
@@ -4121,6 +4123,8 @@ if (new URLSearchParams(location.search).has("test"))
       checks.push({ name, ok: !!ok });
       if (!ok) throw Error(name);
     };
+    // The intro may still be showing on a slower device.
+    leaveSplash();
     check("menu loaded", mode === "menu");
     frame(performance.now());
     check("terrain rendered", renderer.info.render.triangles > 1000);
