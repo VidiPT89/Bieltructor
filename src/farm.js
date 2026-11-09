@@ -1,14 +1,14 @@
 // The little farm: tilled soil, watering and crops that grow over time.
-import { cropBlock, cropInfo } from "./world.js";
+import { cropBlock, cropInfo, WATER_LEVEL } from "./world.js";
 
 // Seconds for one growing stage, on average, with and without water.
 export const STAGE_SECONDS = { watered: 60, dry: 150 };
 
 // Water is any column within four blocks whose top is under the water line.
-export function isWatered(topAt, x, z) {
+export function isWatered(topAt, x, z, water = WATER_LEVEL) {
   for (let dx = -4; dx <= 4; dx++)
     for (let dz = -4; dz <= 4; dz++)
-      if (topAt(x + dx, z + dz) <= 1) return true;
+      if (topAt(x + dx, z + dz) + 0.5 < water) return true;
   return false;
 }
 

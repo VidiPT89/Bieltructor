@@ -11,6 +11,13 @@ import {
   WOOL,
   FARMLAND,
   cropInfo,
+  SNOW,
+  ICE,
+  CACTUS,
+  FLOWER,
+  TALL_GRASS,
+  MUSHROOM,
+  isPlant,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -52,6 +59,11 @@ export const ITEMS = {
   bread: { icon: "🍞", food: 5 },
   fishing_rod: { icon: "🎣", tool: "rod", tier: 1 },
   fish: { icon: "🐟", food: 2 },
+  snow: { block: SNOW },
+  ice: { block: ICE },
+  cactus: { block: CACTUS },
+  flower: { block: FLOWER },
+  mushroom: { block: MUSHROOM, food: 1 },
 };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);
@@ -86,11 +98,14 @@ const HARDNESS = {
   [COAL]: 2,
   [WOOL]: 0.4,
   [FARMLAND]: 0.5,
+  [SNOW]: 0.3,
+  [ICE]: 0.5,
+  [CACTUS]: 0.4,
 };
 const STONY = new Set([2, 6, COAL]);
 export function breakTime(type, toolId) {
   const tool = ITEMS[toolId];
-  if (cropInfo(type)) return 0.05;
+  if (cropInfo(type) || isPlant(type)) return 0.05;
   const base = HARDNESS[type] ?? 1;
   if (STONY.has(type) && tool?.tool === "pickaxe")
     return base / (tool.tier === 2 ? 5 : 3);
@@ -117,6 +132,7 @@ export function drops(type, toolId, roll) {
       : [["dirt", 1]];
   }
   if (type === FARMLAND) return [["dirt", 1]];
+  if (type === TALL_GRASS) return roll < 0.35 ? [["wheat_seeds", 1]] : [];
   const crop = cropInfo(type);
   if (crop) {
     const seed = crop.crop === "wheat" ? "wheat_seeds" : crop.crop;

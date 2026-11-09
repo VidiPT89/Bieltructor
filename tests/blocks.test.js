@@ -35,7 +35,7 @@ test("glass and open doors let light through, new block types survive saving", (
       edits: [
         [0, 1, 0, GLASS],
         [0, 2, 0, DOOR_OPEN],
-        [0, 3, 0, 30],
+        [0, 3, 0, 43],
       ],
     }),
     [

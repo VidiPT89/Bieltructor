@@ -1,5 +1,5 @@
 // Friendly animals: where they start, what they give and how they behave.
-import { height, SIZE } from "./world.js";
+import { height, SIZE, WATER_LEVEL } from "./world.js";
 
 // `food` makes two of them have a baby; `tameWith` makes a friend.
 export const ANIMALS = {
@@ -57,7 +57,7 @@ export function initialAnimals(seed = 7) {
       do {
         x = Math.round((rand() * 2 - 1) * (SIZE - 4));
         z = Math.round((rand() * 2 - 1) * (SIZE - 4));
-      } while (height(x, z) <= 2 || Math.hypot(x, z) < 6);
+      } while (height(x, z) <= WATER_LEVEL - 0.2 || Math.hypot(x, z) < 6);
       list.push({
         type,
         x,

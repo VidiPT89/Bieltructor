@@ -7,6 +7,18 @@ import {
   SIZE,
   collides,
   WATER_LEVEL,
+  MAX_Y,
+  useTerrain,
+  biomeAt,
+  findSpawn,
+  inWater,
+  SNOW,
+  ICE,
+  CACTUS,
+  FLOWER,
+  TALL_GRASS,
+  MUSHROOM,
+  isPlant,
   GLASS,
   DOOR,
   DOOR_OPEN,
@@ -169,6 +181,11 @@ const strings = {
       bread: "Pão",
       fishing_rod: "Cana de pesca",
       fish: "Peixe",
+      snow: "Neve",
+      ice: "Gelo",
+      cactus: "Cato",
+      flower: "Flor",
+      mushroom: "Cogumelo",
     },
     backpack: "Mochila",
     recipes: "Receitas",
@@ -230,6 +247,22 @@ const strings = {
     cantSleep: "Não consegues dormir: há monstros por perto!",
     tilled: "Terra lavrada! Agora planta sementes.",
     weather: "Clima",
+    worldSize: "Tamanho do mundo",
+    classic: "Vale clássico (57 × 57)",
+    small: "Pequeno (57 × 57)",
+    medium: "Médio (97 × 97)",
+    large: "Grande (129 × 129)",
+    seed: "Semente",
+    seedHint:
+      "Deixa em branco para um mundo surpresa. A mesma semente faz sempre o mesmo mundo.",
+    biomes: {
+      plains: "🌼 Planície",
+      forest: "🌲 Floresta",
+      beach: "🏖️ Praia",
+      desert: "🌵 Deserto",
+      snow: "❄️ Neve",
+      swamp: "🍄 Pântano",
+    },
     planted: "Plantaste: {item}. Cresce mais depressa ao pé de água.",
     fishing: "A pescar… 🎣",
     caught: "Apanhaste um peixe! 🐟",
@@ -457,6 +490,11 @@ const strings = {
       bread: "Bread",
       fishing_rod: "Fishing rod",
       fish: "Fish",
+      snow: "Snow",
+      ice: "Ice",
+      cactus: "Cactus",
+      flower: "Flower",
+      mushroom: "Mushroom",
     },
     backpack: "Backpack",
     recipes: "Recipes",
@@ -517,6 +555,22 @@ const strings = {
     cantSleep: "You can’t sleep: there are monsters nearby!",
     tilled: "Soil tilled! Now plant some seeds.",
     weather: "Weather",
+    worldSize: "World size",
+    classic: "Classic valley (57 × 57)",
+    small: "Small (57 × 57)",
+    medium: "Medium (97 × 97)",
+    large: "Large (129 × 129)",
+    seed: "Seed",
+    seedHint:
+      "Leave it empty for a surprise world. The same seed always makes the same world.",
+    biomes: {
+      plains: "🌼 Plains",
+      forest: "🌲 Forest",
+      beach: "🏖️ Beach",
+      desert: "🌵 Desert",
+      snow: "❄️ Snow",
+      swamp: "🍄 Swamp",
+    },
     planted: "You planted: {item}. It grows faster near water.",
     fishing: "Fishing… 🎣",
     caught: "You caught a fish! 🐟",
@@ -720,6 +774,9 @@ let mode = "splash",
   cropKeys = [],
   growClock = 5,
   rainLevel = 0,
+  menuAnchor = [0, 0],
+  lastBiome = null,
+  biomeClock = 0,
   darkLevel = 0,
   thunderClock = 8,
   fishing = null,
@@ -770,7 +827,7 @@ const skyTime = () =>
 const isNight = () => sky(skyTime()).night;
 const WEATHER_ICON = { clear: "", cloudy: " ☁︎", rain: " 🌧", storm: " ⛈" };
 const clock = () =>
-  `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`}${WEATHER_ICON[world?.weather?.state ?? "clear"] ?? ""} · ${t("dayCount", { n: world?.day ?? 1 })}`;
+  `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`}${WEATHER_ICON[world?.weather?.state ?? "clear"] ?? ""} · ${t("dayCount", { n: world?.day ?? 1 })}${lastBiome && lastBiome !== "valley" ? ` · ${nested("biomes", lastBiome)}` : ""}`;
 const colors = [
   0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
   0xefad36, 0xbfe6ec, 0x8a5a33, 0x8a5a33, 0xc08a55, 0xa0703f, 0xf2b544,
@@ -778,6 +835,9 @@ const colors = [
   // Crops: wheat, carrot and potato, four stages each.
   0x7cbf4e, 0x8bc34a, 0xa8c94a, 0xe0b54a, 0x6fbf5a, 0x76c25a, 0x7fc45a,
   0xee8a2b, 0x6aa84f, 0x72ad52, 0x7db257, 0xb48a4c,
+  // Snow, ice, cactus, ores, glowstone, plants, chest, furnace, stone bricks.
+  0xf4f8fb, 0xa9d8ee, 0x4f9a46, 0x9a8b80, 0xd8b84a, 0x5fb8e8, 0xffd36b,
+  0xe85d8a, 0x6fae4e, 0xc8473c, 0x9a6a3c, 0x6b6f70, 0x8a9090,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -842,6 +902,13 @@ function worldFields(o, withMode) {
           ["creative", t("creativeMode")],
         ]) +
         `<p class="field-hint">${draft.mode === "creative" ? t("creativeHint") : t("adventureHint")}</p>` +
+        field("size", t("worldSize"), draft.size, [
+          ["classic", t("classic")],
+          ["small", t("small")],
+          ["medium", t("medium")],
+          ["large", t("large")],
+        ]) +
+        `<label>${t("seed")}<input id="world-seed" inputmode="numeric" maxlength="9" value="${escapeHtml(draft.seed)}"></label><p class="field-hint">${t("seedHint")}</p>` +
         (draft.mode === "adventure"
           ? field("tutorial", t("tutorialOption"), draft.tutorial, [
               [true, t("yes")],
@@ -1060,6 +1127,7 @@ function render() {
           el.value === "true" ? true : el.value === "false" ? false : el.value;
         if (el.dataset.option === "mode") draft.mode = raw;
         else if (el.dataset.option === "tutorial") draft.tutorial = raw;
+        else if (el.dataset.option === "size") draft.size = raw;
         else if (el.dataset.option === "difficulty")
           // A new difficulty brings its own sensible defaults.
           target.options = normalizeOptions({
@@ -1078,6 +1146,9 @@ function render() {
         render();
       }),
   );
+  const seedInput = $("#world-seed");
+  if (seedInput)
+    seedInput.oninput = () => (draft.seed = seedInput.value.replace(/\D/g, ""));
   const nameInput = $("#world-name");
   if (nameInput)
     nameInput.oninput = () => {
@@ -1100,6 +1171,8 @@ function newDraft() {
     name: t("defaultName"),
     mode: "adventure",
     tutorial: true,
+    size: "medium",
+    seed: "",
     options: normalizeOptions({
       difficulty: clampDifficulty("easy", settings.parents.maxDifficulty),
     }),
@@ -1286,7 +1359,17 @@ function action(a, arg) {
       return;
     }
     if (world) save();
-    const created = newWorld({ id: makeId(), ...draft });
+    // "Classic" keeps the original valley; other sizes make a new island.
+    const classic = draft.size === "classic";
+    const created = newWorld({
+      id: makeId(),
+      ...draft,
+      size: classic ? null : draft.size,
+      seed: classic
+        ? null
+        : Number.parseInt(draft.seed, 10) ||
+          1 + Math.floor(Math.random() * 999999),
+    });
     if (created.mode === "adventure" && draft.tutorial)
       created.tutorial = { step: 0, amount: 0 };
     store.save(created);
@@ -1465,6 +1548,7 @@ Object.assign(sun.shadow.camera, {
 });
 sun.shadow.bias = -0.0005;
 scene.add(sun);
+scene.add(sun.target);
 // "Light" quality halves the pixel work and turns shadows off for older devices.
 function applyQuality() {
   const high = settings.quality === "high";
@@ -1478,8 +1562,7 @@ applyQuality();
 const cube = new THREE.BoxGeometry(1, 1, 1);
 const terrain = new THREE.Group();
 scene.add(terrain);
-let meshes = [],
-  mapping = [];
+let meshes = [];
 function texture(hex) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 16;
@@ -1544,6 +1627,35 @@ const plankLines = (ctx, base, line) => {
     ctx.fillRect(x, y, 1, 3);
 };
 const blockTextures = {
+  [SNOW]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#f4f8fb";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#dce9f2";
+      for (const [x, y] of [
+        [2, 3],
+        [9, 2],
+        [5, 9],
+        [12, 11],
+        [3, 13],
+      ])
+        ctx.fillRect(x, y, 2, 1);
+    }),
+  [CACTUS]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#4f9a46";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#3d7d36";
+      for (const x of [3, 8, 13]) ctx.fillRect(x, 0, 1, 16);
+      ctx.fillStyle = "#e9e3c8";
+      for (const [x, y] of [
+        [1, 4],
+        [6, 10],
+        [11, 6],
+        [14, 13],
+      ])
+        ctx.fillRect(x, y, 1, 1);
+    }),
   [FARMLAND]: () =>
     drawTexture((ctx) => {
       ctx.fillStyle = "#6b4a2e";
@@ -1677,6 +1789,42 @@ function crossGeometry(height) {
   ]);
   return geometry;
 }
+// Little plants of the new worlds: flowers, tall grass and mushrooms.
+const plantTextures = {
+  [FLOWER]: (ctx) => {
+    ctx.fillStyle = "#4f9a46";
+    for (const x of [4, 11]) ctx.fillRect(x, 6, 1, 10);
+    ctx.fillStyle = "#e85d8a";
+    ctx.fillRect(2, 2, 5, 4);
+    ctx.fillStyle = "#f6d24a";
+    ctx.fillRect(9, 3, 5, 4);
+  },
+  [TALL_GRASS]: (ctx) => {
+    ctx.fillStyle = "#6fae4e";
+    for (let x = 1; x < 16; x += 2) ctx.fillRect(x, 4 + ((x * 7) % 6), 1, 12);
+  },
+  [MUSHROOM]: (ctx) => {
+    ctx.fillStyle = "#efe6d6";
+    ctx.fillRect(6, 9, 4, 7);
+    ctx.fillStyle = "#c8473c";
+    ctx.fillRect(3, 5, 10, 5);
+    ctx.fillStyle = "#fff4e6";
+    for (const x of [5, 9]) ctx.fillRect(x, 6, 2, 2);
+  },
+};
+for (const [type, draw] of Object.entries(plantTextures))
+  materials[type] = new THREE.MeshStandardMaterial({
+    map: drawTexture(draw),
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+    roughness: 1,
+  });
+materials[ICE] = new THREE.MeshStandardMaterial({
+  color: 0xbfe6f5,
+  transparent: true,
+  opacity: 0.72,
+  roughness: 0.1,
+});
 for (const crop of CROPS)
   for (let stage = 0; stage < 4; stage++)
     materials[cropBlock(crop, stage)] = new THREE.MeshStandardMaterial({
@@ -1699,58 +1847,157 @@ const shapes = {
 for (const crop of CROPS)
   for (let stage = 0; stage < 4; stage++)
     shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
+for (const type of [FLOWER, TALL_GRASS, MUSHROOM])
+  shapes[type] = crossGeometry(0.7);
 // Amber works as a lantern: it glows as night falls.
 const amber = materials[7];
 amber.emissive.set(0xffa040);
 amber.emissiveMap = amber.map;
 amber.emissiveIntensity = 0;
-function rebuild() {
-  for (const m of meshes) {
+// The world is drawn in 16 × 16 chunks; an edit only redraws its own chunk.
+const CHUNK = 16;
+const chunks = new Map();
+const chunkKey = (cx, cz) => `${cx},${cz}`;
+const exposed = (x, y, z) =>
+  [
+    [1, 0, 0],
+    [-1, 0, 0],
+    [0, 1, 0],
+    [0, -1, 0],
+    [0, 0, 1],
+    [0, 0, -1],
+  ].some(([a, b, c]) => {
+    const next = blocks.get(key(x + a, y + b, z + c));
+    return next === undefined || seeThrough(next);
+  });
+function clearChunk(id) {
+  const chunk = chunks.get(id);
+  if (!chunk) return;
+  for (const m of chunk.meshes) {
     terrain.remove(m);
     m.dispose();
   }
-  meshes = [];
-  mapping = [];
-  const groups = Array.from({ length: TYPES }, () => []);
-  lightBlocks = [];
-  cropKeys = [];
-  for (const [k, type] of blocks) {
-    const [x, y, z] = k.split(",").map(Number);
-    if (
-      [
-        [1, 0, 0],
-        [-1, 0, 0],
-        [0, 1, 0],
-        [0, -1, 0],
-        [0, 0, 1],
-        [0, 0, -1],
-      ].some(([a, b, c]) => {
-        const next = blocks.get(key(x + a, y + b, z + c));
-        return next === undefined || seeThrough(next);
-      })
-    )
-      groups[type].push([x, y, z]);
-    if (type === TORCH || type === 7) lightBlocks.push([x, y, z]);
-    if (cropInfo(type) && cropInfo(type).stage < 3) cropKeys.push(k);
+  chunks.delete(id);
+}
+function buildChunk(cx, cz, cells) {
+  const id = chunkKey(cx, cz);
+  clearChunk(id);
+  const groups = new Map(),
+    lights = [],
+    crops = [];
+  for (const [x, y, z, type] of cells) {
+    if (type === TORCH || type === 7 || type === 36) lights.push([x, y, z]);
+    if (cropInfo(type) && cropInfo(type).stage < 3) crops.push(key(x, y, z));
+    if (!exposed(x, y, z)) continue;
+    if (!groups.has(type)) groups.set(type, []);
+    groups.get(type).push([x, y, z]);
   }
-  const matrix = new THREE.Matrix4();
-  groups.forEach((group, i) => {
+  const matrix = new THREE.Matrix4(),
+    meshList = [];
+  for (const [type, group] of groups) {
     const mesh = new THREE.InstancedMesh(
-      shapes[i] ?? cube,
-      materials[i],
+      shapes[type] ?? cube,
+      materials[type],
       group.length,
     );
     group.forEach(([x, y, z], j) =>
       mesh.setMatrixAt(j, matrix.makeTranslation(x, y, z)),
     );
-    mesh.castShadow = i !== GLASS && i !== TORCH && !cropInfo(i);
+    mesh.castShadow =
+      type !== GLASS &&
+      type !== TORCH &&
+      type !== ICE &&
+      !cropInfo(type) &&
+      !isPlant(type);
     mesh.receiveShadow = true;
-    mesh.userData.type = i;
-    terrain.add(mesh);
-    meshes.push(mesh);
-    mapping[i] = group;
+    mesh.userData.type = type;
+    mesh.userData.cells = group;
     mesh.computeBoundingSphere();
+    terrain.add(mesh);
+    meshList.push(mesh);
+  }
+  chunks.set(id, {
+    meshes: meshList,
+    lights,
+    crops,
+    x: cx * CHUNK + CHUNK / 2,
+    z: cz * CHUNK + CHUNK / 2,
   });
+}
+function refreshChunkLists() {
+  meshes = [];
+  lightBlocks = [];
+  cropKeys = [];
+  for (const chunk of chunks.values()) {
+    meshes.push(...chunk.meshes);
+    lightBlocks.push(...chunk.lights);
+    cropKeys.push(...chunk.crops);
+  }
+}
+// Redraws the whole world (used when a world is loaded).
+function rebuild() {
+  for (const id of [...chunks.keys()]) clearChunk(id);
+  const byChunk = new Map();
+  for (const [k, type] of blocks) {
+    const [x, y, z] = k.split(",").map(Number);
+    const id = chunkKey(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
+    if (!byChunk.has(id)) byChunk.set(id, []);
+    byChunk.get(id).push([x, y, z, type]);
+  }
+  for (const [id, cells] of byChunk) {
+    const [cx, cz] = id.split(",").map(Number);
+    buildChunk(cx, cz, cells);
+  }
+  refreshChunkLists();
+}
+function rebuildChunk(cx, cz) {
+  const cells = [];
+  for (let x = cx * CHUNK; x < (cx + 1) * CHUNK; x++)
+    for (let z = cz * CHUNK; z < (cz + 1) * CHUNK; z++)
+      for (let y = 0; y <= MAX_Y; y++) {
+        const type = blocks.get(key(x, y, z));
+        if (type !== undefined) cells.push([x, y, z, type]);
+      }
+  buildChunk(cx, cz, cells);
+}
+// Redraws the chunks around the given blocks (neighbours too, at the borders).
+function rebuildAt(...points) {
+  const todo = new Set();
+  for (const [x, , z] of points) {
+    const cx = Math.floor(x / CHUNK),
+      cz = Math.floor(z / CHUNK),
+      lx = x - cx * CHUNK,
+      lz = z - cz * CHUNK;
+    todo.add(chunkKey(cx, cz));
+    if (lx === 0) todo.add(chunkKey(cx - 1, cz));
+    if (lx === CHUNK - 1) todo.add(chunkKey(cx + 1, cz));
+    if (lz === 0) todo.add(chunkKey(cx, cz - 1));
+    if (lz === CHUNK - 1) todo.add(chunkKey(cx, cz + 1));
+  }
+  for (const id of todo) {
+    const [cx, cz] = id.split(",").map(Number);
+    rebuildChunk(cx, cz);
+  }
+  refreshChunkLists();
+}
+// Far-away chunks are hidden; the fog covers the edge.
+function cullChunks() {
+  const far = settings.quality === "high" ? 88 : 56;
+  for (const chunk of chunks.values()) {
+    const show =
+      Math.hypot(chunk.x - camera.position.x, chunk.z - camera.position.z) <
+      far;
+    for (const m of chunk.meshes) m.visible = show;
+  }
+  scene.fog.far = Math.min(105, far + 10);
+}
+function isRendered(x, y, z) {
+  const chunk = chunks.get(
+    chunkKey(Math.floor(x / CHUNK), Math.floor(z / CHUNK)),
+  );
+  return !!chunk?.meshes.some((m) =>
+    m.userData.cells.some(([a, b, c]) => a === x && b === y && c === z),
+  );
 }
 rebuild();
 const water = new THREE.Mesh(
@@ -1846,10 +2093,12 @@ function applySky(time) {
   sun.color.copy(SUNLIGHT).lerp(DUSK_LIGHT, s.dusk);
   sunDirection.set(...s.sun).normalize();
   sun.position.set(
-    sunDirection.x * 40,
-    Math.max(sunDirection.y, 0.15) * 40,
-    12,
+    player.x + sunDirection.x * 40,
+    player.y + Math.max(sunDirection.y, 0.15) * 40,
+    player.z + 12,
   );
+  sun.target.position.copy(player);
+  sun.target.updateMatrixWorld();
   skyDome.position.copy(camera.position);
   sunDisc.position.copy(sunDirection).multiplyScalar(90);
   moonDisc.position.copy(sunDirection).multiplyScalar(-90);
@@ -1930,7 +2179,15 @@ function spawn() {
   const bed = world?.spawnPoint;
   if (bed && blocks.get(key(...bed)) === BED)
     player.set(bed[0], bed[1] + 0.51, bed[2]);
-  else player.set(0, height(0, 0) + 0.51, 0);
+  else {
+    // Start on open ground, not on top of a tree.
+    const [sx, sz] = findSpawn(
+      (x, z) =>
+        !blocks.has(key(x, height(x, z) + 1, z)) &&
+        !blocks.has(key(x, height(x, z) + 2, z)),
+    );
+    player.set(sx, height(sx, sz) + 0.51, sz);
+  }
   while (collides(blocks, player) && player.y < 33) player.y++;
   velocity = 0;
 }
@@ -1939,6 +2196,9 @@ spawn();
 function loadWorld(w) {
   world = w;
   store.setCurrent(w.id);
+  useTerrain({ seed: w.seed, size: w.size });
+  menuAnchor = findSpawn();
+  water.scale.setScalar((SIZE * 2 + 90) / 125);
   blocks.clear();
   for (const [k, v] of generate()) blocks.set(k, v);
   edits.clear();
@@ -1949,6 +2209,7 @@ function loadWorld(w) {
     else blocks.set(k, type);
   }
   rebuild();
+  lastBiome = null;
   spawn();
   if (w.player) {
     player.set(w.player.x, w.player.y, w.player.z);
@@ -2710,8 +2971,14 @@ function updateWeather(dt, inGame) {
     0.98 - darkLevel * 0.5,
     0.92 - darkLevel * 0.45,
   );
-  rain.visible = rainLevel > 0.01;
+  // Snow in the cold biome, and no rain under a roof or in a cave.
+  const snowing = lastBiome === "snow",
+    sheltered =
+      inGame &&
+      topAt(Math.round(player.x), Math.round(player.z)) > player.y + 2;
+  rain.visible = rainLevel > 0.01 && !sheltered;
   rain.material.opacity = rainLevel * 0.8;
+  rain.material.color.set(snowing ? 0xffffff : 0x5f7f99);
   if (rain.visible) {
     const count = settings.quality === "high" ? DROPS : 700;
     rain.geometry.setDrawRange(0, count * 2);
@@ -2720,7 +2987,7 @@ function updateWeather(dt, inGame) {
       camera.position.y - 10,
       camera.position.z,
     );
-    const fall = dt * 22;
+    const fall = dt * (snowing ? 4 : 22);
     for (let i = 0; i < count; i++) {
       const o = i * 6;
       rainPositions[o + 1] -= fall;
@@ -2732,7 +2999,7 @@ function updateWeather(dt, inGame) {
     }
     rain.geometry.attributes.position.needsUpdate = true;
   }
-  rainNoise(inGame ? rainLevel : 0);
+  rainNoise(inGame && !snowing ? rainLevel * (sheltered ? 0.4 : 1) : 0);
   if (inGame && state === "storm") {
     thunderClock -= dt;
     if (thunderClock <= 0) {
@@ -2776,7 +3043,7 @@ function pick() {
     }
   }
   for (const hit of hits) {
-    const p = mapping[hit.object.userData.type][hit.instanceId];
+    const p = hit.object.userData.cells[hit.instanceId];
     if (new THREE.Vector3(...p).distanceTo(player) < 7) {
       target = { p, normal: hit.face.normal };
       outline.position.set(...p);
@@ -2977,7 +3244,7 @@ function setBlock(p, type) {
 }
 // Height of the highest block in a column (the water line is just above 1).
 function topAt(x, z) {
-  for (let y = 31; y >= 0; y--) if (blocks.has(key(x, y, z))) return y;
+  for (let y = MAX_Y; y >= 0; y--) if (blocks.has(key(x, y, z))) return y;
   return -1;
 }
 // Every few seconds, crops may grow a stage; water nearby (or rain) helps.
@@ -2986,7 +3253,7 @@ function growCrops(dt) {
   if (growClock > 0) return;
   const step = 5 - growClock;
   growClock = 5;
-  let changed = false;
+  const changed = [];
   for (const k of cropKeys) {
     const type = blocks.get(k);
     if (!cropInfo(type)) continue;
@@ -3000,10 +3267,10 @@ function growCrops(dt) {
     if (grown !== type) {
       blocks.set(k, grown);
       edits.set(k, grown);
-      changed = true;
+      changed.push(k.split(",").map(Number));
     }
   }
-  if (changed) rebuild();
+  if (changed.length) rebuildAt(...changed);
 }
 const raining = () => rainLevel > 0.5;
 const bobber = new THREE.Mesh(
@@ -3022,7 +3289,7 @@ function castLine() {
   if (
     !hit ||
     hit.point.distanceTo(player) > 10 ||
-    topAt(Math.round(hit.point.x), Math.round(hit.point.z)) > 1
+    topAt(Math.round(hit.point.x), Math.round(hit.point.z)) + 0.5 >= WATER_LEVEL
   )
     return;
   fishing = { until: elapsed + 2 + Math.random() * 3, from: player.clone() };
@@ -3103,7 +3370,7 @@ function edit(place) {
     setBlock(p, FARMLAND);
     toast(t("tilled"));
     beepAt(200, 140);
-    rebuild();
+    rebuildAt(p);
     scheduleSave();
     return;
   }
@@ -3115,7 +3382,7 @@ function edit(place) {
     if (!creative()) inventory.takeFrom(selected);
     toast(t("planted", { item: name }));
     beepAt(500, 700);
-    rebuild();
+    rebuildAt(p);
     scheduleSave();
     render();
     return;
@@ -3133,7 +3400,7 @@ function edit(place) {
     }
     for (const k of changed) edits.set(k, blocks.get(k));
     beep(true);
-    rebuild();
+    rebuildAt(p);
     pick();
     scheduleSave();
     return;
@@ -3143,7 +3410,12 @@ function edit(place) {
     p[1] += Math.round(target.normal.y);
     p[2] += Math.round(target.normal.z);
   }
-  if (Math.abs(p[0]) > SIZE || Math.abs(p[2]) > SIZE || p[1] < 1 || p[1] > 30)
+  if (
+    Math.abs(p[0]) > SIZE ||
+    Math.abs(p[2]) > SIZE ||
+    p[1] < 1 ||
+    p[1] > MAX_Y - 1
+  )
     return;
   const k = key(...p);
   const held = ITEMS[heldId()];
@@ -3161,7 +3433,7 @@ function edit(place) {
     if (type === TORCH) emit("place:torch");
     // Doors are two blocks tall when there is room above.
     const above = key(p[0], p[1] + 1, p[2]);
-    if (type === DOOR && p[1] < 30 && !blocks.has(above)) {
+    if (type === DOOR && p[1] < MAX_Y - 1 && !blocks.has(above)) {
       blocks.set(above, DOOR);
       if (collides(blocks, player)) blocks.delete(above);
       else edits.set(above, DOOR);
@@ -3198,7 +3470,7 @@ function edit(place) {
     }
   }
   beep(place);
-  rebuild();
+  rebuildAt(p);
   pick();
   scheduleSave();
   render();
@@ -3358,7 +3630,7 @@ function frame(now) {
       speed =
         (pressed("ShiftLeft") || pressed("ShiftRight") ? 6 : 3.8) *
         (riding ? 2 : 1) *
-        (player.y + 0.9 < WATER_LEVEL ? 0.6 : 1);
+        (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1);
     dx /= len;
     dz /= len;
     const vx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) * speed * dt,
@@ -3372,7 +3644,7 @@ function frame(now) {
       player[axis] = Math.max(-SIZE + 0.3, Math.min(SIZE - 0.3, player[axis]));
     }
     // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
-    const swimming = player.y + 0.9 < WATER_LEVEL;
+    const swimming = inWater(blocks, player.x, player.y + 0.9, player.z);
     if (flying) {
       velocity = (pressed("Space") ? 6 : 0) - (pressed("KeyC") ? 6 : 0);
     } else if (swimming) {
@@ -3402,6 +3674,16 @@ function frame(now) {
     }
     if (player.y < -5) spawn();
     world.age += dt;
+    // Visiting a new biome counts for the explorer sticker.
+    biomeClock -= dt;
+    if (biomeClock <= 0) {
+      biomeClock = 1;
+      const here = biomeAt(Math.round(player.x), Math.round(player.z));
+      if (here !== lastBiome) {
+        lastBiome = here;
+        if (here !== "valley") emit("biome:" + here);
+      }
+    }
     // Break reminder set by the parents.
     playSeconds += dt;
     if (reminderDue(playSeconds, settings.parents.reminder)) {
@@ -3425,7 +3707,7 @@ function frame(now) {
         }
         peakY = null;
       } else peakY = Math.max(peakY ?? player.y, player.y);
-      const underwater = player.y + 1.6 < WATER_LEVEL,
+      const underwater = inWater(blocks, player.x, player.y + 1.6, player.z),
         moving = dx || dz,
         running = pressed("ShiftLeft") || pressed("ShiftRight");
       const before = vitals.health;
@@ -3503,13 +3785,19 @@ function frame(now) {
   } else if (mode === "menu" || mode === "splash") {
     biel.visible = true;
     biel.scale.setScalar(2.1);
-    biel.position.set(6, height(6, 5) + 0.51, 5);
+    const [ax, az] = menuAnchor,
+      groundY = height(ax, az);
+    biel.position.set(ax + 6, height(ax + 6, az + 5) + 0.51, az + 5);
     biel.rotation.y = 0.55;
     leftArm.rotation.x = Math.sin(elapsed * 2) * 0.12;
     rightArm.rotation.z = -0.15 + Math.sin(elapsed * 2) * 0.08;
     head.rotation.z = Math.sin(elapsed) * 0.04;
-    camera.position.set(12 + Math.sin(elapsed * 0.07) * 1.3, 11, 17);
-    camera.lookAt(-3, 4, 0);
+    camera.position.set(
+      ax + 12 + Math.sin(elapsed * 0.07) * 1.3,
+      groundY + 8,
+      az + 17,
+    );
+    camera.lookAt(ax - 3, groundY + 1, az);
     outline.visible = false;
   }
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
@@ -3517,6 +3805,7 @@ function frame(now) {
   clouds.rotation.y = elapsed * 0.003;
   // The menu always shows a sunny day; the game follows the clock.
   const skyNow = applySky(scenery === "game" ? skyTime() : NOON + 0.03);
+  cullChunks();
   updateTorchLights(dt, skyNow.daylight);
   updateBirds(dt, skyNow.daylight);
   updateWeather(dt, scenery === "game" && !!world);
@@ -3609,6 +3898,8 @@ if (new URLSearchParams(location.search).has("test"))
     check("first play opens the new world screen", mode === "newworld");
     draft.mode = "creative";
     draft.options = normalizeOptions({ difficulty: "peaceful" });
+    // The older checks were written for the classic valley.
+    if (draft.seed === "") draft.size = "classic";
     action("create");
     check(
       "creative world created",
@@ -3650,10 +3941,7 @@ if (new URLSearchParams(location.search).has("test"))
     edit(true);
     check(
       "glass shows the block below",
-      blocks.get(key(gx, gy + 1, gz)) === GLASS &&
-        mapping[blocks.get(key(gx, gy, gz))].some(
-          ([a, b, c]) => a === gx && b === gy && c === gz,
-        ),
+      blocks.get(key(gx, gy + 1, gz)) === GLASS && isRendered(gx, gy, gz),
     );
     target = {
       p: [gx + 1, height(gx + 1, gz), gz],
@@ -3745,6 +4033,8 @@ if (new URLSearchParams(location.search).has("test"))
     action("worlds");
     action("newworld");
     draft.options = normalizeOptions({ difficulty: "normal" });
+    // The older checks were written for the classic valley.
+    if (draft.seed === "") draft.size = "classic";
     action("create");
     check(
       "adventure world on normal",
@@ -3890,7 +4180,10 @@ if (new URLSearchParams(location.search).has("test"))
     breedClock = 0;
     frame(last + 16);
     const calf = animals.find((x) => x.baby && x.type === "cow");
-    check("two happy cows have a calf", animals.length === herdBefore + 1 && calf);
+    check(
+      "two happy cows have a calf",
+      animals.length === herdBefore + 1 && calf,
+    );
     world.age = calf.grownAt + 1;
     frame(last + 16);
     check("the calf grows up", !calf.baby);
@@ -4036,6 +4329,8 @@ if (new URLSearchParams(location.search).has("test"))
     action("worlds");
     action("newworld");
     check("new worlds offer the tutorial", draft.tutorial === true);
+    // The older checks were written for the classic valley.
+    if (draft.seed === "") draft.size = "classic";
     action("create");
     check(
       "the tutorial starts in a new adventure world",
@@ -4150,6 +4445,65 @@ if (new URLSearchParams(location.search).has("test"))
     world.options = normalizeOptions({ ...world.options, weather: false });
     for (let i = 0; i < 320; i++) frame(last + 16);
     check("no weather when switched off", !rain.visible && !raining());
+    // The new terrain: a seeded medium island, drawn chunk by chunk.
+    action("pause");
+    action("worlds");
+    for (const w of store.list().slice(2)) store.remove(w.id);
+    action("newworld");
+    draft.size = "medium";
+    draft.seed = "4242";
+    draft.mode = "creative";
+    const t0 = performance.now();
+    // The older checks were written for the classic valley.
+    if (draft.seed === "") draft.size = "classic";
+    action("create");
+    const loadMs = performance.now() - t0;
+    check(
+      "a medium island with a seed",
+      world.seed === 4242 &&
+        SIZE === 48 &&
+        WATER_LEVEL > 10 &&
+        chunks.size > 30,
+    );
+    check("a medium island loads quickly", loadMs < 4000);
+    check(
+      "Biel starts on dry land",
+      height(Math.round(player.x), Math.round(player.z)) > WATER_LEVEL &&
+        !collides(blocks, player),
+    );
+    const biomesHere = new Set();
+    for (let x = -46; x <= 46; x += 3)
+      for (let z = -46; z <= 46; z += 3) biomesHere.add(biomeAt(x, z));
+    check("the island has several biomes", biomesHere.size >= 3);
+    const ex = Math.round(player.x) + 2,
+      ez = Math.round(player.z),
+      ey = topAt(ex, ez) + 1;
+    const otherChunk = [...chunks.entries()].find(
+      ([id]) =>
+        id !== chunkKey(Math.floor(ex / CHUNK), Math.floor(ez / CHUNK)) &&
+        Math.abs(Number(id.split(",")[0]) - Math.floor(ex / CHUNK)) > 1,
+    );
+    const untouched = otherChunk[1].meshes[0];
+    setBlock([ex, ey, ez], 6);
+    rebuildAt([ex, ey, ez]);
+    check(
+      "an edit only redraws its own chunk",
+      isRendered(ex, ey, ez) && otherChunk[1].meshes[0] === untouched,
+    );
+    const firstWorld = store.list().find((w) => !w.id || true);
+    save();
+    action("pause");
+    action("worlds");
+    const classic = store
+      .list()
+      .map((w) => store.load(w.id))
+      .find((w) => w.seed === null);
+    action("openworld", classic.id);
+    check(
+      "classic worlds keep the original valley",
+      SIZE === 28 && WATER_LEVEL === 2.2 && world.seed === null,
+    );
+
     action("home");
     frame(last + 16);
     return { ok: true, checks, triangles: renderer.info.render.triangles };

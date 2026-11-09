@@ -1,5 +1,5 @@
 // Worlds: options, difficulty rules, saving format (v2) and migration from v1.
-import { validateSave, validatePlayer } from "./world.js";
+import { validateSave, validatePlayer, SIZES } from "./world.js";
 
 export const SAVE_VERSION = 2;
 export const MAX_WORLDS = 6;
@@ -85,7 +85,15 @@ export function normalizeOptions(raw = {}) {
 const cleanName = (name, fallback) =>
   typeof name === "string" && name.trim() ? name.trim().slice(0, 32) : fallback;
 
-export function newWorld({ id, name, mode, options, now = Date.now() }) {
+export function newWorld({
+  id,
+  name,
+  mode,
+  options,
+  size = null,
+  seed = null,
+  now = Date.now(),
+}) {
   return {
     version: SAVE_VERSION,
     id,
@@ -94,6 +102,9 @@ export function newWorld({ id, name, mode, options, now = Date.now() }) {
     options: normalizeOptions(options),
     createdAt: now,
     updatedAt: now,
+    // Worlds without a seed use the original valley (all worlds before v3).
+    size: Object.hasOwn(SIZES, size) ? size : null,
+    seed: Number.isInteger(seed) ? seed : null,
     edits: [],
     player: null,
     inventory: [],
@@ -116,7 +127,7 @@ const wrap = (t) => t - Math.floor(t);
 export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
   if (!raw || typeof raw !== "object") return null;
   if (raw.version === 1) {
-    const edits = validateSave(raw);
+    const edits = validateSave(raw, SIZES.small);
     if (!edits) return null;
     // Worlds from the first version were creative sandboxes.
     const world = newWorld({
@@ -130,13 +141,22 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     return world;
   }
   if (raw.version !== SAVE_VERSION) return null;
-  const edits = validateSave({ version: 1, edits: raw.edits });
+  const size =
+    Object.hasOwn(SIZES, raw.size) && Number.isInteger(raw.seed)
+      ? raw.size
+      : null;
+  const edits = validateSave(
+    { version: 1, edits: raw.edits },
+    size ? SIZES[size] : SIZES.small,
+  );
   if (!edits) return null;
   const world = newWorld({
     id: typeof raw.id === "string" ? raw.id : id,
     name: raw.name,
     mode: raw.mode,
     options: raw.options,
+    size,
+    seed: size ? raw.seed : null,
     now,
   });
   world.createdAt = finite(raw.createdAt, now);
