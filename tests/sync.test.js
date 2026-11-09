@@ -42,3 +42,26 @@ test("devices get a friendly name", () => {
   assert.equal(deviceKind("iPad", true, 1024), "iPad");
   assert.equal(deviceKind("iPhone", true, 390), "iPhone");
 });
+
+test("a world deleted on one device is removed on the others, not sent back", async () => {
+  const { decide } = await import("../src/sync.js");
+  const gone = { id: "a", deleted: true, updatedAt: 50 };
+  assert.equal(decide({ id: "a", updatedAt: 10 }, gone, 10), "removeLocal");
+  assert.equal(
+    decide({ id: "a", updatedAt: 20 }, gone, 10),
+    "upload",
+    "played here since the last sync: it stays",
+  );
+  assert.equal(decide(undefined, gone, 10), "none");
+  assert.equal(decide(undefined, gone, 10, true), "forget");
+});
+
+test("a deletion that did not reach iCloud is retried, unless the world changed elsewhere", async () => {
+  const { decide } = await import("../src/sync.js");
+  assert.equal(decide(undefined, { id: "a", updatedAt: 10 }, 10, true), "bury");
+  assert.equal(
+    decide(undefined, { id: "a", updatedAt: 30 }, 10, true),
+    "download",
+  );
+  assert.equal(decide(undefined, undefined, 10, true), "forget");
+});

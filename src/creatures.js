@@ -229,7 +229,7 @@ export function makeBaby(a, b, now) {
 // With "Animals only friends" switched off, grown-up farm animals that are
 // not friends can be caught for food. They need two hits and vanish in
 // sparkles. Rabbits only run away; babies and friends are always safe.
-export const HUNT = {
+const HUNT = {
   pig: [["pork", 2]],
   cow: [["beef", 2]],
   chicken: [["raw_chicken", 1]],

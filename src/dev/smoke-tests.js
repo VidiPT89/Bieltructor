@@ -1250,7 +1250,18 @@ export function installSmokeTests(g) {
           copied &&
           g.store.load(copied.id).edits.length === original.edits.length,
       );
-      if (copied) g.store.remove(copied.id);
+      // Any world in the list can be renamed, not only the open one.
+      if (copied) {
+        g.action("renameworld", copied.id);
+        g.$("#rename-input").value = "Ilha copiada";
+        g.action("renamedone");
+        check(
+          "a world in the list can be renamed",
+          g.store.load(copied.id).name === "Ilha copiada" &&
+            g.mode === "worlds",
+        );
+        g.store.remove(copied.id);
+      }
       // The new terrain: a seeded medium island, drawn chunk by chunk.
       g.action("newworld");
       g.draft.size = "medium";
@@ -1448,6 +1459,13 @@ export function installSmokeTests(g) {
         "a shield stops half of a hit from the front",
         front > 0 && front < back && g.inventory.slots[4]?.wear === 1,
       );
+      // The compass says how far home is and which way.
+      hold("compass");
+      build();
+      check(
+        "the compass says where home is",
+        /🧭|🏠/.test(g.toastEl.textContent),
+      );
       // A happy note the first time a torch goes up, once only.
       delete g.progress.firsts["place:torch"];
       g.emit("place:torch");
@@ -1604,9 +1622,16 @@ export function installSmokeTests(g) {
       g.cloud.call = async (action, extra = {}) => {
         if (action === "status") return { available: true };
         if (action === "list") return [...fakeCloud.values()];
-        if (action === "save")
-          return fakeCloud.set(extra.worldId, extra.json) && { ok: true };
-        if (action === "delete") return { ok: fakeCloud.delete(extra.worldId) };
+        if (action === "save") {
+          // Like CloudBridge.swift: refuse when the file changed since listing.
+          const current = fakeCloud.has(extra.worldId)
+            ? JSON.parse(fakeCloud.get(extra.worldId)).updatedAt
+            : null;
+          if ("expected" in extra && current !== extra.expected)
+            return { ok: false, changed: true };
+          fakeCloud.set(extra.worldId, extra.json);
+          return { ok: true };
+        }
         return null;
       };
       for (const w of g.store.list().slice(3)) g.store.remove(w.id);
@@ -1646,6 +1671,17 @@ export function installSmokeTests(g) {
         g.store.load("fromipad").name === "Do iPad (mudado)" &&
           g.mode === "menu",
       );
+      // Deleting a world leaves a marker in iCloud for the other devices.
+      g.mode = "worlds";
+      g.action("deleteworld", "fromipad");
+      g.action("deleteworld", "fromipad");
+      await g.cloud.sync();
+      check(
+        "a deleted world leaves a marker in iCloud",
+        JSON.parse(fakeCloud.get("fromipad") ?? "{}").deleted === true &&
+          !g.store.load("fromipad"),
+      );
+      g.mode = "menu";
       let unexpectedUploads = 0;
       g.cloud.call = async (action) => {
         if (action === "save") unexpectedUploads++;

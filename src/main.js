@@ -77,6 +77,7 @@ import {
   COBBLESTONE,
   SIZES,
   makeTerrain,
+  directionTo,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
@@ -224,6 +225,7 @@ let mode = "splash",
   confirmDelete = null,
   invPick = null,
   invDrag = null,
+  renaming = null,
   inventory = new Inventory(),
   vitals = createVitals(),
   animals = [],
@@ -471,7 +473,7 @@ function render() {
           ? list
               .map(
                 (w) =>
-                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${list.length < MAX_WORLDS ? button("duplicateworld", "⧉", "copy", w.id, `aria-label="${t("duplicate")}" title="${t("duplicate")}"`) : ""}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
+                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}<div class="world-actions">${button("renameworld", "✏️", "copy", w.id, `aria-label="${t("rename")}" title="${t("rename")}"`)}${button("export", "⤓", "copy", w.id, `aria-label="${t("export")}" title="${t("export")}"`)}${list.length < MAX_WORLDS ? button("duplicateworld", "⧉", "copy", w.id, `aria-label="${t("duplicate")}" title="${t("duplicate")}"`) : ""}</div>${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
               )
               .join("")
           : `<p class="help-copy">${t("noWorlds")}</p>`
@@ -543,6 +545,8 @@ function render() {
         [false, t("no")],
       ])}<p class="field-hint">${t("parentsNote")}</p>${button("back", t("back"), "primary wide")}`;
     }
+    if (mode === "renameworld")
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("rename")}</h2><label>${t("worldName")}<input id="rename-input" maxlength="32" value="${escapeHtml(store.load(renaming)?.name ?? "")}"></label>${button("renamedone", t("done"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
@@ -882,10 +886,16 @@ const cloud = createCloud({
       mode = cloud.conflicts.length ? "conflict" : "menu";
       render();
     },
+    // Deleted on another device (and not played here since): it goes here too.
+    removed: (id) => {
+      if (world?.id === id) world = null;
+      render();
+    },
   },
 });
 window.cloudReply = cloud.reply;
 const MODALS = [
+  "renameworld",
   "settings",
   "help",
   "paused",
@@ -1017,6 +1027,21 @@ function action(a, arg) {
     loadWorld(created);
     mode = "playing";
     history.length = 0;
+  } else if (a === "renameworld") {
+    renaming = arg;
+    open("renameworld");
+  } else if (a === "renamedone") {
+    const chosen = store.load(renaming),
+      name = ($("#rename-input")?.value ?? "").trim().slice(0, 32);
+    if (chosen && name) {
+      if (world?.id === chosen.id) {
+        world.name = name;
+        save();
+      } else store.save({ ...chosen, name });
+    }
+    renaming = null;
+    action("back");
+    return;
   } else if (a === "quit") {
     // Only the Mac app can quit; iPad and iPhone apps are closed by the system.
     save();
@@ -1051,7 +1076,7 @@ function action(a, arg) {
     else {
       confirmDelete = null;
       store.remove(arg);
-      if (settings.cloud) cloud.call("delete", { worldId: arg });
+      if (settings.cloud) cloud.forget(arg);
       if (world?.id === arg) {
         world = null;
       }
@@ -1069,14 +1094,17 @@ function action(a, arg) {
     spawn();
     mode = "playing";
   } else if (a === "export") {
+    // The world being played, or any world from the list.
+    const data = arg && arg !== world?.id ? store.load(arg) : saveData();
+    if (!data) return;
     if (window.webkit?.messageHandlers?.files) {
       window.webkit.messageHandlers.files.postMessage({
         action: "export",
-        json: JSON.stringify(saveData()),
+        json: JSON.stringify(data),
       });
       return;
     }
-    const blob = new Blob([JSON.stringify(saveData())], {
+    const blob = new Blob([JSON.stringify(data)], {
         type: "application/json",
       }),
       url = URL.createObjectURL(blob),
@@ -4444,6 +4472,28 @@ function edit(place) {
   }
   if (place && targetAnimal) {
     interactWith(targetAnimal);
+    return;
+  }
+  // The compass says where home is; the map item opens the map.
+  if (place && heldId() === "compass") {
+    const [hx, hz] = world.spawnPoint
+        ? [world.spawnPoint[0], world.spawnPoint[2]]
+        : homeAnchor,
+      dx = hx - player.x,
+      dz = hz - player.z,
+      n = Math.round(Math.hypot(dx, dz));
+    toast(
+      n < 3
+        ? t("compassHere")
+        : t("compassSays", {
+            n,
+            dir: nested("directions", directionTo(dx, dz)),
+          }),
+    );
+    return;
+  }
+  if (place && heldId() === "map") {
+    action("map");
     return;
   }
   // A bow shoots an arrow where Biel is aiming.

@@ -121,6 +121,9 @@ export const ITEMS = {
   pot: { block: POT },
   arrows: { icon: "🎯" },
   feather: { icon: "🪶" },
+  // Held and used: the compass says where home is; the map opens the map.
+  compass: { icon: "🧭" },
+  map: { icon: "🗺️" },
   string: { icon: "🧵" },
   smoke_dust: { icon: "💨" },
   copper_ore: { block: COPPER_ORE },

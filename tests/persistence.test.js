@@ -110,3 +110,109 @@ test("failed uploads and unavailable native bridges are not reported as success"
   };
   assert.equal(await cloud.call("status"), null);
 });
+
+// Two devices sharing one pretend iCloud folder. `save` only writes when the
+// file is still the version the device listed, like CloudBridge.swift.
+function device(folder, id) {
+  const data = new Map();
+  const storage = {
+    getItem: (k) => data.get(k) ?? null,
+    setItem: (k, v) => data.set(k, v),
+    removeItem: (k) => data.delete(k),
+  };
+  const store = createStore(storage);
+  const removed = [];
+  let cloud;
+  const bridge = {
+    postMessage({ req, action, worldId, json, expected }) {
+      let value = null;
+      if (action === "status") value = { available: true };
+      if (action === "list") value = [...folder.values()];
+      if (action === "save") {
+        const current = folder.has(worldId)
+          ? JSON.parse(folder.get(worldId)).updatedAt
+          : null;
+        if (expected !== undefined && current !== expected)
+          value = { ok: false, changed: true };
+        else {
+          folder.set(worldId, json);
+          value = { ok: true };
+        }
+      }
+      queueMicrotask(() => cloud.reply(req, value));
+    },
+  };
+  cloud = createCloud({
+    bridge,
+    storage,
+    store,
+    hooks: {
+      enabled: () => true,
+      busy: () => false,
+      currentId: () => null,
+      lang: () => "en",
+      onMissing() {},
+      onSynced() {},
+      onResolved() {},
+      load() {},
+      removed: (worldId) => removed.push(worldId),
+    },
+  });
+  return { cloud, store, storage, removed, id };
+}
+
+test("a world deleted on one device is deleted on the other, not sent back", async () => {
+  const folder = new Map();
+  const mac = device(folder, "mac"),
+    ipad = device(folder, "ipad");
+  mac.store.save(newWorld({ id: "w", now: 5 }));
+  await mac.cloud.sync();
+  await ipad.cloud.sync();
+  assert(ipad.store.load("w"), "the iPad got the world");
+  ipad.store.remove("w");
+  await ipad.cloud.forget("w");
+  assert.equal(JSON.parse(folder.get("w")).deleted, true, "a marker in iCloud");
+  await mac.cloud.sync();
+  assert.equal(mac.store.load("w"), null, "the Mac deleted it too");
+  assert.deepEqual(mac.removed, ["w"]);
+  await ipad.cloud.sync();
+  assert.equal(ipad.store.load("w"), null, "it never comes back");
+  assert.equal(ipad.storage.getItem("biel-deleted"), "{}");
+});
+
+test("a deletion that could not reach iCloud is finished on a later sync", async () => {
+  const folder = new Map();
+  const mac = device(folder, "mac");
+  mac.store.save(newWorld({ id: "w", now: 5 }));
+  await mac.cloud.sync();
+  mac.store.remove("w");
+  // Offline: remember the deletion only.
+  mac.storage.setItem("biel-deleted", JSON.stringify({ w: true }));
+  await mac.cloud.sync();
+  assert.equal(JSON.parse(folder.get("w")).deleted, true);
+  assert.equal(mac.store.load("w"), null);
+});
+
+test("a save never overwrites a file another device changed after listing", async () => {
+  const folder = new Map();
+  const mac = device(folder, "mac");
+  mac.store.save(newWorld({ id: "w", now: 5 }));
+  await mac.cloud.sync();
+  const changed = mac.store.load("w");
+  changed.updatedAt = 9;
+  mac.store.save(changed);
+  // The iPad writes in between: the Mac's write must be refused.
+  const realList = [...folder.values()];
+  folder.set("w", JSON.stringify({ ...newWorld({ id: "w", now: 7 }) }));
+  const res = await mac.cloud.call("save", {
+    worldId: "w",
+    json: JSON.stringify(changed),
+    expected: JSON.parse(realList[0]).updatedAt,
+  });
+  assert.deepEqual(res, { ok: false, changed: true });
+  assert.equal(
+    JSON.parse(folder.get("w")).updatedAt,
+    7,
+    "the iPad's version stays",
+  );
+});

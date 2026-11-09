@@ -63,3 +63,13 @@ test("saved player position is validated and clamped", () => {
     { x: 1, y: 3, z: -2, yaw: 0.5, pitch: 1.15, firstPerson: false },
   );
 });
+
+test("the compass names directions the way the map shows them", async () => {
+  const { directionTo } = await import("../src/world.js");
+  assert.equal(directionTo(0, -10), "north");
+  assert.equal(directionTo(10, 0), "east");
+  assert.equal(directionTo(0, 10), "south");
+  assert.equal(directionTo(-10, 0), "west");
+  assert.equal(directionTo(7, -7), "northeast");
+  assert.equal(directionTo(-7, 7), "southwest");
+});

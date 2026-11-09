@@ -4,7 +4,7 @@ Um guia simples para o Biel e para os pais.
 
 ## Os mundos
 
-Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo, **duplicas** um (botão ⧉, para experimentar sem estragar o original) ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Ao criar um mundo vês logo um pequeno mapa da ilha que vai sair. O nome muda-se em Definições do mundo, e **Exportar** está também no menu de pausa. No Mac, a pausa tem ainda **Sair**. Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
+Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo, **duplicas** um (botão ⧉, para experimentar sem estragar o original), mudas-lhe o nome (✏️), exportas (⤓) ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Ao criar um mundo vês logo um pequeno mapa da ilha que vai sair. O nome muda-se em Definições do mundo, e **Exportar** está também no menu de pausa. No Mac, a pausa tem ainda **Sair**. Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
 
 Ao criar um mundo escolhes:
 
@@ -132,7 +132,7 @@ Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumin
 
 ## Mapa e bússola
 
-No canto há um **minimapa**: a seta laranja és tu e a 🏠 é a tua casa. Se a casa estiver longe, fica na borda do minimapa a apontar o caminho. Na **Pausa › Mapa** vês a ilha toda. O minimapa pode desligar-se nas Definições.
+No canto há um **minimapa**: a seta laranja és tu e a 🏠 é a tua casa. Se a casa estiver longe, fica na borda do minimapa a apontar o caminho. Na **Pausa › Mapa** vês a ilha toda. Também podes fazer uma **bússola** (1 barra de ferro e 1 de cobre, na bancada), que diz a quantos blocos e para que lado fica a casa, e um **mapa** (1 lã e 1 carvão), que abre o mapa grande quando o usas. O minimapa pode desligar-se nas Definições.
 
 ## Tutorial e caderneta
 

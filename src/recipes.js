@@ -212,6 +212,13 @@ export const RECIPES = [
   },
   // Cobblestone for rougher walls, and beds in the colours of the wool.
   { id: "cobblestone", out: ["cobblestone", 2], needs: { stone: 2 } },
+  {
+    id: "compass",
+    out: ["compass", 1],
+    needs: { iron_ingot: 1, copper_ingot: 1 },
+    bench: true,
+  },
+  { id: "map", out: ["map", 1], needs: { wool: 1, coal: 1 } },
   ...["orange", "yellow", "green", "blue", "purple", "black"].map((color) => ({
     id: `bed_${color}`,
     out: [`bed_${color}`, 1],

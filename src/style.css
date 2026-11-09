@@ -1674,8 +1674,18 @@ kbd {
   width: 100%;
   background: #5fb8e8;
 }
+/* Each world: picture, name and Play on top; rename, export and duplicate below. */
 .world-card {
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto auto;
+}
+.world-card .world-thumb {
+  grid-row: span 2;
+}
+.world-actions {
+  grid-row: 2;
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 6px;
 }
 .world-card .copy {
   padding: 10px;

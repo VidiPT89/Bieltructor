@@ -2,7 +2,7 @@
 // played, and iCloud sync in the native apps (each world is a file in
 // iCloud Drive; see shared/CloudBridge.swift).
 import { validateWorld, MAX_WORLDS } from "./worlds.js";
-import { plan as syncPlan } from "./sync.js";
+import { plan as syncPlan, tombstone } from "./sync.js";
 
 // localStorage that never throws when reading (private windows, full disk).
 // Writing still throws, so a failed save can be reported.
@@ -74,6 +74,7 @@ export function snapshotWorld(
 //   onMissing()   iCloud is not available
 //   onSynced()    a sync finished (cloud.conflicts may need an answer)
 //   onResolved()  the player answered a conflict
+//   removed(id)   a world was deleted on another device and removed here
 export function createCloud({ bridge, storage, store, hooks }) {
   let seq = 0,
     timer = null,
@@ -89,6 +90,34 @@ export function createCloud({ bridge, storage, store, hooks }) {
     } catch {
       return {};
     }
+  };
+  // Worlds deleted on this device whose marker may not be in iCloud yet.
+  const deletions = () => {
+    try {
+      const value = JSON.parse(storage.getItem("biel-deleted") || "{}");
+      return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
+    } catch {
+      return {};
+    }
+  };
+  const setDeleted = (id, on) => {
+    const all = deletions();
+    if (on) all[id] = true;
+    else delete all[id];
+    try {
+      storage.setItem("biel-deleted", JSON.stringify(all));
+    } catch {}
+  };
+  // Writes only if the iCloud file is still the version listed (or still
+  // missing, for null), so a change from another device is never lost.
+  const write = (id, data, expected) =>
+    cloud.call("save", { worldId: id, json: JSON.stringify(data), expected });
+  // Tries again in a little while (another device was writing).
+  const later = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => cloud.sync(), 4000);
   };
   const markSynced = (id, updatedAt) => {
     const all = marks();
@@ -126,6 +155,12 @@ export function createCloud({ bridge, storage, store, hooks }) {
         }
       });
     },
+    // A world deleted here: remember it and leave a marker in iCloud, so
+    // other devices delete it too instead of sending it back.
+    forget(id) {
+      setDeleted(id, true);
+      return cloud.sync();
+    },
     // After a save: automatic uploads use the same conflict checks as a sync.
     schedule() {
       if (!hooks.enabled() || !bridge || !hooks.currentId()) return;
@@ -152,10 +187,14 @@ export function createCloud({ bridge, storage, store, hooks }) {
       resolving = true;
       try {
         if (keepHere) {
-          const res = await cloud.call("save", {
-            worldId: c.id,
-            json: JSON.stringify(c.local),
-          });
+          const res = await write(c.id, c.local, c.remote.updatedAt);
+          // Changed again elsewhere meanwhile: the next sync asks again.
+          if (res?.changed) {
+            cloud.conflicts.shift();
+            hooks.onResolved();
+            later();
+            return;
+          }
           if (!res?.ok) throw new Error("Cloud save failed");
           markSynced(c.id, c.local.updatedAt);
         } else {
@@ -200,6 +239,11 @@ export function createCloud({ bridge, storage, store, hooks }) {
           !/^[a-zA-Z0-9_-]{1,40}$/.test(raw.id)
         )
           return null;
+        // The marker of a world deleted on some device.
+        if (raw.deleted === true)
+          return Number.isFinite(raw.updatedAt)
+            ? { id: raw.id, deleted: true, updatedAt: raw.updatedAt }
+            : null;
         const w = validateWorld(raw, { id: raw.id });
         return w && { ...w, device: raw.device ?? "" };
       } catch {
@@ -220,27 +264,39 @@ export function createCloud({ bridge, storage, store, hooks }) {
       .map((w) => store.load(w.id))
       .filter(Boolean);
     cloud.conflicts = [];
-    for (const step of syncPlan(locals, remotes, marks())) {
+    let retry = false;
+    for (const step of syncPlan(locals, remotes, marks(), deletions())) {
       if (!hooks.enabled() || hooks.busy()) return;
-      if (step.action === "upload") {
-        const res = await cloud.call("save", {
-          worldId: step.id,
-          json: JSON.stringify(step.local),
-        });
+      if (step.action === "upload" || step.action === "bury") {
+        const data = step.action === "bury" ? tombstone(step.id) : step.local;
+        const res = await write(step.id, data, step.remote?.updatedAt ?? null);
+        // Another device wrote first: look again on the next sync.
+        if (res?.changed) {
+          retry = true;
+          continue;
+        }
         if (!res?.ok) {
           cloud.status = "missing";
           hooks.onMissing();
           return;
         }
-        markSynced(step.id, step.local.updatedAt);
+        markSynced(step.id, data.updatedAt);
+        if (step.action === "bury") setDeleted(step.id, false);
       } else if (step.action === "download") {
         if (store.list().length >= MAX_WORLDS && !step.local) continue;
         store.save(step.remote);
         markSynced(step.id, step.remote.updatedAt);
+        setDeleted(step.id, false);
         if (hooks.currentId() === step.id && !hooks.busy())
           hooks.load(step.remote);
-      } else if (step.action === "conflict") cloud.conflicts.push(step);
+      } else if (step.action === "removeLocal") {
+        store.remove(step.id);
+        markSynced(step.id, step.remote.updatedAt);
+        hooks.removed?.(step.id);
+      } else if (step.action === "forget") setDeleted(step.id, false);
+      else if (step.action === "conflict") cloud.conflicts.push(step);
     }
+    if (retry) later();
     cloud.status = new Date().toLocaleTimeString(
       hooks.lang() === "pt" ? "pt-PT" : "en-GB",
       { timeStyle: "short" },

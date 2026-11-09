@@ -144,6 +144,21 @@ export const seeThrough = (type) =>
   isWater(type) ||
   cropInfo(type) !== null;
 export const key = (x, y, z) => `${x},${y},${z}`;
+// Which way something is, as the map shows it (north is towards -z).
+const DIRECTIONS = [
+  "north",
+  "northeast",
+  "east",
+  "southeast",
+  "south",
+  "southwest",
+  "west",
+  "northwest",
+];
+export const directionTo = (dx, dz) =>
+  DIRECTIONS[
+    Math.round(((Math.atan2(dx, -dz) / (Math.PI * 2)) * 8 + 8) % 8) % 8
+  ];
 function legacyHeight(x, z) {
   return Math.max(
     1,
