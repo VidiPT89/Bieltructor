@@ -14,6 +14,8 @@ export const difficultyRules = {
   peaceful: {
     // Tools wear out only on Normal and Hard.
     toolWear: false,
+    // Lava burns only on Normal and Hard; below that it is warm magma.
+    lavaHurts: false,
     maxMonsters: 0,
     damage: 0,
     hungerRate: 0,
@@ -24,6 +26,7 @@ export const difficultyRules = {
   easy: {
     // Tools wear out only on Normal and Hard.
     toolWear: false,
+    lavaHurts: false,
     maxMonsters: 2,
     damage: 0.5,
     hungerRate: 0.5,
@@ -34,6 +37,7 @@ export const difficultyRules = {
   normal: {
     // Tools wear out only on Normal and Hard.
     toolWear: true,
+    lavaHurts: true,
     maxMonsters: 4,
     damage: 1,
     hungerRate: 1,
@@ -44,6 +48,7 @@ export const difficultyRules = {
   hard: {
     // Tools wear out only on Normal and Hard.
     toolWear: true,
+    lavaHurts: true,
     maxMonsters: 6,
     damage: 1.5,
     hungerRate: 1.5,
@@ -114,8 +119,9 @@ export function newWorld({
     // Worlds without a seed use the original valley (all worlds before v3).
     size: Object.hasOwn(SIZES, size) ? size : null,
     seed: Number.isInteger(seed) ? seed : null,
-    // Terrain generation: 2 adds copper, lakes, wells and bee nests.
-    gen: 2,
+    // Terrain generation: 2 adds copper, lakes, wells and bee nests;
+    // 3 adds lava deep in the caves, red sand and more flowers.
+    gen: 3,
     edits: [],
     player: null,
     inventory: [],
@@ -174,7 +180,7 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     now,
   });
   // Worlds saved before generation 2 keep their original terrain.
-  world.gen = raw.gen === 2 ? 2 : 1;
+  world.gen = [2, 3].includes(raw.gen) ? raw.gen : 1;
   world.createdAt = finite(raw.createdAt, now);
   world.updatedAt = finite(raw.updatedAt, now);
   world.edits = edits;

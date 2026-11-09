@@ -52,7 +52,9 @@ Usa uma cama para ela passar a ser a **tua casa**. À noite, dormir passa logo p
 
 ## Explorar a ilha
 
-Os mundos novos são ilhas com **biomas**: planície com flores, floresta, praia, deserto com catos, montanha com neve e pinheiros, e pântano com cogumelos. O bioma onde estás aparece em cima, ao lado do relógio. Debaixo do chão há **grutas**, algumas com **lagos**. Procura também **ruínas** e **cabanas** (cada uma tem um baú com tesouro) e **poços** na planície. Os lagos, os poços, o cobre e os ninhos de abelhas só aparecem nos mundos criados a partir desta versão; os mundos antigos ficam iguais.
+Os mundos novos são ilhas com **biomas**: planície com flores de quatro cores, floresta, praia, deserto com catos e areia vermelha, montanha com neve e pinheiros, e pântano com cogumelos. O bioma onde estás aparece em cima, ao lado do relógio. Debaixo do chão há **grutas**, algumas com **lagos**. Procura também **ruínas** e **cabanas** (cada uma tem um baú com tesouro) e **poços** na planície. Os lagos, os poços, o cobre e os ninhos de abelhas só aparecem nos mundos novos, e a lava, a areia vermelha e as flores novas só nos mundos criados a partir da versão mais recente; os mundos antigos ficam iguais.
+
+Bem no fundo das grutas há **lava**, que brilha e ilumina tudo à volta. No Normal e no Difícil **queima**: salta para sair. No Pacífico e no Fácil é só **magma morno**, que empurra o Biel para fora. A lava nunca pega fogo a nada. Com água por cima ou ao lado vira **pedra**, e um **balde** também a apanha (cuidado onde a despejas!).
 
 **A luz:** o sol entra pelas aberturas e vai ficando mais fraco lá dentro. As grutas e as casas fechadas ficam escuras; as **tochas**, as **lanternas**, a **pedra luminosa** e o **forno** iluminam à volta. Os monstros só aparecem onde está escuro.
 
@@ -81,7 +83,9 @@ No **Médio** e no **Difícil** as ferramentas gastam-se com o uso. Aparece uma 
 ## Construir com formas e cores
 
 - **Escada de mão** para subir paredes, **vedação**, **portão** e **alçapão** (abrem e fecham), **placa** onde escreves um nome e **vaso**.
-- **Tintas** de flores, trigo, catos, cristal e carvão (e misturas para laranja e roxo) pintam a **lã**. Uma ovelha pintada dá lã dessa cor.
+- **Tintas** de flores, trigo, catos, cristal e carvão (e misturas para laranja e roxo) pintam a **lã**. A flor azul e a flor amarela também dão tinta. Uma ovelha pintada dá lã dessa cor.
+- **Fogueira** (3 paus e 1 carvão): ilumina como uma tocha grande. A chuva apaga-a se não tiver telhado; toca-lhe para a acender outra vez.
+- **Lanterna** (1 barra de ferro e 1 tocha, na bancada) e **blocos de ferro e de ouro** (4 barras cada, na bancada). A areia vermelha também dá vidro no forno.
 
 ## A quinta e a pesca
 
@@ -105,7 +109,7 @@ Com uma **cana de pesca**, usa-a virado para a água e espera um bocadinho para 
 | Gato | um amigo que assusta monstros (peixe) | |
 | Cavalo | um amigo para montar (maçãs, às vezes várias) | |
 
-Também há **abelhas** à volta dos ninhos nos carvalhos (de dia, sem chuva): com um **frasco** (feito de vidro) apanhas **mel**, e depois as abelhas precisam de um bocadinho para fazer mais. No mar nadam **peixes** que fogem quando o Biel se aproxima.
+Também há **abelhas** à volta dos ninhos nos carvalhos (de dia, sem chuva): com um **frasco** (feito de vidro) apanhas **mel**, e depois as abelhas precisam de um bocadinho para fazer mais. No mar nadam **peixes** que fogem quando o Biel se aproxima. Cada animal começa no bioma de que gosta: galinhas, vacas e cavalos na planície, porcos e cães na floresta, ovelhas e coelhos também na neve.
 
 Os animais não se magoam. Dá a **comida preferida a dois animais iguais** e nasce uma **cria**, que cresce passado algum tempo.
 
@@ -142,4 +146,4 @@ Funcionam comandos de PlayStation, Xbox e MFi no Mac, no iPad e no iPhone. Maní
 - Em **Definições › Pais** (protegido por uma conta escrita por extenso) podem ligar um **lembrete de pausa** (30, 45 ou 60 minutos), escolher a **dificuldade máxima** e desligar sempre os **monstros**.
 - Os mundos ficam guardados **neste dispositivo**. Com **Guardar no iCloud** ligado nas Definições, ficam iguais no Mac, no iPad e no iPhone com a mesma conta; se um mundo mudar em dois dispositivos, o jogo pergunta qual manter. Também se pode usar **Exportar mundo** e **Importar mundo**.
 - Para um jogo calmo: escolham **Pacífico**, ou desliguem os **Monstros** em qualquer dificuldade.
-- Nas Definições há volumes separados para **música**, **efeitos** e **ambiente**, e a opção **Texto grande**.
+- Nas Definições há volumes separados para **música**, **efeitos** e **ambiente**, a opção **Texto grande** e a opção **Ícones em vez de texto**, que põe desenhos nos botões do jogo para quem ainda não lê.

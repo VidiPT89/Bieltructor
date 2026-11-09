@@ -4,6 +4,7 @@ export const SMELT = {
   gold_ore: "gold_ingot",
   copper_ore: "copper_ingot",
   sand: "glass",
+  red_sand: "glass",
   potato: "baked_potato",
   fish: "cooked_fish",
 };

@@ -115,6 +115,16 @@ export const RECIPES = [
   { id: "yellow_dye", out: ["yellow_dye", 2], needs: { wheat: 1 } },
   { id: "green_dye", out: ["green_dye", 2], needs: { cactus: 1 } },
   { id: "blue_dye", out: ["blue_dye", 2], needs: { crystal: 1 } },
+  {
+    id: "blue_dye_flower",
+    out: ["blue_dye", 2],
+    needs: { blue_flower: 1 },
+  },
+  {
+    id: "yellow_dye_flower",
+    out: ["yellow_dye", 2],
+    needs: { yellow_flower: 1 },
+  },
   { id: "black_dye", out: ["black_dye", 2], needs: { coal: 1 } },
   {
     id: "orange_dye",
@@ -161,6 +171,25 @@ export const RECIPES = [
     bench: true,
   },
   { id: "bottle", out: ["bottle", 3], needs: { glass: 2 } },
+  { id: "campfire", out: ["campfire", 1], needs: { stick: 3, coal: 1 } },
+  {
+    id: "lantern",
+    out: ["lantern", 1],
+    needs: { iron_ingot: 1, torch: 1 },
+    bench: true,
+  },
+  {
+    id: "iron_block",
+    out: ["iron_block", 1],
+    needs: { iron_ingot: 4 },
+    bench: true,
+  },
+  {
+    id: "gold_block",
+    out: ["gold_block", 1],
+    needs: { gold_ingot: 4 },
+    bench: true,
+  },
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

@@ -32,6 +32,10 @@ import {
   biomeAt,
   COPPER_ORE,
   FURNACE,
+  LAVA,
+  isLava,
+  CAMPFIRE,
+  CAMPFIRE_OUT,
 } from "../world.js";
 import * as THREE from "three";
 import { NOON } from "../daynight.js";
@@ -1055,6 +1059,84 @@ export function installSmokeTests(g) {
         "the water dries up without its source",
         ![...g.blocks.values()].some((v) => isWater(v)),
       );
+      // Lava: a bucket scoops it, it burns on Normal, it is only warm on
+      // Easy, and water turns it into stone.
+      const lavaAt = [wx0, wy0 + 1, wz0];
+      g.setBlock(lavaAt, LAVA);
+      g.rebuildAt(lavaAt);
+      g.inventory.slots[0] = { id: "bucket", count: 1 };
+      g.selected = 0;
+      g.targetLava = lavaAt;
+      g.targetAnimal = g.targetMonster = null;
+      g.edit(true);
+      check(
+        "a bucket scoops lava",
+        g.heldId() === "lava_bucket" && !g.blocks.has(key(...lavaAt)),
+      );
+      g.target = { p: [wx0, wy0, wz0], normal: new THREE.Vector3(0, 1, 0) };
+      g.targetAnimal = g.targetMonster = null;
+      g.edit(true);
+      check(
+        "a lava bucket pours lava",
+        g.blocks.get(key(...lavaAt)) === LAVA && g.heldId() === "bucket",
+      );
+      check("lava glows", g.light.level(...lavaAt) >= 14);
+      const lavaSaved = { ...g.player },
+        lavaOptions = g.world.options;
+      Object.assign(g.player, { x: wx0, y: wy0 + 1, z: wz0 });
+      g.world.options = { ...lavaOptions, difficulty: "easy" };
+      g.vitals.health = 20;
+      g.vitals.hurtCooldown = 0;
+      g.touchLava(0.1);
+      check(
+        "on Easy lava is only warm and pushes Biel out",
+        g.vitals.health === 20 && g.velocity >= 5,
+      );
+      g.world.options = { ...lavaOptions, difficulty: "normal" };
+      g.touchLava(0.1);
+      check("on Normal lava burns", g.vitals.health < 20);
+      g.world.options = lavaOptions;
+      Object.assign(g.player, lavaSaved);
+      g.vitals.health = 20;
+      g.setBlock([wx0 + 1, wy0 + 1, wz0], WATER);
+      g.rebuildAt([wx0 + 1, wy0 + 1, wz0]);
+      g.waterDirty.add(key(...lavaAt));
+      g.updateWater(0.4);
+      check("water turns lava into stone", g.blocks.get(key(...lavaAt)) === 2);
+      for (const p of [lavaAt, [wx0 + 1, wy0 + 1, wz0]]) {
+        g.blocks.delete(key(...p));
+        g.edits.set(key(...p), null);
+      }
+      for (let i = 0; i < 40 && g.waterDirty.size; i++) g.updateWater(0.4);
+      g.rebuildAt(lavaAt);
+      check(
+        "no lava is left behind",
+        !isLava(g.blocks.get(key(...lavaAt))) &&
+          !isLava(g.blocks.get(key(wx0 + 1, wy0 + 1, wz0))),
+      );
+      // Rain puts out a campfire in the open; tapping lights it again.
+      g.setBlock(lavaAt, CAMPFIRE);
+      g.rebuildAt(lavaAt);
+      const wasRain = g.rainLevel;
+      g.rainLevel = 1;
+      g.rainOnCampfires();
+      check(
+        "rain puts out a campfire in the open",
+        g.blocks.get(key(...lavaAt)) === CAMPFIRE_OUT,
+      );
+      g.rainLevel = 0;
+      hold("stick");
+      g.target = { p: lavaAt, normal: new THREE.Vector3(0, 1, 0) };
+      g.targetAnimal = g.targetMonster = null;
+      g.edit(true);
+      check(
+        "a campfire lights again when the rain stops",
+        g.blocks.get(key(...lavaAt)) === CAMPFIRE,
+      );
+      g.rainLevel = wasRain;
+      g.blocks.delete(key(...lavaAt));
+      g.edits.set(key(...lavaAt), null);
+      g.rebuildAt(lavaAt);
       // Honey from a bee nest, with a bottle.
       g.setBlock([wx0, wy0 + 1, wz0], BEE_NEST);
       g.inventory.slots[0] = { id: "bottle", count: 2 };
@@ -1144,11 +1226,12 @@ export function installSmokeTests(g) {
       check("the island has several biomes", biomesHere.size >= 3);
       const typesHere = new Set(g.blocks.values());
       check(
-        "new islands have copper, lakes and bee nests",
-        g.world.gen === 2 &&
+        "new islands have copper, lakes, bee nests and deep lava",
+        g.world.gen === 3 &&
           typesHere.has(COPPER_ORE) &&
           typesHere.has(WATER) &&
-          typesHere.has(BEE_NEST),
+          typesHere.has(BEE_NEST) &&
+          typesHere.has(LAVA),
       );
       const nest = g.nestBlocks[0];
       g.player.set(nest[0] + 2, nest[1], nest[2]);
@@ -1317,6 +1400,17 @@ export function installSmokeTests(g) {
         g.inventory.slots[0].count === 8 && g.inventory.slots[1]?.count === 7,
       );
       g.action("back");
+      // "Icons instead of words" puts pictures on the game buttons.
+      g.settings.icons = true;
+      g.render();
+      const jumpButton = g.app.querySelector('[data-key="jump"]');
+      check(
+        "icons replace the words on the game buttons",
+        jumpButton.querySelector(".icon-word") &&
+          jumpButton.getAttribute("aria-label") === g.t("jump"),
+      );
+      g.settings.icons = false;
+      g.render();
       g.firstPerson = false;
       g.vitals.health = 6;
       hold("golden_apple");

@@ -1,4 +1,5 @@
-// Footsteps and animal voices, made live with Web Audio (no audio files).
+// Footsteps, animal and monster voices and a few house sounds (doors,
+// chests, the furnace), made live with Web Audio (no audio files).
 import {
   PLANKS,
   BENCH,
@@ -52,9 +53,39 @@ export const VOICES = {
     ["triangle", 760, 420, 0.25, 0.18],
   ],
   horse: [["sawtooth", 700, 420, 0.6, 0]],
+  // Monsters sound silly, not scary.
+  sleepy: [["sine", 300, 180, 0.6, 0]],
+  jelly: [
+    ["sine", 220, 520, 0.12, 0],
+    ["sine", 260, 600, 0.12, 0.14],
+  ],
+  archer: [
+    ["square", 1200, 1100, 0.03, 0],
+    ["square", 1000, 900, 0.03, 0.06],
+    ["square", 1300, 1200, 0.03, 0.12],
+  ],
+  spider: [
+    ["triangle", 1400, 1900, 0.08, 0],
+    ["triangle", 1600, 2100, 0.08, 0.1],
+  ],
+  puff: [["sawtooth", 160, 80, 0.4, 0]],
+  ghost: [
+    ["sine", 500, 700, 0.5, 0],
+    ["sine", 700, 450, 0.6, 0.45],
+  ],
+  // Things around the house.
+  door: [
+    ["triangle", 180, 140, 0.18, 0],
+    ["triangle", 150, 110, 0.12, 0.16],
+  ],
+  chest: [
+    ["square", 140, 90, 0.08, 0],
+    ["triangle", 520, 780, 0.12, 0.1],
+  ],
+  furnace: [["sawtooth", 90, 70, 0.35, 0]],
 };
-// Voices that wobble a little (sheep bleat, horse neigh).
-const WOBBLE = { sheep: 22, horse: 30 };
+// Voices that wobble a little (sheep bleat, horse neigh, a ghost's "ooo").
+const WOBBLE = { sheep: 22, horse: 30, ghost: 18, sleepy: 6 };
 
 export function playStep(audio, kind, volume) {
   const step = STEPS[kind];

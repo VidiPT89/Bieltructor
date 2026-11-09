@@ -100,13 +100,15 @@ test("shears give a sheep one more wool and wear a little", () => {
   assert.equal(interact({ type: "sheep", readyAt: 0 }, null, 10).give[1], 2);
 });
 
-test("new worlds use generation 2; older saved worlds keep generation 1", () => {
+test("new worlds use generation 3; older saved worlds keep theirs", () => {
   const w = newWorld({ id: "a", seed: 5, size: "small" });
-  assert.equal(w.gen, 2);
+  assert.equal(w.gen, 3);
   assert.equal(
     validateWorld(JSON.parse(JSON.stringify(w)), { id: "a" }).gen,
-    2,
+    3,
   );
+  assert.equal(validateWorld({ ...w, gen: 2 }, { id: "a" }).gen, 2);
+  assert.equal(validateWorld({ ...w, gen: 9 }, { id: "a" }).gen, 1);
   const old = { ...JSON.parse(JSON.stringify(w)) };
   delete old.gen;
   assert.equal(validateWorld(old, { id: "a" }).gen, 1);

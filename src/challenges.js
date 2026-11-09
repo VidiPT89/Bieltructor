@@ -8,7 +8,8 @@ export const CHALLENGES = [
   { id: "coalIron", sticker: "⛏️", all: ["got:coal", "got:iron"] },
   { id: "ironPickaxe", sticker: "⚒️", event: "craft:iron_pickaxe" },
   { id: "wheat", sticker: "🌾", event: "harvest:wheat" },
-  { id: "dog", sticker: "🐶", event: "tame:dog" },
+  // Tame a dog and give it a name (naming happens right after taming).
+  { id: "dog", sticker: "🐶", event: "name:dog" },
   { id: "crystal", sticker: "💎", event: "got:crystal" },
   { id: "house", sticker: "🏡", event: "house" },
   { id: "biomes", sticker: "🧭", distinct: "biome", goal: 3 },

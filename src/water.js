@@ -1,7 +1,17 @@
-// Flowing water. A source (level 4) feeds the cells around it: water falls
+// Flowing water and lava. A source feeds the cells around it: liquid falls
 // down first, and on solid ground it spreads sideways, one level less per
-// step. Water with nothing feeding it dries up a level at a time.
-import { waterLevel, flowBlock, WATER } from "./world.js";
+// step. Liquid with nothing feeding it dries up a level at a time. Water
+// spreads three blocks; lava, thick and slow, only one.
+import {
+  waterLevel,
+  flowBlock,
+  WATER,
+  lavaLevel,
+  LAVA,
+  LAVA_FLOW,
+  isWater,
+  isLava,
+} from "./world.js";
 
 const SIDES = [
   [1, 0],
@@ -11,11 +21,20 @@ const SIDES = [
 ];
 const k = (x, y, z) => `${x},${y},${z}`;
 
+const WATER_FLOW = { level: waterLevel, block: flowBlock, source: WATER };
+const LAVA_FLOWS = {
+  level: lavaLevel,
+  block: (n) => (n >= 2 ? LAVA : LAVA_FLOW),
+  source: LAVA,
+};
+
 // `dirty`: keys ("x,y,z") of cells that may need to change.
 // `typeAt(x, y, z)`: block type or undefined for air.
-// `inside(x, y, z)`: whether water may go there.
+// `inside(x, y, z)`: whether the liquid may go there.
 // Returns the changes ([x, y, z, type or null]) and the cells to look at next.
-export function flowWater(dirty, typeAt, inside, limit = 64) {
+function flow(liquid, dirty, typeAt, inside, limit) {
+  const { level: levelOf, block, source } = liquid,
+    full = levelOf(source) - 1;
   const changed = new Map(),
     next = new Set();
   const get = (x, y, z) => {
@@ -38,27 +57,27 @@ export function flowWater(dirty, typeAt, inside, limit = 64) {
     done++;
     const [x, y, z] = id.split(",").map(Number);
     const type = get(x, y, z);
-    let level = waterLevel(type);
+    let level = levelOf(type);
     if (!level) continue;
-    // Flowing water needs water above it or a fuller neighbour beside it.
-    if (type !== WATER) {
-      let want = waterLevel(get(x, y + 1, z)) ? 3 : 0;
+    // Flowing liquid needs the same liquid above it or a fuller neighbour.
+    if (type !== source) {
+      let want = levelOf(get(x, y + 1, z)) ? full : 0;
       for (const [dx, dz] of SIDES)
-        want = Math.max(want, waterLevel(get(x + dx, y, z + dz)) - 1);
-      want = Math.min(3, want);
+        want = Math.max(want, levelOf(get(x + dx, y, z + dz)) - 1);
+      want = Math.min(full, want);
       if (want !== level) {
-        set(x, y, z, want > 0 ? flowBlock(want) : null);
+        set(x, y, z, want > 0 ? block(want) : null);
         level = want;
       }
       if (!level) continue;
     }
-    // Falling comes first; on solid ground water spreads sideways.
+    // Falling comes first; on solid ground the liquid spreads sideways.
     const below = get(x, y - 1, z);
     if (below === undefined && inside(x, y - 1, z)) {
-      set(x, y - 1, z, flowBlock(3));
+      set(x, y - 1, z, block(full));
       continue;
     }
-    if (waterLevel(below) || level <= 1) continue;
+    if (levelOf(below) || level <= 1) continue;
     for (const [dx, dz] of SIDES) {
       const nx = x + dx,
         nz = z + dz,
@@ -66,9 +85,9 @@ export function flowWater(dirty, typeAt, inside, limit = 64) {
       if (!inside(nx, y, nz)) continue;
       if (
         side === undefined ||
-        (waterLevel(side) && side !== WATER && waterLevel(side) < level - 1)
+        (levelOf(side) && side !== source && levelOf(side) < level - 1)
       )
-        set(nx, y, nz, flowBlock(level - 1));
+        set(nx, y, nz, block(level - 1));
     }
   }
   return {
@@ -80,7 +99,27 @@ export function flowWater(dirty, typeAt, inside, limit = 64) {
   };
 }
 
-// The cells around a changed block, for waking up the water near it.
+export const flowWater = (dirty, typeAt, inside, limit = 64) =>
+  flow(WATER_FLOW, dirty, typeAt, inside, limit);
+export const flowLava = (dirty, typeAt, inside, limit = 64) =>
+  flow(LAVA_FLOWS, dirty, typeAt, inside, limit);
+
+// Lava that touches water (beside or above it) cools into stone.
+// Returns the changes ([x, y, z, 2]).
+export function quench(keys, typeAt) {
+  const out = new Map();
+  for (const id of keys) {
+    const [x, y, z] = id.split(",").map(Number);
+    if (!isLava(typeAt(x, y, z))) continue;
+    const wet =
+      isWater(typeAt(x, y + 1, z)) ||
+      SIDES.some(([dx, dz]) => isWater(typeAt(x + dx, y, z + dz)));
+    if (wet) out.set(id, [x, y, z, 2]);
+  }
+  return [...out.values()];
+}
+
+// The cells around a changed block, for waking up the liquid near it.
 export function around([x, y, z]) {
   return [
     k(x, y, z),

@@ -1657,3 +1657,12 @@ kbd {
   width: calc(var(--draw, 0) * 100%);
   background: #f2b84b;
 }
+/* "Icons instead of words": bigger pictures, and the reading hints go away. */
+.icon-word {
+  font-size: 1.6em;
+  line-height: 1;
+}
+.icons .hint,
+.icons .material-label {
+  display: none;
+}

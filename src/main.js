@@ -57,10 +57,24 @@ import {
   COPPER_ORE,
   COPPER_BLOCK,
   BEE_NEST,
+  LAVA,
+  LAVA_FLOW,
+  isLava,
+  isLiquid,
+  inLava,
+  CAMPFIRE,
+  CAMPFIRE_OUT,
+  RED_SAND,
+  IRON_BLOCK,
+  GOLD_BLOCK,
+  LANTERN,
+  BLUE_FLOWER,
+  WHITE_FLOWER,
+  YELLOW_FLOWER,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
-import { flowWater, around } from "./water.js";
+import { flowWater, flowLava, quench, around } from "./water.js";
 import { readPad, pressedNow, fromStandardGamepad } from "./input/gamepad.js";
 import { deviceKind } from "./sync.js";
 import {
@@ -184,6 +198,8 @@ settings.volume = {
 settings.sound = settings.volume.fx > 0;
 settings.music = settings.volume.music > 0;
 settings.bigText = settings.bigText === true;
+// Icons instead of words on the game buttons, for children who do not read yet.
+settings.icons = settings.icons === true;
 settings.minimap = settings.minimap !== false;
 if (!strings[settings.lang]) settings.lang = "pt";
 settings.parents = normalizeParents(settings.parents);
@@ -217,8 +233,11 @@ let mode = "splash",
   lightBlocks = [],
   nestBlocks = [],
   targetWater = null,
+  targetLava = null,
   waterDirty = new Set(),
+  lavaDirty = new Set(),
   waterClock = 0,
+  lavaClock = 0,
   cropKeys = [],
   growClock = 5,
   rainLevel = 0,
@@ -286,10 +305,15 @@ const colors = [
   0xc8473c, 0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30,
   // Water (still, then flowing), copper ore, copper block, bee nest.
   0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0xb87350, 0xd8834f, 0xe0b54a,
+  // Lava (source, flow), campfire (lit, out), red sand, iron and gold
+  // blocks, lantern, then blue, white and yellow flowers.
+  0xf06a1f, 0xf06a1f, 0x9a6a3c, 0x5b4a3c, 0xc9663a, 0xd9dcdc, 0xf2c94c,
+  0x3b3f40, 0x5f8fe8, 0xf4f1ea, 0xf2c94c,
 ];
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.classList.toggle("big-text", settings.bigText);
+  document.documentElement.classList.toggle("icons", settings.icons);
   document.documentElement.lang = settings.lang === "pt" ? "pt-PT" : "en";
   try {
     localStorage.setItem("biel-settings", JSON.stringify(settings));
@@ -300,9 +324,22 @@ const toastEl = document.createElement("div");
 toastEl.id = "toast";
 toastEl.setAttribute("role", "status");
 document.body.append(toastEl);
-function button(action, label, cls = "", arg = "") {
-  return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${["view", "pause"].includes(action) ? `aria-label="${t(action)}"` : action === "inventory" ? `aria-label="${t("backpack")}"` : ""} class="${cls}">${label}</button>`;
+function button(action, label, cls = "", arg = "", extra = "") {
+  return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${["view", "pause"].includes(action) ? `aria-label="${t(action)}"` : action === "inventory" ? `aria-label="${t("backpack")}"` : ""} ${extra} class="${cls}">${label}</button>`;
 }
+// The game buttons show a word, or a picture with "Icons instead of words".
+const ICONS = {
+  run: "🏃",
+  break: "⛏️",
+  place: "🧱",
+  attack: "⚔️",
+  jump: "⤴︎",
+  descend: "⤵︎",
+};
+const word = (name) =>
+  settings.icons ? `<span class="icon-word">${ICONS[name]}</span>` : t(name);
+// With pictures, the button still says its name to VoiceOver.
+const say = (name) => (settings.icons ? `aria-label="${t(name)}"` : "");
 // Blocks show their colour; other items show a picture.
 const icon = (id) =>
   ITEMS[id].block !== undefined
@@ -388,7 +425,7 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="forward" aria-label="${t("forward")}">↑</button><button data-key="left" aria-label="${t("left")}">←</button><button data-key="backward" aria-label="${t("backward")}">↓</button><button data-key="right" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="run">${t("run")}</button><button data-key="break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="jump">${t("jump")}</button>${flying || riding ? `<button data-key="down">${t("descend")}</button>` : ""}</div></div>`;
+      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="forward" aria-label="${t("forward")}">↑</button><button data-key="left" aria-label="${t("left")}">←</button><button data-key="backward" aria-label="${t("backward")}">↓</button><button data-key="right" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="run" ${say("run")}>${word("run")}</button><button data-key="break" ${say("break")}>${word("break")}</button>${button("place", word("place"), "", "", say("place"))}${creative() ? "" : button("attack", word("attack"), "attack-btn hidden", "", say("attack"))}<button data-key="jump" ${say("jump")}>${word("jump")}</button>${flying || riding ? `<button data-key="down" ${say("descend")}>${word("descend")}</button>` : ""}</div></div>`;
   if (mode === "conflict" && cloud.conflicts[0]) {
     const c = cloud.conflicts[0],
       when = (d) =>
@@ -494,7 +531,7 @@ function render() {
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloud.status === "missing" ? t("icloudMissing") : cloud.status ? t("icloudSynced", { time: cloud.status }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("iconsOnly")}<select id="icons"><option value="on" ${settings.icons ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.icons ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloud.status === "missing" ? t("icloudMissing") : cloud.status ? t("icloudSynced", { time: cloud.status }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
@@ -517,13 +554,13 @@ function render() {
       ["quality", "quality"],
       ["cloud", "cloud"],
       ["bigtext", "bigText"],
+      ["icons", "icons"],
       ["minimap", "minimap"],
     ])
       $("#" + id).onchange = (e) => {
-        settings[prop] =
-          prop === "cloud" || prop === "bigText" || prop === "minimap"
-            ? e.target.value === "on"
-            : e.target.value;
+        settings[prop] = ["cloud", "bigText", "icons", "minimap"].includes(prop)
+          ? e.target.value === "on"
+          : e.target.value;
         if (prop === "cloud" && settings.cloud) cloud.sync();
         theme();
         applyQuality();
@@ -826,6 +863,7 @@ function action(a, arg) {
       namingDog.name = name;
       dressAnimal(namingDog);
       toast(t("follow", { name }));
+      emit("name:" + namingDog.type);
     }
     namingDog = null;
     mode = "playing";
@@ -1208,6 +1246,58 @@ const blockTextures = {
       ])
         ctx.fillRect(x, y, 2, 2);
     }),
+  [IRON_BLOCK]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#d9dcdc";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#f4f6f6";
+      ctx.fillRect(1, 1, 14, 2);
+      ctx.fillStyle = "#a9adad";
+      ctx.fillRect(1, 13, 14, 2);
+      ctx.fillRect(7, 3, 2, 10);
+    }),
+  [GOLD_BLOCK]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#f2c94c";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#fff0a8";
+      ctx.fillRect(1, 1, 14, 2);
+      ctx.fillStyle = "#c99a2e";
+      ctx.fillRect(1, 13, 14, 2);
+      ctx.fillRect(7, 3, 2, 10);
+    }),
+  [RED_SAND]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#c9663a";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#df8456";
+      for (const [x, y] of [
+        [2, 2],
+        [10, 4],
+        [5, 11],
+        [13, 12],
+      ])
+        ctx.fillRect(x, y, 2, 1);
+    }),
+  [CAMPFIRE]: () =>
+    drawTexture((ctx) => {
+      plankLines(ctx, "#8a5a33", "#5b3a20");
+      ctx.fillStyle = "#ff8a2b";
+      ctx.fillRect(3, 0, 10, 6);
+      ctx.fillStyle = "#ffd36b";
+      ctx.fillRect(6, 0, 4, 4);
+    }),
+  [CAMPFIRE_OUT]: () =>
+    drawTexture((ctx) => plankLines(ctx, "#5b4a3c", "#3b2f25")),
+  [LANTERN]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#3b3f40";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#ffd36b";
+      ctx.fillRect(3, 3, 10, 10);
+      ctx.fillStyle = "#fff2b8";
+      ctx.fillRect(6, 5, 4, 6);
+    }),
   [BEE_NEST]: () =>
     drawTexture((ctx) => {
       ctx.fillStyle = "#e0b54a";
@@ -1434,6 +1524,24 @@ const plantTextures = {
     ctx.fillStyle = "#f6d24a";
     ctx.fillRect(9, 3, 5, 4);
   },
+  ...Object.fromEntries(
+    [
+      [BLUE_FLOWER, "#5f8fe8"],
+      [WHITE_FLOWER, "#f4f1ea"],
+      [YELLOW_FLOWER, "#f2c94c"],
+    ].map(([type, petal]) => [
+      type,
+      (ctx) => {
+        ctx.fillStyle = "#4f9a46";
+        ctx.fillRect(7, 7, 2, 9);
+        ctx.fillRect(4, 11, 3, 1);
+        ctx.fillStyle = petal;
+        ctx.fillRect(5, 2, 6, 5);
+        ctx.fillStyle = "#f6d24a";
+        ctx.fillRect(7, 4, 2, 2);
+      },
+    ]),
+  ),
   [TALL_GRASS]: (ctx) => {
     ctx.fillStyle = "#6fae4e";
     for (let x = 1; x < 16; x += 2) ctx.fillRect(x, 4 + ((x * 7) % 6), 1, 12);
@@ -1463,6 +1571,34 @@ const waterMaterial = new THREE.MeshStandardMaterial({
   depthWrite: false,
 });
 for (let i = 0; i < 4; i++) materials[WATER + i] = waterMaterial;
+// Lava glows by itself, bright orange with darker crust.
+const lavaMaterial = new THREE.MeshStandardMaterial({
+  map: drawTexture((ctx) => {
+    ctx.fillStyle = "#f06a1f";
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = "#ffb347";
+    for (const [x, y, w] of [
+      [1, 2, 5],
+      [9, 5, 4],
+      [3, 10, 6],
+      [11, 12, 3],
+    ])
+      ctx.fillRect(x, y, w, 2);
+    ctx.fillStyle = "#b8401a";
+    for (const [x, y] of [
+      [7, 1],
+      [2, 7],
+      [12, 9],
+      [8, 14],
+    ])
+      ctx.fillRect(x, y, 3, 1);
+  }),
+  roughness: 0.6,
+});
+lavaMaterial.emissive.set(0xff6a1f);
+lavaMaterial.emissiveMap = lavaMaterial.map;
+lavaMaterial.emissiveIntensity = 0.9;
+materials[LAVA] = materials[LAVA_FLOW] = lavaMaterial;
 materials[ICE] = new THREE.MeshStandardMaterial({
   color: 0xbfe6f5,
   transparent: true,
@@ -1477,11 +1613,11 @@ for (const crop of CROPS)
       side: THREE.DoubleSide,
       roughness: 1,
     });
-// Glowstone and furnaces glow.
-for (const type of [GLOWSTONE, FURNACE]) {
-  materials[type].emissive.set(type === GLOWSTONE ? 0xffd36b : 0xff8a2b);
+// Glowstone, lanterns, campfires and furnaces glow.
+for (const type of [GLOWSTONE, LANTERN, CAMPFIRE, FURNACE]) {
+  materials[type].emissive.set(type === FURNACE ? 0xff8a2b : 0xffd36b);
   materials[type].emissiveMap = materials[type].map;
-  materials[type].emissiveIntensity = type === GLOWSTONE ? 0.9 : 0.25;
+  materials[type].emissiveIntensity = type === FURNACE ? 0.25 : 0.9;
 }
 // Torches always glow a little, and more at night.
 const torchMaterial = materials[TORCH];
@@ -1494,6 +1630,11 @@ const shapes = {
   [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
   [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
   [WATER]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
+  [LAVA]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
+  [LAVA_FLOW]: new THREE.BoxGeometry(1, 0.45, 1).translate(0, -0.275, 0),
+  [CAMPFIRE]: new THREE.BoxGeometry(0.8, 0.4, 0.8).translate(0, -0.3, 0),
+  [CAMPFIRE_OUT]: new THREE.BoxGeometry(0.8, 0.3, 0.8).translate(0, -0.35, 0),
+  [LANTERN]: new THREE.BoxGeometry(0.4, 0.5, 0.4).translate(0, -0.25, 0),
 };
 // Flowing water: levels 3, 2 and 1 get lower and lower.
 [0.7, 0.5, 0.3].forEach(
@@ -1507,7 +1648,14 @@ const shapes = {
 for (const crop of CROPS)
   for (let stage = 0; stage < 4; stage++)
     shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
-for (const type of [FLOWER, TALL_GRASS, MUSHROOM])
+for (const type of [
+  FLOWER,
+  BLUE_FLOWER,
+  WHITE_FLOWER,
+  YELLOW_FLOWER,
+  TALL_GRASS,
+  MUSHROOM,
+])
   shapes[type] = crossGeometry(0.7);
 // Building shapes made of a few boxes: [width, height, depth, x, y, z].
 function boxesGeometry(parts) {
@@ -1717,7 +1865,8 @@ function buildChunk(cx, cz, cells) {
     nests = [],
     crops = [];
   for (const [x, y, z, type] of cells) {
-    if (type === TORCH || type === 7 || type === 36) lights.push([x, y, z]);
+    if ([TORCH, 7, GLOWSTONE, CAMPFIRE, LANTERN].includes(type))
+      lights.push([x, y, z]);
     if (type === BEE_NEST) nests.push([x, y, z]);
     if (cropInfo(type) && cropInfo(type).stage < 3) crops.push(key(x, y, z));
     if (!exposed(x, y, z)) continue;
@@ -1739,7 +1888,7 @@ function buildChunk(cx, cz, cells) {
       type !== GLASS &&
       type !== TORCH &&
       type !== ICE &&
-      !isWater(type) &&
+      !isLiquid(type) &&
       !cropInfo(type) &&
       !isPlant(type);
     mesh.receiveShadow = true;
@@ -2028,6 +2177,7 @@ function applySky(time) {
   amber.emissiveIntensity = (1 - s.daylight) * 1.4;
   torchMaterial.emissiveIntensity = 0.6 + (1 - s.daylight) * 1.2;
   music.night = s.night;
+  music.cave = mode === "playing" && underground();
   return s;
 }
 // Biel's original voxel explorer: short brown hair, brown eyes and orange jacket.
@@ -2135,6 +2285,7 @@ function loadWorld(w) {
   });
   light.relightAll();
   waterDirty = new Set();
+  lavaDirty = new Set();
   honeyReady.clear();
   rebuild();
   // The menu needs dry ground for Biel and nothing tall between him and the camera.
@@ -2950,6 +3101,7 @@ function hitMonster(m, damage) {
   m.x += Math.sin(away) * 0.6;
   m.z += Math.cos(away) * 0.6;
   beepAt(700, 300);
+  sound(m.type, 0.6);
   if (res.result === "split") {
     removeMonster(m);
     for (const side of [-0.5, 0.5])
@@ -3081,6 +3233,7 @@ function updateMonsters(dt) {
       toast(t("monsterNear"));
       beepAt(330, 520);
       beepAt(520, 330, 0.15);
+      sound(m.type, 0.7);
     }
     let speed = MONSTERS[m.type].speed * rules().monsterSpeed,
       dir = Math.atan2(dx, dz);
@@ -3406,12 +3559,15 @@ function pick() {
     }
   }
   targetWater = null;
+  targetLava = null;
   for (const hit of hits) {
     const p = hit.object.userData.cells[hit.instanceId];
-    // Water is looked through; a bucket can still scoop it.
-    if (isWater(hit.object.userData.type)) {
-      if (!targetWater && new THREE.Vector3(...p).distanceTo(player) < 6)
-        targetWater = p;
+    // Water and lava are looked through; a bucket can still scoop them.
+    const liquid = hit.object.userData.type;
+    if (isLiquid(liquid)) {
+      const near = new THREE.Vector3(...p).distanceTo(player) < 6;
+      if (near && isWater(liquid) && !targetWater) targetWater = p;
+      if (near && isLava(liquid) && !targetLava) targetLava = p;
       continue;
     }
     if (new THREE.Vector3(...p).distanceTo(player) < 7) {
@@ -3567,6 +3723,13 @@ function footstep() {
     if (kind) playStep(audioContext(), kind, settings.volume.fx);
   } catch {}
 }
+// A short sound from sounds.js (doors, chests, the furnace, monsters).
+function sound(name, volume = 1) {
+  if (!settings.sound) return;
+  try {
+    playVoice(audioContext(), name, settings.volume.fx * volume);
+  } catch {}
+}
 // An animal says something, softer when it is further away.
 function animalVoice(a) {
   if (!settings.sound) return;
@@ -3609,15 +3772,48 @@ function rebuildBackpacks() {
     backpackGroup.add(m);
   }
 }
+// Lava: on Normal and Hard it burns; on gentler levels it is warm magma
+// that only nudges Biel out. The last safe spot keeps a lost backpack
+// out of the lava.
+let lavaNoteClock = 0;
+const lastSafe = { x: 0, y: 0, z: 0 };
+function touchLava(dt) {
+  lavaNoteClock -= dt;
+  const hot =
+    inLava(blocks, player.x, player.y, player.z) ||
+    inLava(blocks, player.x, player.y + 1, player.z);
+  if (!hot) {
+    if (grounded) Object.assign(lastSafe, player);
+    return;
+  }
+  if (creative()) return;
+  if (rules().lavaHurts) {
+    if (hurt(vitals, 3, rules())) {
+      hurtFlash();
+      beepAt(260, 140);
+    }
+    if (lavaNoteClock <= 0) toast(t("lavaHot"));
+  } else {
+    velocity = Math.max(velocity, 5);
+    if (lavaNoteClock <= 0) toast(t("lavaWarm"));
+  }
+  if (lavaNoteClock <= 0) {
+    lavaNoteClock = 4;
+    emit("lava");
+  }
+}
 function fallAsleep() {
   mode = "asleep";
   keys.clear();
   touchInput.clear();
   if (!world.options.keepInventory && inventory.slots.some(Boolean)) {
+    const where = inLava(blocks, player.x, player.y, player.z)
+      ? lastSafe
+      : player;
     world.backpacks.push({
-      x: player.x,
-      y: player.y,
-      z: player.z,
+      x: where.x,
+      y: where.y,
+      z: where.z,
       items: inventory.toJSON(),
     });
     inventory = new Inventory();
@@ -3653,26 +3849,61 @@ function setBlock(p, type) {
   else blocks.set(k, type);
   edits.set(k, type);
 }
-// Water near a changed block gets a look on the next water step.
+// Water and lava near a changed block get a look on their next step.
 function wakeWater(...points) {
-  for (const p of points) for (const k of around(p)) waterDirty.add(k);
+  for (const p of points)
+    for (const k of around(p)) {
+      waterDirty.add(k);
+      lavaDirty.add(k);
+    }
 }
-function updateWater(dt) {
-  waterClock -= dt;
-  if (waterClock > 0 || !waterDirty.size) return;
-  waterClock = 0.35;
-  const { changes, dirty } = flowWater(
-    waterDirty,
-    (x, y, z) => blocks.get(key(x, y, z)),
-    (x, y, z) =>
-      Math.abs(x) <= SIZE && Math.abs(z) <= SIZE && y >= 1 && y < MAX_Y,
-    48,
-  );
-  waterDirty = dirty;
+const typeAtCell = (x, y, z) => blocks.get(key(x, y, z));
+const insideWorld = (x, y, z) =>
+  Math.abs(x) <= SIZE && Math.abs(z) <= SIZE && y >= 1 && y < MAX_Y;
+function applyFlow(changes) {
   if (!changes.length) return;
   for (const [x, y, z, type] of changes) setBlock([x, y, z], type);
   rebuildAt(...changes.map(([x, y, z]) => [x, y, z]));
   scheduleSave();
+}
+// Water flows every 0.35 s; lava is slower. Lava touching water cools
+// into stone first.
+function updateWater(dt) {
+  waterClock -= dt;
+  lavaClock -= dt;
+  if (waterClock <= 0 && (waterDirty.size || lavaDirty.size)) {
+    const cooled = quench([...waterDirty, ...lavaDirty], typeAtCell);
+    if (cooled.length) {
+      applyFlow(cooled);
+      wakeWater(...cooled.map(([x, y, z]) => [x, y, z]));
+      if (
+        cooled.some(
+          ([x, y, z]) =>
+            Math.hypot(x - player.x, y - player.y, z - player.z) < 8,
+        )
+      ) {
+        toast(t("lavaStone"));
+        beepAt(900, 300);
+      }
+    }
+  }
+  if (waterClock <= 0 && waterDirty.size) {
+    waterClock = 0.35;
+    const { changes, dirty } = flowWater(
+      waterDirty,
+      typeAtCell,
+      insideWorld,
+      48,
+    );
+    waterDirty = dirty;
+    applyFlow(changes);
+  }
+  if (lavaClock <= 0 && lavaDirty.size) {
+    lavaClock = 1.2;
+    const { changes, dirty } = flowLava(lavaDirty, typeAtCell, insideWorld, 48);
+    lavaDirty = dirty;
+    applyFlow(changes);
+  }
 }
 // Tools wear out on Normal and Hard, with a friendly warning first.
 function wearHeld() {
@@ -3689,9 +3920,18 @@ function wearSlot(index) {
   }
   render();
 }
-// An empty bucket scoops still water (or the sea); a full one pours it.
-function useBucket(full) {
-  if (!full) {
+// An empty bucket scoops still water (or the sea) or a lava source; a full
+// one pours it out again.
+function useBucket(full, lava = false) {
+  if (!full && targetLava && blocks.get(key(...targetLava)) === LAVA) {
+    setBlock(targetLava, null);
+    wakeWater(targetLava);
+    rebuildAt(targetLava);
+    if (!creative())
+      inventory.slots[selected] = { id: "lava_bucket", count: 1 };
+    toast(t("gotLava"));
+    beepAt(200, 420);
+  } else if (!full) {
     let ok = false;
     if (targetWater && blocks.get(key(...targetWater)) === WATER) {
       setBlock(targetWater, null);
@@ -3732,15 +3972,15 @@ function useBucket(full) {
       Math.abs(p[2]) > SIZE ||
       p[1] < 1 ||
       p[1] >= MAX_Y ||
-      (there !== undefined && !isWater(there))
+      (there !== undefined && !isLiquid(there))
     )
       return;
-    setBlock(p, WATER);
+    setBlock(p, lava ? LAVA : WATER);
     wakeWater(p);
     rebuildAt(p);
     if (!creative()) inventory.slots[selected] = { id: "bucket", count: 1 };
-    toast(t("pouredWater"));
-    beepAt(520, 260);
+    toast(t(lava ? "pouredLava" : "pouredWater"));
+    beepAt(lava ? 300 : 520, lava ? 160 : 260);
   }
   emit("bucket");
   scheduleSave();
@@ -3766,9 +4006,28 @@ function topAt(x, z) {
   return -1;
 }
 // Every few seconds, crops may grow a stage; water nearby (or rain) helps.
+// Rain puts out campfires that have nothing over them. Campfires are only
+// ever built by Biel, so they are all in the edits.
+const underSky = (x, y, z) => topAt(x, z) === y;
+function rainOnCampfires() {
+  if (!raining()) return;
+  const out = [];
+  for (const [k, type] of edits)
+    if (type === CAMPFIRE) {
+      const p = k.split(",").map(Number);
+      if (underSky(...p)) out.push(p);
+    }
+  if (!out.length) return;
+  for (const p of out) setBlock(p, CAMPFIRE_OUT);
+  rebuildAt(...out);
+  if (out.some((p) => Math.hypot(p[0] - player.x, p[2] - player.z) < 16))
+    toast(t("campfireOut"));
+  scheduleSave();
+}
 function growCrops(dt) {
   growClock -= dt;
   if (growClock > 0) return;
+  rainOnCampfires();
   const step = 5 - growClock;
   growClock = 5;
   const changed = [];
@@ -3864,6 +4123,7 @@ function chestAt(k) {
   return Inventory.from(world.chests[k], 27);
 }
 function openContainer(type, k) {
+  sound(type === CHEST ? "chest" : "furnace");
   container = { type, key: k };
   invPick = null;
   open(type === CHEST ? "chest" : "furnace");
@@ -3993,7 +4253,7 @@ function edit(place) {
     return;
   }
   if (place && ITEMS[heldId()]?.tool === "bucket") {
-    useBucket(ITEMS[heldId()].full === true);
+    useBucket(ITEMS[heldId()].full === true, ITEMS[heldId()].lava === true);
     return;
   }
   if (!target) return;
@@ -4057,8 +4317,18 @@ function edit(place) {
       return;
     }
     edits.set(k0, swing);
-    beep(true);
+    sound("door");
     rebuildAt(p);
+    scheduleSave();
+    return;
+  }
+  // A campfire that went out lights again, unless the rain is on it.
+  if (place && usedType === CAMPFIRE_OUT) {
+    if (raining() && underSky(...p)) return flashLabel(t("campfireWet"));
+    setBlock(p, CAMPFIRE);
+    rebuildAt(p);
+    toast(t("campfireLit"));
+    beepAt(300, 700);
     scheduleSave();
     return;
   }
@@ -4075,7 +4345,7 @@ function edit(place) {
       return;
     }
     for (const k of changed) edits.set(k, blocks.get(k));
-    beep(true);
+    sound("door");
     rebuildAt(p);
     pick();
     scheduleSave();
@@ -4096,7 +4366,10 @@ function edit(place) {
   const k = key(...p);
   const held = ITEMS[heldId()];
   if (place) {
-    if (held?.block === undefined || (blocks.has(k) && !isWater(blocks.get(k))))
+    if (
+      held?.block === undefined ||
+      (blocks.has(k) && !isLiquid(blocks.get(k)))
+    )
       return;
     const type = held.block,
       wasWater = blocks.get(k);
@@ -4330,7 +4603,8 @@ function frame(now) {
       speed =
         (pressed("run") ? 6 : 3.8) *
         (riding ? 2 : 1) *
-        (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1);
+        (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1) *
+        (inLava(blocks, player.x, player.y, player.z) ? 0.5 : 1);
     dx /= len;
     dz /= len;
     const vx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) * speed * dt,
@@ -4344,7 +4618,10 @@ function frame(now) {
       player[axis] = Math.max(-SIZE + 0.3, Math.min(SIZE - 0.3, player[axis]));
     }
     // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
-    const swimming = inWater(blocks, player.x, player.y + 0.9, player.z);
+    // Lava is thick: Biel paddles up through it like water.
+    const swimming =
+      inWater(blocks, player.x, player.y + 0.9, player.z) ||
+      inLava(blocks, player.x, player.y + 0.4, player.z);
     const onLadder = [0.1, 1].some(
       (dy) =>
         blocks.get(
@@ -4385,6 +4662,7 @@ function frame(now) {
       }
     }
     if (player.y < -5) spawn();
+    touchLava(dt);
     // Footsteps while walking on the ground (riding and flying are quiet).
     if (grounded && !flying && !riding && (dx || dz)) {
       stepClock -= speed * dt;
@@ -4976,6 +5254,18 @@ installSmokeTests({
   },
   get targetWater() {
     return targetWater;
+  },
+  get targetLava() {
+    return targetLava;
+  },
+  set targetLava(v) {
+    targetLava = v;
+  },
+  get touchLava() {
+    return touchLava;
+  },
+  get rainOnCampfires() {
+    return rainOnCampfires;
   },
   set targetWater(v) {
     targetWater = v;

@@ -1,10 +1,29 @@
 // Block light: levels from 0 to 15 kept for every cell of the world.
 // Sky light comes down from above and spreads into openings; torches,
-// lanterns, glowstone and furnaces light up their surroundings. Each step
+// lanterns, glowstone, furnaces, campfires and lava light up their surroundings. Each step
 // away from a light loses one level.
 
-// How much light each kind of block gives (block types from world.js).
-const LIGHT_SOURCES = { 13: 14, 7: 15, 36: 15, 41: 12 };
+import {
+  TORCH,
+  GLOWSTONE,
+  FURNACE,
+  LAVA,
+  LAVA_FLOW,
+  CAMPFIRE,
+  LANTERN,
+} from "./world.js";
+
+// How much light each kind of block gives (7 is amber, which glows).
+export const LIGHT_SOURCES = {
+  [TORCH]: 14,
+  7: 15,
+  [GLOWSTONE]: 15,
+  [FURNACE]: 12,
+  [LAVA]: 15,
+  [LAVA_FLOW]: 13,
+  [CAMPFIRE]: 15,
+  [LANTERN]: 15,
+};
 export const MAX_LIGHT = 15;
 
 export class LightMap {

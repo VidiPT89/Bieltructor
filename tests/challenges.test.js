@@ -16,7 +16,8 @@ test("there are twelve stickers and they unlock from what Biel does", () => {
   for (let i = 0; i < 11; i++) assert.deepEqual(record(p, "place", 1, 5), []);
   assert.deepEqual(record(p, "place", 1, 5), ["shelter"]);
   assert.equal(nextChallenge(p).id, "bench");
-  assert.deepEqual(record(p, "tame:dog"), ["dog"], "out of order still counts");
+  assert.deepEqual(record(p, "tame:dog"), [], "a dog needs a name too");
+  assert.deepEqual(record(p, "name:dog"), ["dog"], "out of order still counts");
   assert.equal(nextChallenge(p).id, "bench");
 });
 

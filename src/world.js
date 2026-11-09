@@ -48,7 +48,26 @@ export const GLASS = 8,
   COPPER_ORE = 62,
   COPPER_BLOCK = 63,
   BEE_NEST = 64,
-  TYPES = 65;
+  // Lava: a source and its short flow (only deep in the caves of new worlds).
+  LAVA = 65,
+  LAVA_FLOW = 66,
+  // A campfire (lit, or put out by the rain), red sand, metal blocks,
+  // a lantern and three more flowers.
+  CAMPFIRE = 67,
+  CAMPFIRE_OUT = 68,
+  RED_SAND = 69,
+  IRON_BLOCK = 70,
+  GOLD_BLOCK = 71,
+  LANTERN = 72,
+  BLUE_FLOWER = 73,
+  WHITE_FLOWER = 74,
+  YELLOW_FLOWER = 75,
+  TYPES = 76;
+// How much lava a block holds: 2 for a source, 1 for flowing lava.
+export const lavaLevel = (type) =>
+  type === LAVA ? 2 : type === LAVA_FLOW ? 1 : 0;
+export const isLava = (type) => lavaLevel(type) > 0;
+export const isLiquid = (type) => isWater(type) || isLava(type);
 // How much water a block holds: 4 for a source, 3 to 1 as it flows away.
 export const waterLevel = (type) =>
   type === WATER
@@ -79,8 +98,9 @@ export const OPENS = {
 // Shapes that do not fill their whole block.
 const isShape = (type) => type >= LADDER && type <= POT;
 // Small plants drawn as two crossed panels.
+export const FLOWERS = [FLOWER, BLUE_FLOWER, WHITE_FLOWER, YELLOW_FLOWER];
 export const isPlant = (type) =>
-  type === FLOWER || type === TALL_GRASS || type === MUSHROOM;
+  FLOWERS.includes(type) || type === TALL_GRASS || type === MUSHROOM;
 export const CROPS = ["wheat", "carrot", "potato"];
 export const cropBlock = (crop, stage) =>
   CROP_BASE + CROPS.indexOf(crop) * 4 + stage;
@@ -98,7 +118,8 @@ export const passable = (type) =>
   type === TRAPDOOR_OPEN ||
   type === SIGN ||
   type === POT ||
-  isWater(type) ||
+  type === LANTERN ||
+  isLiquid(type) ||
   cropInfo(type) !== null ||
   isPlant(type);
 export const seeThrough = (type) =>
@@ -109,6 +130,10 @@ export const seeThrough = (type) =>
   type === DOOR_OPEN ||
   type === TORCH ||
   type === BED ||
+  type === LANTERN ||
+  type === CAMPFIRE ||
+  type === CAMPFIRE_OUT ||
+  type === LAVA_FLOW ||
   isWater(type) ||
   cropInfo(type) !== null;
 export const key = (x, y, z) => `${x},${y},${z}`;
@@ -253,7 +278,9 @@ const spot = (seed, x, z, salt = 0) => {
 
 // The island for new worlds: biomes, hills, caves and plants.
 export function makeTerrain(seed, size, gen = 1) {
-  const extras = gen >= 2;
+  const extras = gen >= 2,
+    // Generation 3: lava deep down, red sand and more kinds of flowers.
+    third = gen >= 3;
   const n = makeNoise(seed),
     SEA = 12;
   const fbm = (x, z) =>
@@ -314,8 +341,14 @@ export function makeTerrain(seed, size, gen = 1) {
             if (a * a + c * c < 0.012) continue;
           }
           let t = 2;
-          if (y === h) t = sandy ? 3 : b === "snow" ? SNOW : 0;
-          else if (y >= h - 3) t = sandy ? 3 : 1;
+          const sand =
+            third &&
+            b === "desert" &&
+            n.noise2(x * 0.05 + 77, z * 0.05 - 33) > 0.15
+              ? RED_SAND
+              : 3;
+          if (y === h) t = sandy ? sand : b === "snow" ? SNOW : 0;
+          else if (y >= h - 3) t = sandy ? sand : 1;
           else if (y > 0) {
             // Ores: deeper means rarer and shinier.
             const o = spot(seed, x * 31 + y, z, 1);
@@ -341,7 +374,16 @@ export function makeTerrain(seed, size, gen = 1) {
           for (let y = h + 1; y <= h + 2 + (r < 0.01); y++)
             put(x, y, z, CACTUS);
         else if ((b === "plains" || b === "forest") && r < 0.12)
-          put(x, h + 1, z, r < 0.05 ? FLOWER : TALL_GRASS);
+          put(
+            x,
+            h + 1,
+            z,
+            r >= 0.05
+              ? TALL_GRASS
+              : third
+                ? FLOWERS[Math.floor(spot(seed, x, z, 15) * 4)]
+                : FLOWER,
+          );
         else if (b === "swamp" && r < 0.12) put(x, h + 1, z, MUSHROOM);
       }
     if (extras) {
@@ -360,6 +402,22 @@ export function makeTerrain(seed, size, gen = 1) {
               break;
             }
         }
+      // Lava pools on the floor of the deepest caves (generation 3).
+      if (third)
+        for (let x = -size; x <= size; x++)
+          for (let z = -size; z <= size; z++) {
+            if (n.noise2(x * 0.05 - 700, z * 0.05 + 700) < 0.35) continue;
+            if (Math.hypot(x, z) < 12) continue;
+            for (let y = 2; y <= 3; y++)
+              if (
+                !blocks.has(key(x, y, z)) &&
+                blocks.has(key(x, y - 1, z)) &&
+                !isLiquid(blocks.get(key(x, y - 1, z)))
+              ) {
+                put(x, y, z, LAVA);
+                break;
+              }
+          }
       // Wells in the plains: a stone ring with water, posts and a roof.
       for (let cx = -size + 18; cx < size - 6; cx += 24)
         for (let cz = -size + 18; cz < size - 6; cz += 24) {
@@ -448,6 +506,10 @@ export function inWater(blocks, x, y, z) {
   }
   return true;
 }
+
+// Whether Biel's body at this height is in lava.
+export const inLava = (blocks, x, y, z) =>
+  isLava(blocks.get(key(Math.round(x), Math.floor(y + 0.5), Math.round(z))));
 
 function solid(blocks, x, y, z) {
   const type = blocks.get(

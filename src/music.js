@@ -34,7 +34,11 @@ export class Music {
   enabled = false;
   volume = 0.8;
   night = false;
+  // In caves the music slows down, rings with a longer echo and plays its
+  // notes a fifth higher: mysterious, never scary.
+  cave = false;
   #timer;
+  #feedback;
   #barIndex = 0;
   #nextBar = 0;
   #out;
@@ -48,6 +52,7 @@ export class Music {
         feedback = ctx.createGain();
       delay.delayTime.value = 0.38;
       feedback.gain.value = 0.28;
+      this.#feedback = feedback;
       this.#out.connect(ctx.destination);
       this.#out.connect(delay);
       delay.connect(feedback);
@@ -77,14 +82,20 @@ export class Music {
 
   #schedule() {
     const ctx = audioContext();
+    this.#feedback?.gain.setTargetAtTime(
+      this.cave ? 0.45 : 0.28,
+      ctx.currentTime,
+      1,
+    );
     while (this.#nextBar < ctx.currentTime + 1) {
-      const beat = this.night ? 0.62 : 0.42,
-        { chord, notes } = bar(this.#barIndex++, this.night);
+      const beat = this.cave ? 0.75 : this.night ? 0.62 : 0.42,
+        shift = this.cave ? 7 : 0,
+        { chord, notes } = bar(this.#barIndex++, this.night || this.cave);
       for (const s of chord)
         this.#tone(s, this.#nextBar, beat * 8, 0.18, "sine");
       for (const n of notes)
         this.#tone(
-          n.semitone,
+          n.semitone + shift,
           this.#nextBar + n.step * beat,
           beat * 1.6,
           0.5,

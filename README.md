@@ -27,17 +27,18 @@
 - ✅ Up to six saved worlds, each with its own name, mode, size, seed and options
 - ✅ Islands in three sizes (57, 97 or 129 blocks across) made from a seed, or the original **Classic valley**
 - ✅ Biomes: plains with flowers, forests, beaches, deserts with cacti, snowy mountains with spruces and ice, swamps with mushrooms; winding caves underground, with lakes on the cave floor
-- ✅ Block-by-block light (0 to 15): sunlight falls in and fades into caves, torches, lanterns, glowstone and furnaces light up their surroundings, and monsters only appear where it is dark
+- ✅ Block-by-block light (0 to 15): sunlight falls in and fades into caves, torches, lanterns, campfires, glowstone, furnaces and lava light up their surroundings, and monsters only appear where it is dark
 - ✅ **Adventure** (gather, craft, survive) or **Creative** (every block, no dangers, fly with a double tap on Jump)
 - ✅ Four difficulties plus switches for monsters, animals, hunger, weather, keeping the backpack, day and night and the day length
 - ✅ Older worlds open without losing a single block
 
 **Building, crafting and farming**
-- ✅ More than 60 blocks, from grass and glass to doors, beds, torches, chests, furnaces, stone bricks, glowstone and copper
+- ✅ More than 70 blocks, from grass and glass to doors, beds, torches, lanterns, campfires (the rain puts them out), chests, furnaces, stone bricks, glowstone, red sand, four kinds of flowers and copper, iron and gold blocks
 - ✅ Building shapes: ladders to climb, fences, gates and trapdoors that open, signs you can write on and flower pots; wool in eight colours from dyes, and sheep that can be dyed
 - ✅ Pickaxes, swords, axes, shovels and hoes in wood, stone, iron and crystal, each fast on its own blocks; shears, buckets and bottles
 - ✅ Gentle tool wear on Normal and Hard only: a small bar under the tool, a friendly warning when it is nearly worn out and a kind message when it is gone
 - ✅ Real water: buckets scoop and pour it, it falls and spreads a few blocks and dries up without its source; Biel swims in it
+- ✅ Lava deep in the caves of new islands: it glows, flows one block, turns into stone under water and fits in a bucket. It burns on Normal and Hard; on Peaceful and Easy it is warm magma that only nudges Biel out, and it never sets anything on fire
 - ✅ Coal, copper, iron, gold and rare blue crystal underground; a furnace melts ores into bars and cooks food
 - ✅ Backpack with a 9-slot hotbar and 27 more slots (tap or drag to move, the same items stack up, split a stack in half), chests with 27 slots, and a visual recipe book (ingredients turn green when you have them)
 - ✅ A small farm: till soil with a hoe, grow wheat, carrots and potatoes (faster near water or in the rain), bake bread; a fishing rod to catch fish
@@ -48,7 +49,7 @@
 - ✅ Original animated voxel character, Biel
 - ✅ Hearts, food and air in Adventure; damage, hunger and falls follow the difficulty, and falling asleep is gentle
 - ✅ Beds become home and sleeping skips the night
-- ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky, bees around their nests (a bottle collects honey) and fish in the sea
+- ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky, bees around their nests (a bottle collects honey) and fish in the sea; on the islands each animal starts in the biome it likes
 - ✅ Silly night monsters (the Sleepy sleepwalker, the bouncy Jelly, the Bony archer, the woolly Spider that climbs walls, Puffy who goes PUF and the mist Ghost of the caves) that never appear on Peaceful and vanish in sparkles at sunrise; torches and lanterns keep them away, and Puffy never breaks anything Biel built
 - ✅ Day and night, sunsets, stars, rain, snow in the cold biome and gentle thunderstorms (Normal and Hard only)
 
@@ -57,7 +58,8 @@
 - ✅ Twelve challenges with stickers in a sticker book shared by every world
 - ✅ A parents' corner behind a simple question: break reminder, highest difficulty allowed and monsters always off
 - ✅ A minimap with a compass to home, and a map of the whole island in the pause menu
-- ✅ Large text option, tips on the intro screen and separate volumes for music, effects and ambience
+- ✅ Large text option, icons instead of words on the game buttons for children who do not read yet, tips on the intro screen and separate volumes for music, effects and ambience
+- ✅ Sounds made live: footsteps that change with the ground, a voice for every animal and silly voices for monsters, doors, chests and the furnace, and slower, echoing music in caves
 
 **Everywhere**
 - ✅ Mac, iPad and iPhone with the same menus, rules and saves; layouts for iPhone in portrait and landscape
@@ -169,13 +171,13 @@ npm run build:ios
 # In Xcode: pick an iPad or iPhone simulator, then Product > Test.
 ```
 
-The unit suite (97 tests) covers terrain and seeds, biomes, caves, ores and the newer island features (copper, lakes, wells and bee nests, only in new worlds), block lighting, flowing water, collisions, saved worlds and their migration, difficulty rules, stacking, tool families and wear, recipes, smelting and treasure, health and hunger, animals, babies, taming, riding and shearing, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, the input action layer and controller mapping, moving and splitting stacks, the shield and bow draw, footstep and animal sounds, the HTML helpers, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (169 checks in `src/dev/smoke-tests.js`, shared by the Mac and iOS apps) plays through worlds, building and building shapes, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, block lighting, tools and wear, buckets and flowing water, honey and shears, bees, a game controller, the minimap and map, volumes, the bow and arrows, the shield, world pictures, joining and splitting stacks in the backpack, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad and iPhone simulators. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`. iOS simulator tests need the Mac's display awake (with the lid closed, WebGL in the simulator loses its graphics context).
+The unit suite (103 tests) covers terrain and seeds, biomes, caves, ores and the newer island features (copper, lakes, wells and bee nests, only in new worlds), block lighting, flowing water and lava, collisions, saved worlds and their migration, difficulty rules, stacking, tool families and wear, recipes, smelting and treasure, health and hunger, animals, babies, taming, riding and shearing, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, the input action layer and controller mapping, moving and splitting stacks, the shield and bow draw, footstep and animal sounds, the HTML helpers, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (179 checks in `src/dev/smoke-tests.js`, shared by the Mac and iOS apps) plays through worlds, building and building shapes, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, block lighting, tools and wear, buckets and flowing water, lava (bucket, burning on Normal, warm on Easy, cooled by water), campfires and rain, honey and shears, bees, a game controller, the minimap and map, volumes, the bow and arrows, the shield, world pictures, joining and splitting stacks in the backpack, icons instead of words, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad and iPhone simulators. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`. iOS simulator tests need the Mac's display awake (with the lid closed, WebGL in the simulator loses its graphics context).
 
 ## Current scope
 
 The original v2 brief is only partially fulfilled. See the [phase-by-phase review](docs/REVIEW-2026-11-09.md) for outstanding requirements, recent fixes and validation limits.
 
-Bieltructor is a single-player game. Multiplayer and an endless world are outside its scope (islands go up to 129 × 129). Requested v2 features still missing include lava (left out on purpose for a young player), the full set of map markers and biome-specific animals. World pictures stay on the device where they were taken; they are not synced with iCloud. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
+Bieltructor is a single-player game. Multiplayer and an endless world are outside its scope (islands go up to 129 × 129). A few smaller requests from the v2 brief are still missing: cobblestone, beds in colours, a switch for animals that can never be hurt (animals in this game cannot be hurt anyway), and a shield that blocks on a button press (the shield works on its own from the hotbar). World pictures stay on the device where they were taken; they are not synced with iCloud. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
 
 ## 📄 License
 

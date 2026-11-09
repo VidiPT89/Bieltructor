@@ -1,5 +1,5 @@
 // Friendly animals: where they start, what they give and how they behave.
-import { height, SIZE, WATER_LEVEL, WOOL_COLORS } from "./world.js";
+import { height, biomeAt, SIZE, WATER_LEVEL, WOOL_COLORS } from "./world.js";
 
 // `food` makes two of them have a baby; `tameWith` makes a friend.
 export const ANIMALS = {
@@ -48,16 +48,38 @@ export function seeded(seed) {
 }
 
 // Animals start on grassy land, away from the beach and the spawn point.
+// Where each animal likes to live on the islands (the old valley has no
+// biomes, so there they live anywhere).
+export const HOMES = {
+  chicken: ["plains"],
+  cow: ["plains"],
+  sheep: ["plains", "snow"],
+  pig: ["forest"],
+  rabbit: ["forest", "snow"],
+  dog: ["forest"],
+  cat: ["plains", "forest"],
+  horse: ["plains"],
+};
 export function initialAnimals(seed = 7) {
   const rand = seeded(seed),
     list = [];
   for (const [type, n] of Object.entries(START))
     for (let i = 0; i < n; i++) {
-      let x, z;
+      let x,
+        z,
+        tries = 0;
+      // Look for the animal's own biome first; any dry land will do later.
       do {
         x = Math.round((rand() * 2 - 1) * (SIZE - 4));
         z = Math.round((rand() * 2 - 1) * (SIZE - 4));
-      } while (height(x, z) <= WATER_LEVEL - 0.2 || Math.hypot(x, z) < 6);
+        tries++;
+      } while (
+        height(x, z) <= WATER_LEVEL - 0.2 ||
+        Math.hypot(x, z) < 6 ||
+        (tries < 60 &&
+          biomeAt(x, z) !== "valley" &&
+          !HOMES[type].includes(biomeAt(x, z)))
+      );
       list.push({
         type,
         x,

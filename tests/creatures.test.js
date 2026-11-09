@@ -88,3 +88,18 @@ test("cats like fish, horses need apples and can be ridden", () => {
   const pig = all.find((x) => x.type === "pig");
   assert.equal(interact(pig, null, 0).result, "happy");
 });
+
+test("on an island, animals start in the biomes they like", async () => {
+  const { useTerrain, biomeAt } = await import("../src/world.js");
+  const { HOMES } = await import("../src/creatures.js");
+  useTerrain({ seed: 4, size: "medium", gen: 3 });
+  try {
+    const animals = initialAnimals(4);
+    const athome = animals.filter((a) =>
+      HOMES[a.type].includes(biomeAt(a.x, a.z)),
+    ).length;
+    assert(athome >= animals.length * 0.8, `${athome}/${animals.length}`);
+  } finally {
+    useTerrain();
+  }
+});

@@ -38,6 +38,15 @@ import {
   COPPER_ORE,
   COPPER_BLOCK,
   BEE_NEST,
+  CAMPFIRE,
+  CAMPFIRE_OUT,
+  RED_SAND,
+  IRON_BLOCK,
+  GOLD_BLOCK,
+  LANTERN,
+  BLUE_FLOWER,
+  WHITE_FLOWER,
+  YELLOW_FLOWER,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -115,6 +124,15 @@ export const ITEMS = {
   shears: { icon: "✂️", tool: "shears", tier: 1, uses: 200 },
   bucket: { icon: "🪣", tool: "bucket", tier: 1 },
   water_bucket: { icon: "🌊", tool: "bucket", tier: 1, full: true },
+  lava_bucket: { icon: "🌋", tool: "bucket", tier: 1, full: true, lava: true },
+  campfire: { block: CAMPFIRE },
+  red_sand: { block: RED_SAND },
+  iron_block: { block: IRON_BLOCK },
+  gold_block: { block: GOLD_BLOCK },
+  lantern: { block: LANTERN },
+  blue_flower: { block: BLUE_FLOWER },
+  white_flower: { block: WHITE_FLOWER },
+  yellow_flower: { block: YELLOW_FLOWER },
   bottle: { icon: "🫙" },
   honey: { icon: "🍯", food: 6 },
 };
@@ -165,12 +183,15 @@ export const itemForBlock = (type) =>
       ? "trapdoor"
       : type === DOOR_OPEN
         ? "door"
-        : Object.keys(ITEMS).find((id) => ITEMS[id].block === type);
+        : type === CAMPFIRE_OUT
+          ? "campfire"
+          : Object.keys(ITEMS).find((id) => ITEMS[id].block === type);
 
 // Every block a creative builder can pick.
 export const CREATIVE_BLOCKS = [
   ...Object.keys(ITEMS).filter((id) => ITEMS[id].block !== undefined),
   "water_bucket",
+  "lava_bucket",
 ];
 
 // Seconds to break each block by hand; stone-like blocks love a pickaxe.
@@ -216,6 +237,12 @@ Object.assign(HARDNESS, {
   [COPPER_ORE]: 2.2,
   [COPPER_BLOCK]: 2,
   [BEE_NEST]: 0.6,
+  [CAMPFIRE]: 0.5,
+  [CAMPFIRE_OUT]: 0.5,
+  [RED_SAND]: 0.5,
+  [IRON_BLOCK]: 2.4,
+  [GOLD_BLOCK]: 2.4,
+  [LANTERN]: 0.4,
 });
 for (const color of WOOL_COLORS) HARDNESS[woolBlock(color)] = 0.4;
 const STONY = new Set([
@@ -229,6 +256,9 @@ const STONY = new Set([
   STONE_BRICK,
   COPPER_ORE,
   COPPER_BLOCK,
+  IRON_BLOCK,
+  GOLD_BLOCK,
+  LANTERN,
 ]);
 // Each tool is fast on its own kind of block.
 const FAVOURS = {
@@ -249,7 +279,7 @@ const FAVOURS = {
     SIGN,
     BEE_NEST,
   ]),
-  shovel: new Set([0, 1, 3, SNOW, FARMLAND]),
+  shovel: new Set([0, 1, 3, RED_SAND, SNOW, FARMLAND]),
   shears: new Set([5, WOOL, ...WOOL_COLORS.map((color) => woolBlock(color))]),
 };
 export function breakTime(type, toolId) {
