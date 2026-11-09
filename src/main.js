@@ -41,6 +41,17 @@ import {
   CROPS,
   cropBlock,
   cropInfo,
+  LADDER,
+  FENCE,
+  GATE,
+  GATE_OPEN,
+  TRAPDOOR,
+  TRAPDOOR_OPEN,
+  SIGN,
+  POT,
+  OPENS,
+  WOOL_COLORS,
+  woolBlock,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
@@ -188,6 +199,7 @@ let mode = "splash",
   growClock = 5,
   rainLevel = 0,
   container = null,
+  signKey = null,
   containerClock = 0,
   menuAnchor = [0, 0],
   homeAnchor = [0, 0],
@@ -257,6 +269,11 @@ const colors = [
   // Snow, ice, cactus, ores, glowstone, plants, chest, furnace, stone bricks.
   0xf4f8fb, 0xa9d8ee, 0x4f9a46, 0x9a8b80, 0xd8b84a, 0x5fb8e8, 0xffd36b,
   0xe85d8a, 0x6fae4e, 0xc8473c, 0x9a6a3c, 0x6b6f70, 0x8a9090,
+  // Ladder, fence, gate, open gate, trapdoor, open trapdoor, sign, pot.
+  0x9a6a3c, 0x8a5a33, 0x8a5a33, 0x8a5a33, 0x9a6a3c, 0x9a6a3c, 0xc08a55,
+  0xb5603c,
+  // Wool: red, orange, yellow, green, blue, purple, black.
+  0xc8473c, 0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -397,6 +414,8 @@ function render() {
   }
   if (mode === "rest")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("restTitle")}"><span class="eyebrow">👪 ${t("parents")}</span><h2>${t("restTitle")}</h2><p class="help-copy">${t("restText", { n: settings.parents.reminder })}</p>${button("restdone", t("continue"), "primary wide")}</section></div>`;
+  if (mode === "signtext")
+    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("signTitle")}"><span class="eyebrow">🪧</span><h2>${t("signTitle")}</h2><label><input id="sign-text" maxlength="30" value="${escapeHtml(world.signs[signKey] ?? "")}"></label>${button("signdone", t("done"), "primary wide")}</section></div>`;
   if (mode === "namedog")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("nameDog", { animal: nested("animalNouns", namingDog.type) })}"><span class="eyebrow">💛</span><h2>${t("nameDog", { animal: nested("animalNouns", namingDog.type) })}</h2><label><input id="dog-name" maxlength="20" value="${escapeHtml(nested("petDefaults", namingDog.type))}"></label>${button("namedone", t("done"), "primary wide")}</section></div>`;
   if (mode === "asleep")
@@ -902,6 +921,13 @@ function action(a, arg) {
   } else if (a === "pause") {
     mode = "paused";
     save();
+  } else if (a === "signdone") {
+    const text = ($("#sign-text")?.value ?? "").trim().slice(0, 30);
+    if (text) world.signs[signKey] = text;
+    else delete world.signs[signKey];
+    refreshSigns();
+    mode = "playing";
+    scheduleSave();
   } else if (a === "namedone") {
     const name =
       $("#dog-name")?.value.trim().slice(0, 20) ||
@@ -1532,6 +1558,69 @@ for (const crop of CROPS)
     shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
 for (const type of [FLOWER, TALL_GRASS, MUSHROOM])
   shapes[type] = crossGeometry(0.7);
+// Building shapes made of a few boxes: [width, height, depth, x, y, z].
+function boxesGeometry(parts) {
+  const geos = parts.map(([w, h, d, x, y, z]) =>
+    new THREE.BoxGeometry(w, h, d).translate(x, y, z),
+  );
+  const geometry = new THREE.BufferGeometry();
+  for (const name of ["position", "normal", "uv"])
+    geometry.setAttribute(
+      name,
+      new THREE.Float32BufferAttribute(
+        geos.flatMap((g) => [...g.attributes[name].array]),
+        name === "uv" ? 2 : 3,
+      ),
+    );
+  let offset = 0;
+  const index = [];
+  for (const g of geos) {
+    index.push(...[...g.index.array].map((i) => i + offset));
+    offset += g.attributes.position.count;
+  }
+  geometry.setIndex(index);
+  return geometry;
+}
+Object.assign(shapes, {
+  [LADDER]: boxesGeometry([
+    [0.08, 1, 0.08, -0.35, 0, 0],
+    [0.08, 1, 0.08, 0.35, 0, 0],
+    [0.7, 0.06, 0.06, 0, -0.3, 0],
+    [0.7, 0.06, 0.06, 0, 0, 0],
+    [0.7, 0.06, 0.06, 0, 0.3, 0],
+  ]),
+  [FENCE]: boxesGeometry([
+    [0.24, 1, 0.24, 0, 0, 0],
+    [1, 0.12, 0.1, 0, 0.18, 0],
+    [1, 0.12, 0.1, 0, -0.18, 0],
+    [0.1, 0.12, 1, 0, 0.18, 0],
+    [0.1, 0.12, 1, 0, -0.18, 0],
+  ]),
+  [GATE]: boxesGeometry([
+    [0.12, 0.9, 0.12, -0.45, -0.05, 0],
+    [0.12, 0.9, 0.12, 0.45, -0.05, 0],
+    [0.8, 0.1, 0.08, 0, 0.22, 0],
+    [0.8, 0.1, 0.08, 0, -0.18, 0],
+    [0.1, 0.5, 0.08, 0, 0.02, 0],
+  ]),
+  [GATE_OPEN]: boxesGeometry([
+    [0.12, 0.9, 0.12, -0.45, -0.05, 0],
+    [0.12, 0.9, 0.12, 0.45, -0.05, 0],
+    [0.08, 0.1, 0.8, -0.4, 0.22, 0.4],
+    [0.08, 0.1, 0.8, -0.4, -0.18, 0.4],
+  ]),
+  [TRAPDOOR]: new THREE.BoxGeometry(1, 0.16, 1).translate(0, -0.42, 0),
+  [TRAPDOOR_OPEN]: new THREE.BoxGeometry(1, 1, 0.16).translate(0, 0, -0.42),
+  [SIGN]: boxesGeometry([
+    [0.1, 0.6, 0.1, 0, -0.2, 0],
+    [0.8, 0.45, 0.08, 0, 0.18, 0],
+  ]),
+  [POT]: boxesGeometry([
+    [0.4, 0.35, 0.4, 0, -0.32, 0],
+    [0.06, 0.3, 0.06, 0, -0.02, 0],
+    [0.22, 0.16, 0.22, 0, 0.18, 0],
+  ]),
+});
 // Amber works as a lantern: it glows as night falls.
 const amber = materials[7];
 amber.emissive.set(0xffa040);
@@ -2040,6 +2129,7 @@ function loadWorld(w) {
     m.warned = true;
   }
   rebuildBackpacks();
+  refreshSigns();
   selected = 0;
   if (!inventory.slots.some(Boolean)) {
     // A fresh backpack: building blocks in Creative, a few apples in Adventure.
@@ -2239,8 +2329,22 @@ function setupAnimals() {
   }
 }
 // Collar and name tag for a dog that is Biel's friend.
+const DYE_COLORS = {
+  red: 0xc8473c,
+  orange: 0xe98d2b,
+  yellow: 0xf2c94c,
+  green: 0x5f9f4a,
+  blue: 0x3f6fc8,
+  purple: 0x8a4fb5,
+  black: 0x2b2b30,
+};
 function dressAnimal(a) {
   const m = a.mesh;
+  if (m.userData.wool && a.color)
+    m.userData.wool.material = new THREE.MeshStandardMaterial({
+      color: DYE_COLORS[a.color],
+      roughness: 0.9,
+    });
   if (m.userData.collar) m.userData.collar.visible = a.tamed;
   if (m.userData.tag) m.remove(m.userData.tag);
   if (a.tamed && a.name) {
@@ -2271,6 +2375,9 @@ function interactWith(a) {
     mode = "namedog";
   } else if (res.result === "mount") {
     mount(a);
+  } else if (res.result === "dyed") {
+    dressAnimal(a);
+    toast(t("dyed", { animal: who }));
   } else if (res.result === "love") {
     hearts(a);
     toast(t("love", { animal: who }));
@@ -3360,6 +3467,25 @@ function updateFishing() {
     render();
   }
 }
+// Signs: the text floats just above the board.
+const signGroup = new THREE.Group();
+scene.add(signGroup);
+function refreshSigns() {
+  signGroup.clear();
+  for (const [k, text] of Object.entries(world?.signs ?? {})) {
+    if (blocks.get(k) !== SIGN) continue;
+    const [x, y, z] = k.split(",").map(Number);
+    const tag = nameTag(text);
+    tag.position.set(x, y + 0.75, z);
+    signGroup.add(tag);
+  }
+}
+function editSign(k) {
+  signKey = k;
+  mode = "signtext";
+  render();
+  $("#sign-text")?.focus();
+}
 // Chests and furnaces. A chest found in ruins or cabins is filled with
 // treasure the first time it is opened.
 function chestAt(k) {
@@ -3537,6 +3663,27 @@ function edit(place) {
     sleepIn(p);
     return;
   }
+  // Gates and trapdoors open and close too (not on top of Biel).
+  const swing = OPENS[blocks.get(key(...p))];
+  if (place && swing) {
+    const k0 = key(...p),
+      before = blocks.get(k0);
+    blocks.set(k0, swing);
+    if (collides(blocks, player)) {
+      blocks.set(k0, before);
+      return;
+    }
+    edits.set(k0, swing);
+    beep(true);
+    rebuildAt(p);
+    scheduleSave();
+    return;
+  }
+  // Writing on a sign.
+  if (place && blocks.get(key(...p)) === SIGN) {
+    editSign(key(...p));
+    return;
+  }
   // Building on a door opens or closes it instead.
   if (place && isDoor(blocks.get(key(...p)))) {
     const changed = toggleDoor(blocks, ...p);
@@ -3576,6 +3723,7 @@ function edit(place) {
     edits.set(k, type);
     if (!creative()) inventory.takeFrom(selected);
     if (type === CHEST) world.chests[k] = [];
+    if (type === SIGN) setTimeout(() => editSign(k));
     if (type === FURNACE) world.furnaces[k] = emptyFurnace();
     emit("place");
     if (type === TORCH) emit("place:torch");
@@ -3590,6 +3738,10 @@ function edit(place) {
     const type = blocks.get(k);
     burst(p, type);
     if (type === CHEST || type === FURNACE) emptyContainer(type, k);
+    if (type === SIGN) {
+      delete world.signs[k];
+      refreshSigns();
+    }
     tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
@@ -3798,8 +3950,21 @@ function frame(now) {
     }
     // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
     const swimming = inWater(blocks, player.x, player.y + 0.9, player.z);
+    const onLadder = [0.1, 1].some(
+      (dy) =>
+        blocks.get(
+          key(
+            Math.round(player.x),
+            Math.round(player.y + dy),
+            Math.round(player.z),
+          ),
+        ) === LADDER,
+    );
     if (flying) {
       velocity = (pressed("Space") ? 6 : 0) - (pressed("KeyC") ? 6 : 0);
+    } else if (onLadder) {
+      velocity =
+        pressed("Space") || pressed("KeyW") || pressed("ArrowUp") ? 3 : -1.2;
     } else if (swimming) {
       velocity = pressed("Space")
         ? Math.min(velocity + 30 * dt, 3)
@@ -3855,7 +4020,7 @@ function frame(now) {
     updateFishing();
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
-      if (grounded || swimming || flying) {
+      if (grounded || swimming || flying || onLadder) {
         if (peakY !== null && grounded) {
           const before = vitals.health;
           hurt(vitals, fallDamage(peakY - player.y), rules());
@@ -4808,6 +4973,80 @@ if (new URLSearchParams(location.search).has("test"))
       "chests in ruins and cabins hold treasure",
       chestAt(treasureKey).slots.some(Boolean),
     );
+    // Building shapes: ladders, fences, gates, trapdoors, signs, dyed wool.
+    const bx0 = Math.round(player.x),
+      bz0 = Math.round(player.z),
+      by0 = Math.round(player.y);
+    for (let y = by0; y <= by0 + 3; y++) setBlock([bx0, y, bz0], LADDER);
+    rebuildAt([bx0, by0, bz0]);
+    player.set(bx0, by0 - 0.49 + 0.01, bz0);
+    velocity = 0;
+    const ladderStart = player.y;
+    keys.add("Space");
+    for (let i = 0; i < 40; i++) frame(last + 16);
+    keys.delete("Space");
+    check("ladders can be climbed", player.y > ladderStart + 1.2);
+    for (let y = by0; y <= by0 + 3; y++) {
+      blocks.delete(key(bx0, y, bz0));
+      edits.set(key(bx0, y, bz0), null);
+    }
+    rebuildAt([bx0, by0, bz0]);
+    spawn();
+    for (let i = 0; i < 20; i++) frame(last + 16);
+    const gx0 = Math.round(player.x) + 2,
+      gz0 = Math.round(player.z),
+      gy0 = topAt(gx0, gz0) + 1;
+    setBlock([gx0, gy0, gz0], FENCE);
+    check(
+      "fences block the way",
+      collides(blocks, { x: gx0, y: gy0 - 0.49, z: gz0 }),
+    );
+    setBlock([gx0, gy0, gz0], GATE);
+    target = { p: [gx0, gy0, gz0], normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    check(
+      "gates open",
+      blocks.get(key(gx0, gy0, gz0)) === GATE_OPEN &&
+        !collides(blocks, { x: gx0, y: gy0 - 0.49, z: gz0 }),
+    );
+    setBlock([gx0, gy0, gz0], TRAPDOOR);
+    edit(true);
+    check("trapdoors open", blocks.get(key(gx0, gy0, gz0)) === TRAPDOOR_OPEN);
+    blocks.delete(key(gx0, gy0, gz0));
+    inventory.add("sign", 1);
+    hold("sign");
+    target = { p: [gx0, gy0 - 1, gz0], normal: new THREE.Vector3(0, 1, 0) };
+    edit(true);
+    await new Promise((r) => setTimeout(r, 0));
+    check("placing a sign asks for its text", mode === "signtext");
+    $("#sign-text").value = "Casa do Biel";
+    action("signdone");
+    check(
+      "the sign shows its text",
+      world.signs[key(gx0, gy0, gz0)] === "Casa do Biel" &&
+        signGroup.children.length >= 1,
+    );
+    const ewe = animals.find((x) => x.type === "sheep");
+    ewe.readyAt = 0;
+    inventory.add("blue_dye", 1);
+    hold("blue_dye");
+    interactWith(ewe);
+    hold("apple");
+    interactWith(ewe);
+    check(
+      "a blue sheep gives blue wool",
+      ewe.color === "blue" && inventory.count("wool_blue") === 2,
+    );
+    hold("wool_blue");
+    target = {
+      p: [gx0 + 1, topAt(gx0 + 1, gz0), gz0],
+      normal: new THREE.Vector3(0, 1, 0),
+    };
+    edit(true);
+    check(
+      "coloured wool is built",
+      blocks.get(key(gx0 + 1, topAt(gx0 + 1, gz0), gz0)) === woolBlock("blue"),
+    );
     // A game controller drives the same actions.
     const padStart = player.clone();
     window.nativeGamepad({ ly: -1 });
@@ -4944,19 +5183,36 @@ if (new URLSearchParams(location.search).has("test"))
       monsters: true,
       difficulty: "normal",
     });
-    const target0 = addMonster("sleepy", {
-      x: player.x,
-      y: player.y,
-      z: player.z - 4,
-    });
-    target0.hp = 3;
-    inventory.add("arrows", 2);
+    // The target stands where Biel aims, with nothing in between.
+    for (const other of [...monsters]) removeMonster(other, false);
+    inventory = new Inventory();
     hold("bow");
+    inventory.add("arrows", 2);
     firstPerson = true;
     pointerKind = "mouse";
     yaw = 0;
-    pitch = 0.18;
+    pitch = 0.05;
     frame(last + 16);
+    const aimDir = new THREE.Vector3();
+    camera.getWorldDirection(aimDir);
+    for (let d = 0.5; d <= 4; d += 0.25) {
+      const c = camera.position.clone().addScaledVector(aimDir, d);
+      for (const dy of [-1, 0]) {
+        const k = key(Math.round(c.x), Math.round(c.y) + dy, Math.round(c.z));
+        if (blocks.has(k)) {
+          blocks.delete(k);
+          edits.set(k, null);
+        }
+      }
+    }
+    const aimAt = camera.position.clone().addScaledVector(aimDir, 3);
+    const target0 = addMonster("sleepy", {
+      x: aimAt.x,
+      y: aimAt.y - 0.8,
+      z: aimAt.z,
+    });
+    target0.hp = 3;
+    target0.cooldown = 99;
     edit(true);
     for (let i = 0; i < 40; i++) frame(last + 16);
     check(

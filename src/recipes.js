@@ -99,6 +99,40 @@ export const RECIPES = [
   { id: "treat_bone", out: ["treat", 3], needs: { bone: 1 } },
   { id: "bow", out: ["bow", 1], needs: { stick: 3, wool: 2 }, bench: true },
   { id: "arrows", out: ["arrows", 4], needs: { stick: 1, stone: 1 } },
+  { id: "ladder", out: ["ladder", 3], needs: { stick: 7 }, bench: true },
+  {
+    id: "fence",
+    out: ["fence", 3],
+    needs: { planks: 4, stick: 2 },
+    bench: true,
+  },
+  { id: "gate", out: ["gate", 1], needs: { planks: 2, stick: 4 }, bench: true },
+  { id: "trapdoor", out: ["trapdoor", 2], needs: { planks: 6 }, bench: true },
+  { id: "sign", out: ["sign", 3], needs: { planks: 6, stick: 1 }, bench: true },
+  { id: "pot", out: ["pot", 1], needs: { brick: 3 } },
+  // Dyes from things around the island, then mixed colours.
+  { id: "red_dye", out: ["red_dye", 2], needs: { flower: 1 } },
+  { id: "yellow_dye", out: ["yellow_dye", 2], needs: { wheat: 1 } },
+  { id: "green_dye", out: ["green_dye", 2], needs: { cactus: 1 } },
+  { id: "blue_dye", out: ["blue_dye", 2], needs: { crystal: 1 } },
+  { id: "black_dye", out: ["black_dye", 2], needs: { coal: 1 } },
+  {
+    id: "orange_dye",
+    out: ["orange_dye", 2],
+    needs: { red_dye: 1, yellow_dye: 1 },
+  },
+  {
+    id: "purple_dye",
+    out: ["purple_dye", 2],
+    needs: { red_dye: 1, blue_dye: 1 },
+  },
+  ...["red", "orange", "yellow", "green", "blue", "purple", "black"].map(
+    (color) => ({
+      id: `wool_${color}`,
+      out: [`wool_${color}`, 1],
+      needs: { wool: 1, [`${color}_dye`]: 1 },
+    }),
+  ),
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

@@ -31,7 +31,37 @@ export const GLASS = 8,
   CHEST = 40,
   FURNACE = 41,
   STONE_BRICK = 42,
-  TYPES = 43;
+  // Building shapes: ladders, fences, gates, trapdoors, signs and pots.
+  LADDER = 43,
+  FENCE = 44,
+  GATE = 45,
+  GATE_OPEN = 46,
+  TRAPDOOR = 47,
+  TRAPDOOR_OPEN = 48,
+  SIGN = 49,
+  POT = 50,
+  // Wool in seven more colours (white wool is WOOL).
+  WOOL_BASE = 51,
+  TYPES = 58;
+export const WOOL_COLORS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+  "black",
+];
+export const woolBlock = (color) => WOOL_BASE + WOOL_COLORS.indexOf(color);
+// Gates and trapdoors open and close like doors, one block at a time.
+export const OPENS = {
+  [GATE]: GATE_OPEN,
+  [GATE_OPEN]: GATE,
+  [TRAPDOOR]: TRAPDOOR_OPEN,
+  [TRAPDOOR_OPEN]: TRAPDOOR,
+};
+// Shapes that do not fill their whole block.
+export const isShape = (type) => type >= LADDER && type <= POT;
 // Small plants drawn as two crossed panels.
 export const isPlant = (type) =>
   type === FLOWER || type === TALL_GRASS || type === MUSHROOM;
@@ -47,10 +77,16 @@ export const cropInfo = (type) =>
 export const passable = (type) =>
   type === DOOR_OPEN ||
   type === TORCH ||
+  type === LADDER ||
+  type === GATE_OPEN ||
+  type === TRAPDOOR_OPEN ||
+  type === SIGN ||
+  type === POT ||
   cropInfo(type) !== null ||
   isPlant(type);
 export const seeThrough = (type) =>
   type === GLASS ||
+  isShape(type) ||
   type === ICE ||
   isPlant(type) ||
   type === DOOR_OPEN ||

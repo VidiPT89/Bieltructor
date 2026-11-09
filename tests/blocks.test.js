@@ -9,6 +9,7 @@ import {
   GLASS,
   DOOR,
   DOOR_OPEN,
+  TYPES,
 } from "../src/world.js";
 
 test("a two-block door opens and closes together, and open doors are walkable", () => {
@@ -35,7 +36,7 @@ test("glass and open doors let light through, new block types survive saving", (
       edits: [
         [0, 1, 0, GLASS],
         [0, 2, 0, DOOR_OPEN],
-        [0, 3, 0, 43],
+        [0, 3, 0, TYPES],
       ],
     }),
     [
@@ -43,4 +44,45 @@ test("glass and open doors let light through, new block types survive saving", (
       [0, 2, 0, DOOR_OPEN],
     ],
   );
+});
+
+test("gates and trapdoors open and close; shapes let Biel through when open", async () => {
+  const {
+    OPENS,
+    GATE,
+    GATE_OPEN,
+    TRAPDOOR,
+    TRAPDOOR_OPEN,
+    LADDER,
+    FENCE,
+    passable,
+    woolBlock,
+    WOOL_COLORS,
+  } = await import("../src/world.js");
+  assert.equal(OPENS[GATE], GATE_OPEN);
+  assert.equal(OPENS[OPENS[TRAPDOOR]], TRAPDOOR);
+  assert(
+    passable(GATE_OPEN) &&
+      !passable(GATE) &&
+      passable(LADDER) &&
+      !passable(FENCE),
+  );
+  assert.equal(new Set(WOOL_COLORS.map(woolBlock)).size, 7);
+  const { itemForBlock } = await import("../src/items.js");
+  assert.equal(itemForBlock(GATE_OPEN), "gate");
+  assert.equal(itemForBlock(TRAPDOOR_OPEN), "trapdoor");
+  assert.equal(itemForBlock(woolBlock("blue")), "wool_blue");
+});
+
+test("dyes colour sheep and wool", async () => {
+  const { initialAnimals, interact } = await import("../src/creatures.js");
+  const { RECIPES } = await import("../src/recipes.js");
+  const sheep = initialAnimals().find((a) => a.type === "sheep");
+  assert.deepEqual(interact(sheep, "blue_dye", 0), {
+    result: "dyed",
+    use: "blue_dye",
+  });
+  assert.deepEqual(interact(sheep, null, 0).give, ["wool_blue", 2]);
+  const purple = RECIPES.find((r) => r.id === "wool_purple");
+  assert.deepEqual(purple.needs, { wool: 1, purple_dye: 1 });
 });

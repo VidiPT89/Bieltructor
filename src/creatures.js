@@ -1,5 +1,5 @@
 // Friendly animals: where they start, what they give and how they behave.
-import { height, SIZE, WATER_LEVEL } from "./world.js";
+import { height, SIZE, WATER_LEVEL, WOOL_COLORS } from "./world.js";
 
 // `food` makes two of them have a baby; `tameWith` makes a friend.
 export const ANIMALS = {
@@ -100,6 +100,7 @@ export function validateAnimals(raw) {
       grownAt: Number.isFinite(a.grownAt) ? a.grownAt : 0,
       love: Number.isFinite(a.love) ? a.love : 0,
       breedAt: Number.isFinite(a.breedAt) ? a.breedAt : 0,
+      color: a.type === "sheep" && WOOL_COLORS.includes(a.color) ? a.color : "",
     }));
 }
 
@@ -121,6 +122,13 @@ export function interact(animal, heldId, now, roll = 0) {
     return { result: animal.sitting ? "sit" : "follow" };
   }
   if (animal.baby) return { result: "baby" };
+  // A dye colours a sheep; its wool comes out in that colour.
+  const dye = heldId?.endsWith("_dye") ? heldId.slice(0, -4) : null;
+  if (animal.type === "sheep" && dye && WOOL_COLORS.includes(dye)) {
+    if (animal.color === dye) return { result: "notReady" };
+    animal.color = dye;
+    return { result: "dyed", use: heldId };
+  }
   if (heldId && heldId === kind.food) {
     if (now < animal.breedAt || now < animal.love)
       return { result: "notReady" };
@@ -130,7 +138,11 @@ export function interact(animal, heldId, now, roll = 0) {
   if (!kind.product) return { result: "happy" };
   if (now < animal.readyAt) return { result: "notReady" };
   animal.readyAt = now + kind.cooldown;
-  return { result: "gave", give: [kind.product, kind.count] };
+  const product =
+    animal.type === "sheep" && animal.color
+      ? `wool_${animal.color}`
+      : kind.product;
+  return { result: "gave", give: [product, kind.count] };
 }
 
 // Two grown-ups of the same kind, both happy and close, have a baby.

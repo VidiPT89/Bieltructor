@@ -120,6 +120,7 @@ export function newWorld({
     backpacks: [],
     chests: {},
     furnaces: {},
+    signs: {},
   };
 }
 
@@ -219,6 +220,12 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
       : {};
   world.chests = byPlace(raw.chests);
   world.furnaces = byPlace(raw.furnaces);
+  // Sign texts, by position, up to 30 characters each.
+  world.signs = Object.fromEntries(
+    Object.entries(byPlace(raw.signs))
+      .filter(([, v]) => typeof v === "string")
+      .map(([k, v]) => [k, v.slice(0, 30)]),
+  );
   if (Array.isArray(raw.monsters)) world.monsters = raw.monsters.slice(0, 12);
   return world;
 }

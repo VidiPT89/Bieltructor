@@ -25,6 +25,16 @@ import {
   CHEST,
   FURNACE,
   STONE_BRICK,
+  LADDER,
+  FENCE,
+  GATE,
+  GATE_OPEN,
+  TRAPDOOR,
+  TRAPDOOR_OPEN,
+  SIGN,
+  POT,
+  WOOL_COLORS,
+  woolBlock,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -88,15 +98,39 @@ export const ITEMS = {
   cooked_fish: { icon: "🍣", food: 5 },
   golden_apple: { icon: "🍏", food: 8, heal: 10 },
   bow: { icon: "🏹", tool: "bow", tier: 1 },
+  ladder: { block: LADDER },
+  fence: { block: FENCE },
+  gate: { block: GATE },
+  trapdoor: { block: TRAPDOOR },
+  sign: { block: SIGN },
+  pot: { block: POT },
   arrows: { icon: "🪶" },
 };
+// Seven dyes and the wool they colour.
+const DYE_ICONS = {
+  red: "🔴",
+  orange: "🟠",
+  yellow: "🟡",
+  green: "🟩",
+  blue: "🔵",
+  purple: "🟣",
+  black: "⬛",
+};
+for (const color of WOOL_COLORS) {
+  ITEMS[`wool_${color}`] = { block: woolBlock(color) };
+  ITEMS[`${color}_dye`] = { icon: DYE_ICONS[color], dye: color };
+}
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);
 // The item that places a given block type (open doors become doors again).
 export const itemForBlock = (type) =>
-  type === DOOR_OPEN
-    ? "door"
-    : Object.keys(ITEMS).find((id) => ITEMS[id].block === type);
+  type === GATE_OPEN
+    ? "gate"
+    : type === TRAPDOOR_OPEN
+      ? "trapdoor"
+      : type === DOOR_OPEN
+        ? "door"
+        : Object.keys(ITEMS).find((id) => ITEMS[id].block === type);
 
 // Every block a creative builder can pick.
 export const CREATIVE_BLOCKS = Object.keys(ITEMS).filter(
@@ -134,6 +168,17 @@ const HARDNESS = {
   [FURNACE]: 2,
   [STONE_BRICK]: 1.8,
 };
+Object.assign(HARDNESS, {
+  [LADDER]: 0.4,
+  [FENCE]: 0.8,
+  [GATE]: 0.8,
+  [GATE_OPEN]: 0.8,
+  [TRAPDOOR]: 0.7,
+  [TRAPDOOR_OPEN]: 0.7,
+  [SIGN]: 0.5,
+  [POT]: 0.3,
+});
+for (const color of WOOL_COLORS) HARDNESS[woolBlock(color)] = 0.4;
 const STONY = new Set([
   2,
   6,
