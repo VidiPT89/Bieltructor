@@ -47,6 +47,9 @@ import {
   BLUE_FLOWER,
   WHITE_FLOWER,
   YELLOW_FLOWER,
+  BED_COLORS,
+  bedBlock,
+  COBBLESTONE,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -135,6 +138,13 @@ export const ITEMS = {
   yellow_flower: { block: YELLOW_FLOWER },
   bottle: { icon: "🫙" },
   honey: { icon: "🍯", food: 6 },
+  pork: { icon: "🥓", food: 3 },
+  beef: { icon: "🥩", food: 3 },
+  raw_chicken: { icon: "🍗", food: 2 },
+  cooked_pork: { icon: "🍖", food: 8 },
+  steak: { icon: "🥩", food: 8 },
+  cooked_chicken: { icon: "🍗", food: 6 },
+  cobblestone: { block: COBBLESTONE },
 };
 // Axes, shovels and hoes in the same four materials as pickaxes and swords.
 export const TOOL_MATERIALS = ["wooden", "stone", "iron", "crystal"];
@@ -173,6 +183,8 @@ for (const color of WOOL_COLORS) {
   ITEMS[`wool_${color}`] = { block: woolBlock(color) };
   ITEMS[`${color}_dye`] = { icon: DYE_ICONS[color], dye: color };
 }
+for (const color of BED_COLORS)
+  ITEMS[`bed_${color}`] = { block: bedBlock(color) };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);
 // The item that places a given block type (open doors become doors again).
@@ -245,6 +257,8 @@ Object.assign(HARDNESS, {
   [LANTERN]: 0.4,
 });
 for (const color of WOOL_COLORS) HARDNESS[woolBlock(color)] = 0.4;
+for (const color of BED_COLORS) HARDNESS[bedBlock(color)] = 0.5;
+HARDNESS[COBBLESTONE] = 1.8;
 const STONY = new Set([
   2,
   6,
@@ -259,6 +273,7 @@ const STONY = new Set([
   IRON_BLOCK,
   GOLD_BLOCK,
   LANTERN,
+  COBBLESTONE,
 ]);
 // Each tool is fast on its own kind of block.
 const FAVOURS = {

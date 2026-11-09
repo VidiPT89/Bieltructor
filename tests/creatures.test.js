@@ -103,3 +103,21 @@ test("on an island, animals start in the biomes they like", async () => {
     useTerrain();
   }
 });
+
+test("with 'Animals only friends' off, farm animals can be caught in two hits", async () => {
+  const { huntable, hitAnimal } = await import("../src/creatures.js");
+  const pig = { type: "pig" },
+    friends = { friendsOnly: true },
+    open = { friendsOnly: false };
+  assert(!huntable(pig, friends), "never with the switch on");
+  assert(huntable(pig, open));
+  assert(!huntable({ type: "dog" }, open), "dogs are never food");
+  assert(!huntable({ type: "rabbit" }, open), "rabbits only run away");
+  assert(!huntable({ type: "cow", baby: true }, open), "babies are safe");
+  assert(!huntable({ type: "horse", tamed: true }, open));
+  assert.equal(hitAnimal(pig), null, "first hit: it runs off");
+  assert.deepEqual(hitAnimal(pig), [["pork", 2]]);
+  assert.deepEqual(hitAnimal({ type: "sheep", color: "blue", hits: 1 }), [
+    ["wool_blue", 1],
+  ]);
+});

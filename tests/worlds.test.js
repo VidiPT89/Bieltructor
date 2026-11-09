@@ -132,3 +132,15 @@ test("invalid world index entries do not prevent saving valid worlds", () => {
   assert.equal(store.list()[0].id, "valid");
   assert.equal(store.load("valid").id, "valid");
 });
+
+test("'Animals only friends' is on for gentle levels and for older worlds", async () => {
+  const { normalizeOptions, validateWorld, newWorld } =
+    await import("../src/worlds.js");
+  assert.equal(normalizeOptions({ difficulty: "easy" }).friendsOnly, true);
+  assert.equal(normalizeOptions({ difficulty: "hard" }).friendsOnly, false);
+  const old = JSON.parse(
+    JSON.stringify(newWorld({ id: "o", options: { difficulty: "hard" } })),
+  );
+  delete old.options.friendsOnly;
+  assert.equal(validateWorld(old, { id: "o" }).options.friendsOnly, true);
+});

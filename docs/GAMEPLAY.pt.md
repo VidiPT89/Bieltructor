@@ -22,6 +22,7 @@ Ao criar um mundo escolhes:
 | Semente | Um número que faz sempre a mesma ilha (em branco: surpresa) |
 | Tutorial guiado | Mostra passo a passo como jogar (só na Aventura) |
 | Manter a mochila ao adormecer | Se a mochila fica com o Biel quando ele adormece |
+| Animais só amigos | Ligado (no Pacífico e no Fácil): os animais nunca se magoam. Desligado: o Biel pode apanhar porcos, vacas, galinhas e ovelhas para comida |
 
 Quase tudo se pode mudar mais tarde em **Pausa › Definições do mundo**.
 
@@ -48,7 +49,7 @@ Quase tudo se pode mudar mais tarde em **Pausa › Definições do mundo**.
 
 ## A cama
 
-Usa uma cama para ela passar a ser a **tua casa**. À noite, dormir passa logo para a manhã seguinte. Não dá para dormir com monstros por perto.
+Usa uma cama para ela passar a ser a **tua casa**. Há camas em sete cores: a primeira é vermelha, e as outras fazem-se com 3 tábuas e 3 lãs da cor que quiseres (na bancada). À noite, dormir passa logo para a manhã seguinte. Não dá para dormir com monstros por perto.
 
 ## Explorar a ilha
 
@@ -85,6 +86,7 @@ No **Médio** e no **Difícil** as ferramentas gastam-se com o uso. Aparece uma 
 - **Escada de mão** para subir paredes, **vedação**, **portão** e **alçapão** (abrem e fecham), **placa** onde escreves um nome e **vaso**.
 - **Tintas** de flores, trigo, catos, cristal e carvão (e misturas para laranja e roxo) pintam a **lã**. A flor azul e a flor amarela também dão tinta. Uma ovelha pintada dá lã dessa cor.
 - **Fogueira** (3 paus e 1 carvão): ilumina como uma tocha grande. A chuva apaga-a se não tiver telhado; toca-lhe para a acender outra vez.
+- **Pedra partida** (2 pedras dão 2): para muros com ar antigo. No forno volta a ser pedra.
 - **Lanterna** (1 barra de ferro e 1 tocha, na bancada) e **blocos de ferro e de ouro** (4 barras cada, na bancada). A areia vermelha também dá vidro no forno.
 
 ## A quinta e a pesca
@@ -111,7 +113,7 @@ Com uma **cana de pesca**, usa-a virado para a água e espera um bocadinho para 
 
 Também há **abelhas** à volta dos ninhos nos carvalhos (de dia, sem chuva): com um **frasco** (feito de vidro) apanhas **mel**, e depois as abelhas precisam de um bocadinho para fazer mais. No mar nadam **peixes** que fogem quando o Biel se aproxima. Cada animal começa no bioma de que gosta: galinhas, vacas e cavalos na planície, porcos e cães na floresta, ovelhas e coelhos também na neve.
 
-Os animais não se magoam. Dá a **comida preferida a dois animais iguais** e nasce uma **cria**, que cresce passado algum tempo.
+Com **Animais só amigos** ligado (como vem no Pacífico e no Fácil), os animais nunca se magoam. Desligado, dois toques de Atacar num porco, numa vaca, numa galinha ou numa ovelha fazem-nos desaparecer em faíscas e deixar comida, que fica muito melhor assada no forno. Os amigos, as crias e os coelhos nunca são apanhados. Dá a **comida preferida a dois animais iguais** e nasce uma **cria**, que cresce passado algum tempo.
 
 **Amigos:** o cão, o gato e o cavalo ficam teus amigos e escolhes o nome deles. O cão e o gato seguem-te; usa-os outra vez para se sentarem. Para **montar o cavalo**, usa-o; para descer carrega em C, em Descer ou em B no comando. A cavalo andas o dobro e saltas mais alto.
 
@@ -126,7 +128,7 @@ Só aparecem na **Aventura**, **à noite**, em sítios **escuros**, e nunca no P
 - **Fumarento** (só no Difícil): incha e faz "PUF!", empurra o Biel e deita abaixo alguns blocos naturais. Nunca estraga o que tu construíste.
 - **Fantasma da névoa** (só no Difícil): flutua pelas grutas e atravessa a pedra. No Difícil as grutas têm monstros mesmo de dia.
 
-Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Mantém carregado em Construir para esticar o arco (a barra amarela enche) e larga para disparar: quanto mais esticado, mais longe e com mais força vai a seta. Um **escudo** (6 tábuas e 1 barra de ferro, na bancada) em qualquer espaço da barra de baixo trava metade de cada golpe que vem da frente. Ao nascer do sol desfazem-se em faíscas.
+Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Mantém carregado em Construir para esticar o arco (a barra amarela enche) e larga para disparar: quanto mais esticado, mais longe e com mais força vai a seta. Um **escudo** (6 tábuas e 1 barra de ferro, na bancada) em qualquer espaço da barra de baixo trava metade de cada golpe que vem da frente. Com o escudo na mão, mantém carregado em Construir para o **levantar** (a barra fica azul): assim trava o golpe todo. Ao nascer do sol desfazem-se em faíscas.
 
 ## Mapa e bússola
 

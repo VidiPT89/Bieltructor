@@ -1666,3 +1666,11 @@ kbd {
 .icons .material-label {
   display: none;
 }
+/* A shield held up shows a full blue bar. */
+.guarding .draw-meter {
+  display: block;
+}
+.guarding .draw-meter i {
+  width: 100%;
+  background: #5fb8e8;
+}

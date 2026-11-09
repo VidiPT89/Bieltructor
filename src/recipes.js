@@ -190,6 +190,14 @@ export const RECIPES = [
     needs: { gold_ingot: 4 },
     bench: true,
   },
+  // Cobblestone for rougher walls, and beds in the colours of the wool.
+  { id: "cobblestone", out: ["cobblestone", 2], needs: { stone: 2 } },
+  ...["orange", "yellow", "green", "blue", "purple", "black"].map((color) => ({
+    id: `bed_${color}`,
+    out: [`bed_${color}`, 1],
+    needs: { planks: 3, [`wool_${color}`]: 3 },
+    bench: true,
+  })),
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

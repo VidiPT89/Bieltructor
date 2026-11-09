@@ -29,15 +29,17 @@ export function hurt(v, amount, rules, { ignoreCooldown = false } = {}) {
 }
 
 // A shield in the hotbar stops half of a hit that comes from the front
-// (within 60 degrees of where Biel looks). Biel looks along -sin(yaw),
-// -cos(yaw). Returns the damage that gets through.
-export function shieldDamage(amount, yaw, player, from) {
+// (within 60 degrees of where Biel looks); a shield held up stops all of
+// it. Biel looks along -sin(yaw), -cos(yaw). Returns the damage that gets
+// through.
+export function shieldDamage(amount, yaw, player, from, raised = false) {
   const dx = from.x - player.x,
     dz = from.z - player.z,
     d = Math.hypot(dx, dz);
   if (!d) return amount;
   const facing = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / d;
-  return facing >= 0.5 ? Math.floor(amount / 2) : amount;
+  if (facing < 0.5) return amount;
+  return raised ? 0 : Math.floor(amount / 2);
 }
 
 // Advances the clocks. `exertion` is 0 when calm and up to 1 when running.

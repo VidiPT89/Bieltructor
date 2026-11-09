@@ -71,6 +71,10 @@ import {
   BLUE_FLOWER,
   WHITE_FLOWER,
   YELLOW_FLOWER,
+  BED_COLORS,
+  bedBlock,
+  isBed,
+  COBBLESTONE,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
@@ -101,6 +105,8 @@ import {
   interact,
   findCouples,
   makeBaby,
+  huntable,
+  hitAnimal,
 } from "./creatures.js";
 import { MODELS, nameTag, arrow, bird, bee, fish } from "./models.js";
 import {
@@ -309,6 +315,8 @@ const colors = [
   // blocks, lantern, then blue, white and yellow flowers.
   0xf06a1f, 0xf06a1f, 0x9a6a3c, 0x5b4a3c, 0xc9663a, 0xd9dcdc, 0xf2c94c,
   0x3b3f40, 0x5f8fe8, 0xf4f1ea, 0xf2c94c,
+  // Beds: orange, yellow, green, blue, purple, black; then cobblestone.
+  0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30, 0x7f8787,
 ];
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
@@ -400,6 +408,7 @@ function worldFields(o, withMode) {
     field("hunger", t("hunger"), o.hunger, yesNo),
     field("weather", t("weather"), o.weather, yesNo),
     field("keepInventory", t("keepInventory"), o.keepInventory, yesNo),
+    field("friendsOnly", t("friendsOnly"), o.friendsOnly, yesNo),
     "</div>",
   ].join("");
 }
@@ -643,6 +652,7 @@ function render() {
             monsters: raw !== "peaceful",
             hunger: undefined,
             keepInventory: undefined,
+            friendsOnly: undefined,
           });
         else
           target.options = normalizeOptions({
@@ -1208,6 +1218,16 @@ const plankLines = (ctx, base, line) => {
   ])
     ctx.fillRect(x, y, 1, 3);
 };
+// A bed: a pillow at the top and a blanket in its colour.
+const bedTexture = (blanket, fold) => () =>
+  drawTexture((ctx) => {
+    ctx.fillStyle = blanket;
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = "#f4efe6";
+    ctx.fillRect(0, 0, 16, 5);
+    ctx.fillStyle = fold;
+    for (const x of [3, 8, 13]) ctx.fillRect(x, 6, 1, 10);
+  });
 // Stone with coloured specks for each ore.
 const oreTexture = (speck) => () =>
   drawTexture((ctx) => {
@@ -1406,14 +1426,31 @@ const blockTextures = {
       ctx.fillStyle = "#ff8a2b";
       ctx.fillRect(4, 1, 8, 2);
     }),
-  [BED]: () =>
+  [BED]: bedTexture("#c8473c", "#a8382f"),
+  ...Object.fromEntries(
+    BED_COLORS.map((color, i) => [
+      bedBlock(color),
+      bedTexture(
+        ["#e98d2b", "#f2c94c", "#5f9f4a", "#3f6fc8", "#8a4fb5", "#2b2b30"][i],
+        "#00000033",
+      ),
+    ]),
+  ),
+  [COBBLESTONE]: () =>
     drawTexture((ctx) => {
-      ctx.fillStyle = "#c8473c";
+      ctx.fillStyle = "#5e6464";
       ctx.fillRect(0, 0, 16, 16);
-      ctx.fillStyle = "#f4efe6";
-      ctx.fillRect(0, 0, 16, 5);
-      ctx.fillStyle = "#a8382f";
-      for (const x of [3, 8, 13]) ctx.fillRect(x, 6, 1, 10);
+      ctx.fillStyle = "#8e9797";
+      for (const [x, y, w, h] of [
+        [1, 1, 6, 4],
+        [8, 1, 7, 5],
+        [1, 6, 4, 5],
+        [6, 7, 5, 4],
+        [12, 7, 3, 5],
+        [1, 12, 7, 3],
+        [9, 12, 6, 3],
+      ])
+        ctx.fillRect(x, y, w, h);
     }),
   [COAL]: () =>
     drawTexture((ctx) => {
@@ -1629,6 +1666,12 @@ const shapes = {
   [DOOR_OPEN]: new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0),
   [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
   [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
+  ...Object.fromEntries(
+    BED_COLORS.map((color) => [
+      bedBlock(color),
+      new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
+    ]),
+  ),
   [WATER]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
   [LAVA]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
   [LAVA_FLOW]: new THREE.BoxGeometry(1, 0.45, 1).translate(0, -0.275, 0),
@@ -2245,7 +2288,7 @@ let velocity = 0,
   pitch = 0.4;
 function spawn() {
   const bed = world?.spawnPoint;
-  if (bed && blocks.get(key(...bed)) === BED)
+  if (bed && isBed(blocks.get(key(...bed))))
     player.set(bed[0], bed[1] + 0.51, bed[2]);
   else {
     // Start on open ground, not on top of a tree.
@@ -2440,7 +2483,8 @@ function pollGamepad(dt) {
     if (hit("confirm")) trigger("jump");
     if (hit("back")) trigger("down");
     // With a bow, pressing draws it and letting go shoots.
-    if (hit("place")) holdingBow() ? startDraw() : trigger("place");
+    if (hit("place"))
+      holdingBow() || holdingShield() ? startDraw() : trigger("place");
     if (before?.place && !now.place && drawStart !== null) trigger("place");
     for (const name of ["attack", "backpack", "pause", "next", "previous"])
       if (hit(name)) trigger(name);
@@ -2779,13 +2823,26 @@ function updateFish(dt) {
     f.userData.tail.rotation.y = Math.sin(elapsed * (scared ? 22 : 9)) * 0.5;
   }
 }
+// Every world starts with 19 animals, so even "light" leaves room for babies.
+const animalLimit = () => (settings.quality === "high" ? 40 : 28);
 let breedClock = 1;
 function breedAnimals(dt) {
   breedClock -= dt;
   if (breedClock > 0) return;
   breedClock = 1;
-  // Every world starts with 19 animals, so even "light" leaves room for babies.
-  const limit = settings.quality === "high" ? 40 : 28;
+  const limit = animalLimit();
+  // Over the limit, a wild animal far away (never a friend) wanders off.
+  if (animals.length > limit) {
+    const far = animals
+      .filter((a) => !a.tamed && a !== riding)
+      .map((a) => [a, Math.hypot(a.x - player.x, a.z - player.z)])
+      .filter(([, d]) => d > 40)
+      .sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (far) {
+      animalGroup.remove(far.mesh);
+      animals = animals.filter((x) => x !== far);
+    }
+  }
   for (const [a, b] of findCouples(animals, world.age)) {
     if (animals.length >= limit) break;
     const baby = makeBaby(a, b, world.age);
@@ -3062,12 +3119,14 @@ function sparkle(p) {
 }
 function hurtPlayer(amount, from) {
   if (creative()) return;
-  // A shield anywhere in the hotbar stops half of a hit from the front.
-  const shield = inventory.slots.findIndex(
-    (s, i) => i < 9 && s?.id === "shield",
-  );
+  // A shield anywhere in the hotbar stops half of a hit from the front;
+  // held up (Build held down) it stops all of it.
+  const raised = drawStart !== null && holdingShield();
+  const shield = raised
+    ? selected
+    : inventory.slots.findIndex((s, i) => i < 9 && s?.id === "shield");
   if (shield >= 0 && vitals.hurtCooldown <= 0) {
-    const through = shieldDamage(amount, yaw, player, from);
+    const through = shieldDamage(amount, yaw, player, from, raised);
     if (through < amount) {
       beepAt(180, 110);
       wearSlot(shield);
@@ -3125,19 +3184,68 @@ function attack() {
           Math.hypot(a.x - player.x, a.z - player.z) -
           Math.hypot(b.x - player.x, b.z - player.z),
       )[0];
-  if (!foe) return;
+  if (!foe) {
+    const prey = preyNearby();
+    if (!prey) return;
+    attackCooldown = 0.45;
+    rightArm.rotation.x = -1.6;
+    catchAnimal(prey);
+    return;
+  }
   attackCooldown = 0.45;
   rightArm.rotation.x = -1.6;
   hitMonster(foe, weaponDamage(heldId()));
   if (ITEMS[heldId()]?.damage) wearHeld();
+}
+// With "Animals only friends" off, farm animals can be caught for food:
+// the animal under the pointer, or the nearest one in reach.
+const canHunt = (a) =>
+  !creative() && a !== riding && huntable(a, world.options);
+function preyNearby() {
+  if (targetAnimal && canHunt(targetAnimal)) return targetAnimal;
+  return animals
+    .filter(
+      (a) => canHunt(a) && Math.hypot(a.x - player.x, a.z - player.z) < 3.2,
+    )
+    .sort(
+      (a, b) =>
+        Math.hypot(a.x - player.x, a.z - player.z) -
+        Math.hypot(b.x - player.x, b.z - player.z),
+    )[0];
+}
+function catchAnimal(a) {
+  const who = nested("animalNames", a.type);
+  animalVoice(a);
+  const give = hitAnimal(a);
+  if (!give) {
+    // The first hit makes it hop away from Biel.
+    const away = Math.atan2(a.x - player.x, a.z - player.z);
+    a.x += Math.sin(away) * 1.2;
+    a.z += Math.cos(away) * 1.2;
+    a.yaw = away;
+    toast(t("ouch", { animal: who }));
+    return;
+  }
+  sparkle([a.x, a.y + 0.5, a.z]);
+  animalGroup.remove(a.mesh);
+  animals = animals.filter((x) => x !== a);
+  if (targetAnimal === a) targetAnimal = null;
+  for (const [id, n] of give) if (inventory.add(id, n)) toast(t("full"));
+  toast(t("hunted", { animal: who }));
+  if (ITEMS[heldId()]?.damage) wearHeld();
+  scheduleSave();
+  render();
 }
 // Biel's own arrows: they fly where he aims and fall a little.
 let bielArrows = [];
 // Drawing the bow: pressing Build starts it, letting go shoots.
 let drawStart = null;
 const holdingBow = () => ITEMS[heldId()]?.tool === "bow";
+// The same press holds a shield up.
+const holdingShield = () => ITEMS[heldId()]?.tool === "shield";
 function startDraw() {
-  if (mode === "playing" && holdingBow()) drawStart = performance.now();
+  if (mode === "playing" && (holdingBow() || holdingShield()))
+    drawStart = performance.now();
 }
 function shootBow(drawnAt) {
   const shot = bowShot(
@@ -3351,7 +3459,8 @@ function updateMonsters(dt) {
   if (btn)
     btn.classList.toggle(
       "hidden",
-      !monsters.some((m) => Math.hypot(m.x - player.x, m.z - player.z) < 3.5),
+      !monsters.some((m) => Math.hypot(m.x - player.x, m.z - player.z) < 3.5) &&
+        !preyNearby(),
     );
 }
 // Torches and lanterns light up the night around Biel (nearest few only).
@@ -4224,6 +4333,15 @@ function edit(place) {
   const drawnAt = drawStart;
   drawStart = null;
   if (mode !== "playing") return;
+  // Letting go of a shield that was held up does nothing else (a quick
+  // tap still opens doors and the like).
+  if (
+    place &&
+    holdingShield() &&
+    drawnAt !== null &&
+    performance.now() - drawnAt > 250
+  )
+    return;
   // Holding food: eat it instead of building.
   const food = ITEMS[heldId()]?.food;
   if (place && food && !creative()) {
@@ -4302,7 +4420,7 @@ function edit(place) {
     toast(t("needBottle"));
     return;
   }
-  if (place && blocks.get(key(...p)) === BED) {
+  if (place && isBed(blocks.get(key(...p)))) {
     sleepIn(p);
     return;
   }
@@ -4458,7 +4576,11 @@ canvas.onpointerdown = (e) => {
     moved: false,
     button: e.button,
   };
-  if (targetMonster && e.button === 0 && e.pointerType !== "touch") {
+  if (
+    e.button === 0 &&
+    e.pointerType !== "touch" &&
+    (targetMonster || (targetAnimal && canHunt(targetAnimal)))
+  ) {
     attack();
     return;
   }
@@ -4577,10 +4699,20 @@ function frame(now) {
   elapsed += dt;
   pollGamepad(dt);
   // How far the bow is drawn, shown above the hotbar.
-  if (drawStart !== null && (mode !== "playing" || !holdingBow()))
+  if (
+    drawStart !== null &&
+    (mode !== "playing" || !(holdingBow() || holdingShield()))
+  )
     drawStart = null;
-  document.documentElement.classList.toggle("drawing", drawStart !== null);
-  if (drawStart !== null)
+  document.documentElement.classList.toggle(
+    "drawing",
+    drawStart !== null && holdingBow(),
+  );
+  document.documentElement.classList.toggle(
+    "guarding",
+    drawStart !== null && holdingShield(),
+  );
+  if (drawStart !== null && holdingBow())
     document.documentElement.style.setProperty(
       "--draw",
       bowShot((now - drawStart) / 1000).power,
@@ -4930,6 +5062,12 @@ installSmokeTests({
   },
   get hurtPlayer() {
     return hurtPlayer;
+  },
+  get drawStart() {
+    return drawStart;
+  },
+  set drawStart(v) {
+    drawStart = v;
   },
   get snapThumb() {
     return snapThumb;

@@ -73,3 +73,10 @@ test("a shield stops half of a hit from the front, not from behind", async () =>
   assert.equal(shieldDamage(4, 0, biel, { x: 3, z: 0 }), 4, "from the side");
   assert.equal(shieldDamage(4, Math.PI / 2, biel, { x: -3, z: 0 }), 2);
 });
+
+test("a shield held up stops the whole hit from the front", async () => {
+  const { shieldDamage } = await import("../src/survival.js");
+  const biel = { x: 0, z: 0 };
+  assert.equal(shieldDamage(4, 0, biel, { x: 0, z: -3 }, true), 0);
+  assert.equal(shieldDamage(4, 0, biel, { x: 0, z: 3 }, true), 4, "not behind");
+});

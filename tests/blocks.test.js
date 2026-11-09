@@ -86,3 +86,20 @@ test("dyes colour sheep and wool", async () => {
   const purple = RECIPES.find((r) => r.id === "wool_purple");
   assert.deepEqual(purple.needs, { wool: 1, purple_dye: 1 });
 });
+
+test("beds come in more colours and all of them are beds; cobblestone is made from stone", async () => {
+  const { isBed, bedBlock, BED, BED_COLORS, COBBLESTONE, TYPES } =
+    await import("../src/world.js");
+  const { RECIPES } = await import("../src/recipes.js");
+  const { SMELT } = await import("../src/smelting.js");
+  assert.equal(BED_COLORS.length, 6);
+  assert(isBed(BED) && BED_COLORS.every((c) => isBed(bedBlock(c))));
+  assert(!isBed(COBBLESTONE) && COBBLESTONE < TYPES);
+  for (const c of BED_COLORS)
+    assert(
+      RECIPES.some((r) => r.out[0] === `bed_${c}`),
+      c,
+    );
+  assert(RECIPES.some((r) => r.out[0] === "cobblestone"));
+  assert.equal(SMELT.cobblestone, "stone");
+});

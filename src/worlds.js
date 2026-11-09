@@ -72,6 +72,9 @@ function defaultOptions(difficulty = "easy") {
     dayLength: "normal",
     hunger: !gentle,
     keepInventory: gentle,
+    // "Animals only friends": farm animals can never be hurt (Peaceful and
+    // Easy start with it on).
+    friendsOnly: gentle,
     weather: true,
   };
 }
@@ -89,6 +92,7 @@ export function normalizeOptions(raw = {}) {
     dayLength: pick(raw.dayLength, Object.keys(DAY_LENGTHS), base.dayLength),
     hunger: flag(raw.hunger, base.hunger),
     keepInventory: flag(raw.keepInventory, base.keepInventory),
+    friendsOnly: flag(raw.friendsOnly, base.friendsOnly),
     weather: flag(raw.weather, base.weather),
   };
   // Peaceful never has monsters, whatever the switch says.
@@ -174,7 +178,12 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     id: typeof raw.id === "string" ? raw.id : id,
     name: raw.name,
     mode: raw.mode,
-    options: raw.options,
+    // Worlds from before the "Animals only friends" switch keep every
+    // animal safe, whatever their difficulty.
+    options:
+      raw.options && typeof raw.options === "object"
+        ? { friendsOnly: true, ...raw.options }
+        : raw.options,
     size,
     seed: size ? raw.seed : null,
     now,

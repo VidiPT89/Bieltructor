@@ -10,7 +10,7 @@ import {
   DOOR_OPEN,
   SIZE,
   BENCH,
-  BED,
+  bedBlock,
   MAX_Y,
   TORCH,
   FARMLAND,
@@ -301,7 +301,8 @@ export function installSmokeTests(g) {
         Math.round(g.player.y),
         Math.round(g.player.z) + 1,
       ];
-      g.blocks.set(key(...bedPos), BED);
+      // A coloured bed works like the first red one.
+      g.blocks.set(key(...bedPos), bedBlock("blue"));
       g.timeOfDay = 0.75;
       g.target = { p: bedPos, normal: new THREE.Vector3(0, 1, 0) };
       g.edit(true);
@@ -1375,6 +1376,36 @@ export function installSmokeTests(g) {
         "a shield stops half of a hit from the front",
         front > 0 && front < back && g.inventory.slots[4]?.wear === 1,
       );
+      // Held up (Build held down), the shield stops the whole hit.
+      g.selected = 4;
+      g.drawStart = performance.now();
+      check("a shield held up stops the whole hit", blow(-2) === 0);
+      g.drawStart = null;
+      g.selected = 0;
+      // "Animals only friends": on, a pig is safe; off, two hits catch it.
+      const pig = g.animals.find((a) => a.type === "pig" && !a.baby);
+      if (pig) {
+        Object.assign(pig, { x: g.player.x, z: g.player.z - 1.5, hits: 0 });
+        const huntOptions = g.world.options;
+        g.world.options = { ...huntOptions, friendsOnly: true };
+        g.targetAnimal = pig;
+        g.targetMonster = null;
+        g.attackCooldown = 0;
+        g.attack();
+        check("with 'Animals only friends' a pig is never hurt", !pig.hits);
+        g.world.options = { ...huntOptions, friendsOnly: false };
+        for (let i = 0; i < 2; i++) {
+          g.targetAnimal = pig;
+          g.attackCooldown = 0;
+          g.attack();
+        }
+        check(
+          "without it, two hits turn a pig into food",
+          !g.animals.includes(pig) && g.inventory.count("pork") === 2,
+        );
+        g.world.options = huntOptions;
+        g.inventory.remove("pork", 2);
+      }
       // The world list shows a small picture of each world.
       g.snapThumb();
       check(

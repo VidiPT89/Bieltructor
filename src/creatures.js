@@ -209,3 +209,27 @@ export function makeBaby(a, b, now) {
     breedAt: now + BREED_REST,
   };
 }
+
+// With "Animals only friends" switched off, grown-up farm animals that are
+// not friends can be caught for food. They need two hits and vanish in
+// sparkles. Rabbits only run away; babies and friends are always safe.
+export const HUNT = {
+  pig: [["pork", 2]],
+  cow: [["beef", 2]],
+  chicken: [["raw_chicken", 1]],
+  sheep: [["wool", 1]],
+};
+export const huntable = (animal, options) =>
+  !options.friendsOnly &&
+  !animal.tamed &&
+  !animal.baby &&
+  Object.hasOwn(HUNT, animal.type);
+// One hit. Returns null while the animal is still there, else what it gives.
+export function hitAnimal(animal) {
+  animal.hits = (animal.hits ?? 0) + 1;
+  if (animal.hits < 2) return null;
+  const give = HUNT[animal.type].map(([id, n]) => [id, n]);
+  if (animal.type === "sheep" && animal.color)
+    give[0][0] = `wool_${animal.color}`;
+  return give;
+}

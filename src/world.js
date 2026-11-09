@@ -62,7 +62,10 @@ export const GLASS = 8,
   BLUE_FLOWER = 73,
   WHITE_FLOWER = 74,
   YELLOW_FLOWER = 75,
-  TYPES = 76;
+  // Beds in six more colours (the first bed is red), and cobblestone.
+  BED_BASE = 76,
+  COBBLESTONE = 82,
+  TYPES = 83;
 // How much lava a block holds: 2 for a source, 1 for flowing lava.
 export const lavaLevel = (type) =>
   type === LAVA ? 2 : type === LAVA_FLOW ? 1 : 0;
@@ -88,6 +91,10 @@ export const WOOL_COLORS = [
   "black",
 ];
 export const woolBlock = (color) => WOOL_BASE + WOOL_COLORS.indexOf(color);
+export const BED_COLORS = WOOL_COLORS.filter((color) => color !== "red");
+export const bedBlock = (color) => BED_BASE + BED_COLORS.indexOf(color);
+export const isBed = (type) =>
+  type === BED || (type >= BED_BASE && type < BED_BASE + BED_COLORS.length);
 // Gates and trapdoors open and close like doors, one block at a time.
 export const OPENS = {
   [GATE]: GATE_OPEN,
@@ -129,7 +136,7 @@ export const seeThrough = (type) =>
   isPlant(type) ||
   type === DOOR_OPEN ||
   type === TORCH ||
-  type === BED ||
+  isBed(type) ||
   type === LANTERN ||
   type === CAMPFIRE ||
   type === CAMPFIRE_OUT ||

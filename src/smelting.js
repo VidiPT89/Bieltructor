@@ -5,8 +5,12 @@ export const SMELT = {
   copper_ore: "copper_ingot",
   sand: "glass",
   red_sand: "glass",
+  cobblestone: "stone",
   potato: "baked_potato",
   fish: "cooked_fish",
+  pork: "cooked_pork",
+  beef: "steak",
+  raw_chicken: "cooked_chicken",
 };
 // Seconds of fire for each fuel.
 export const FUEL = { coal: 40, wood: 15, planks: 10, stick: 4 };
