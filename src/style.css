@@ -1725,3 +1725,22 @@ kbd {
     padding: 20px;
   }
 }
+/* The pause menu: the other choices in two columns, all with a border. */
+.pause-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.pause-grid button {
+  width: 100%;
+  margin: 0;
+}
+#app.paused .panel {
+  width: 500px;
+}
+@media (max-width: 420px) {
+  .pause-grid {
+    grid-template-columns: 1fr;
+  }
+}

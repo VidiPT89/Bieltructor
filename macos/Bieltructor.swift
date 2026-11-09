@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate,
     web = WKWebView(frame: .zero, configuration: config)
     web.navigationDelegate = self
     web.setValue(false, forKey: "drawsBackground")
-    window = NSWindow(
+    window = GameWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
       styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
     )
@@ -197,5 +197,15 @@ struct BieltructorApplication {
     application.delegate = delegate
     application.setActivationPolicy(.regular)
     withExtendedLifetime(delegate) { application.run() }
+  }
+}
+
+/// The game reads the keyboard itself. Keys the web page does not mark as
+/// handled would otherwise reach the window and make macOS play its alert
+/// sound on every press (W, A, S, D, numbers...), so the window stays quiet.
+final class GameWindow: NSWindow {
+  override func noResponder(for eventSelector: Selector) {
+    if eventSelector == #selector(NSResponder.keyDown(with:)) { return }
+    super.noResponder(for: eventSelector)
   }
 }

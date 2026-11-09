@@ -550,7 +550,7 @@ function render() {
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("map", "🗺️ " + t("map"), "wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("export", t("export"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}${isMacApp() ? button("quit", t("quit"), "quiet wide") : ""}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}<div class="pause-grid">${button("map", "🗺️ " + t("map"))}${button("stickers", "📒 " + t("stickers"))}${button("worldsettings", t("worldSettings"))}${button("settings", t("settings"))}${button("help", t("help"))}${button("export", t("export"))}${button("spawn", t("reset"))}${button("home", t("home"))}</div>${isMacApp() ? button("quit", t("quit"), "wide") : ""}`;
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
@@ -4782,12 +4782,9 @@ window.addEventListener("keydown", (e) => {
     return;
   const wasMode = mode;
   if (mode === "playing") {
-    if (
-      ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
-        e.code,
-      )
-    )
-      e.preventDefault();
+    // Every key belongs to the game while playing (⌘ and Ctrl shortcuts
+    // excepted): the page does not scroll and the Mac does not beep.
+    if (!e.metaKey && !e.ctrlKey) e.preventDefault();
     keys.add(e.code);
     if (/^[1-9]$/.test(e.key)) {
       selected = +e.key - 1;
@@ -4796,6 +4793,7 @@ window.addEventListener("keydown", (e) => {
     if (!e.repeat) for (const name of actionsForKey(e.code)) trigger(name);
   }
   if (e.code === "Escape" && !e.repeat) {
+    e.preventDefault();
     if (mode === "playing") action("pause");
     else if (mode === "paused") action("play");
     else if (MODALS.includes(mode)) action("back");
@@ -4936,7 +4934,7 @@ function frame(now) {
     if (grounded && !flying && !riding && (dx || dz)) {
       stepClock -= speed * dt;
       if (stepClock <= 0) {
-        stepClock = 1.8;
+        stepClock = 2.2;
         footstep();
       }
     }

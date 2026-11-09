@@ -104,7 +104,7 @@ export function playStep(audio, kind, volume) {
   filter.type = "bandpass";
   filter.frequency.value = freq * (0.9 + Math.random() * 0.2);
   filter.Q.value = 1.2;
-  gain.gain.value = 0.05 * loud * volume;
+  gain.gain.value = 0.03 * loud * volume;
   source.connect(filter);
   filter.connect(gain);
   gain.connect(audio.destination);

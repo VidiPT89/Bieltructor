@@ -224,6 +224,29 @@ export function installSmokeTests(g) {
       g.action("pause");
       check("touch controls clear on pause", !g.touchInput.has("forward"));
       check("pause menu", g.mode === "paused");
+      const pausePanel = g.app.querySelector(".panel");
+      check(
+        "every pause button has a border",
+        [...pausePanel.querySelectorAll("button")].every(
+          (b) => getComputedStyle(b).borderTopColor !== "rgba(0, 0, 0, 0)",
+        ),
+      );
+      if (innerHeight >= 700)
+        check(
+          "the pause menu fits without scrolling",
+          pausePanel.scrollHeight <= pausePanel.clientHeight + 1,
+        );
+      // Keys belong to the game while playing (no beeps on the Mac).
+      g.action("play");
+      const keyPress = new KeyboardEvent("keydown", {
+        code: "KeyW",
+        key: "w",
+        cancelable: true,
+      });
+      window.dispatchEvent(keyPress);
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+      check("game keys are marked as handled", keyPress.defaultPrevented);
+      g.action("pause");
       g.action("play");
       check("resume", g.mode === "playing");
       // A second world, then delete it from the list in two steps.
