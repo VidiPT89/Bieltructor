@@ -53,7 +53,7 @@ export const ITEMS = {
   cake: { icon: "🎂", food: 12 },
   treat: { icon: "🍪" },
   bone: { icon: "🦴" },
-  slime: { icon: "🟢" },
+  slime: { icon: "🟢", food: 2 },
   wooden_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 1 },
   stone_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 2 },
   wooden_sword: { icon: "🗡️", tool: "sword", tier: 1, damage: 2 },
@@ -86,6 +86,7 @@ export const ITEMS = {
   crystal_sword: { icon: "🗡️", tool: "sword", tier: 4, damage: 5 },
   baked_potato: { icon: "🥔", food: 6 },
   cooked_fish: { icon: "🍣", food: 5 },
+  golden_apple: { icon: "🍏", food: 8, heal: 10 },
 };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);

@@ -2,7 +2,7 @@
 import { cropBlock, cropInfo, WATER_LEVEL } from "./world.js";
 
 // Seconds for one growing stage, on average, with and without water.
-export const STAGE_SECONDS = { watered: 60, dry: 150 };
+const STAGE_SECONDS = { watered: 60, dry: 150 };
 
 // Water is any column within four blocks whose top is under the water line.
 export function isWatered(topAt, x, z, water = WATER_LEVEL) {

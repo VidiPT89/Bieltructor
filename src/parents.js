@@ -1,7 +1,7 @@
 // The grown-ups' corner: a simple question keeps it for parents.
 import { DIFFICULTIES } from "./worlds.js";
 
-export const defaultParents = () => ({
+const defaultParents = () => ({
   reminder: 0,
   maxDifficulty: "hard",
   noMonsters: false,

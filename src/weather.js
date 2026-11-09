@@ -1,5 +1,5 @@
 // Weather: sunny, cloudy, rain and (on Normal and Hard) thunderstorms.
-export const WEATHERS = ["clear", "cloudy", "rain", "storm"];
+const WEATHERS = ["clear", "cloudy", "rain", "storm"];
 
 // How the sky looks for each kind of weather.
 export const LOOK = {

@@ -1,7 +1,7 @@
 // Biel's health, food and air in Adventure. Values count halves:
 // 20 health = 10 hearts, 20 food = 10 drumsticks, 10 air = 10 bubbles.
-export const MAX_HEALTH = 20,
-  MAX_FOOD = 20,
+const MAX_HEALTH = 20;
+export const MAX_FOOD = 20,
   MAX_AIR = 10;
 
 export const createVitals = (health = MAX_HEALTH, food = MAX_FOOD) => ({

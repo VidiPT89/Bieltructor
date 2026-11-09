@@ -1,11 +1,11 @@
 // Worlds: options, difficulty rules, saving format (v2) and migration from v1.
 import { validateSave, validatePlayer, SIZES } from "./world.js";
 
-export const SAVE_VERSION = 2;
+const SAVE_VERSION = 2;
 export const MAX_WORLDS = 6;
-export const MODES = ["adventure", "creative"];
+const MODES = ["adventure", "creative"];
 export const DIFFICULTIES = ["peaceful", "easy", "normal", "hard"];
-export const CYCLES = ["normal", "day", "night"];
+const CYCLES = ["normal", "day", "night"];
 // Length of a full day in seconds.
 export const DAY_LENGTHS = { short: 600, normal: 1200, long: 1800 };
 
@@ -49,7 +49,7 @@ const pick = (value, allowed, fallback) =>
   allowed.includes(value) ? value : fallback;
 
 // Defaults that suit a young player: Adventure on Easy, gentle rules.
-export function defaultOptions(difficulty = "easy") {
+function defaultOptions(difficulty = "easy") {
   const gentle = difficulty === "peaceful" || difficulty === "easy";
   return {
     difficulty,
@@ -210,7 +210,7 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
   return world;
 }
 
-export const summary = (world) => ({
+const summary = (world) => ({
   id: world.id,
   name: world.name,
   mode: world.mode,

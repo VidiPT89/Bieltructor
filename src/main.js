@@ -29,7 +29,6 @@ import {
   GLASS,
   DOOR,
   DOOR_OPEN,
-  TYPES,
   seeThrough,
   toggleDoor,
   passable,
@@ -38,9 +37,7 @@ import {
   TORCH,
   BED,
   COAL,
-  WOOL,
   FARMLAND,
-  CROP_BASE,
   CROPS,
   cropBlock,
   cropInfo,
@@ -122,697 +119,9 @@ import {
 } from "./worlds.js";
 import { Music, audioContext, pauseAudio } from "./music.js";
 import "./style.css";
+import { strings } from "./strings.js";
 const $ = (s) => document.querySelector(s),
   app = $("#app");
-const strings = {
-  pt: {
-    tag: "UM MUNDO À TUA MEDIDA",
-    title: "Pequenos blocos.<br>Grandes aventuras.",
-    intro: "Olá, Biel! O próximo grande mundo começa contigo.",
-    start: "Vamos construir",
-    resume: "Continuar aventura",
-    settings: "Definições",
-    back: "Voltar",
-    language: "Idioma",
-    appearance: "Aparência",
-    dark: "Escuro",
-    light: "Claro",
-    system: "Sistema",
-    sound: "Efeitos sonoros",
-    on: "Ligados",
-    off: "Desligados",
-    help: "Como jogar",
-    helpText:
-      "W A S D ou setas para andar · Shift para correr · Espaço para saltar (e nadar). Arrasta o rato para olhar à volta. Clica num bloco para o partir (na Aventura, mantém carregado). Botão direito ou Shift + clique para construir. Teclas 1–9 ou a roda do rato escolhem da barra; E abre a mochila e as receitas. Botão direito numa porta abre-a e fecha-a. À noite, o âmbar brilha como uma lanterna. V muda a perspetiva. Esc abre o menu.",
-    world: "O vale do Biel",
-    creative: "MODO CRIATIVO",
-    adventureLabel: "AVENTURA",
-    saved: "Mundo guardado",
-    saveError:
-      "Não foi possível guardar. Exporta o mundo para não perderes as alterações.",
-    pause: "Uma pequena pausa",
-    continue: "Voltar à aventura",
-    home: "Menu principal",
-    export: "Exportar mundo",
-    import: "Importar mundo",
-    invalid: "Este ficheiro não é um mundo Bieltructor válido.",
-    ready: "Pronto para explorar?",
-    hint: "Arrasta para olhar · Clica para partir · Botão direito para construir",
-    hintAdventure:
-      "Arrasta para olhar · Mantém clicado para partir · Botão direito para construir ou comer · F ou clique num monstro para atacar · E abre a mochila",
-    items: {
-      grass: "Relva",
-      dirt: "Terra",
-      stone: "Pedra",
-      sand: "Areia",
-      wood: "Madeira",
-      leaves: "Folhas",
-      brick: "Tijolo",
-      amber: "Lanterna de âmbar",
-      glass: "Vidro",
-      door: "Porta",
-      planks: "Tábuas",
-      bench: "Bancada",
-      torch: "Tocha",
-      bed: "Cama",
-      coal_ore: "Pedra com carvão",
-      wool: "Lã",
-      stick: "Pau",
-      coal: "Carvão",
-      apple: "Maçã",
-      egg: "Ovo",
-      milk: "Leite",
-      cake: "Bolo",
-      treat: "Biscoito para cão",
-      bone: "Osso",
-      slime: "Gelatina",
-      wooden_pickaxe: "Picareta de madeira",
-      stone_pickaxe: "Picareta de pedra",
-      wooden_sword: "Espada de madeira",
-      stone_sword: "Espada de pedra",
-      wooden_hoe: "Enxada de madeira",
-      wheat_seeds: "Sementes de trigo",
-      wheat: "Trigo",
-      carrot: "Cenoura",
-      potato: "Batata",
-      bread: "Pão",
-      fishing_rod: "Cana de pesca",
-      fish: "Peixe",
-      snow: "Neve",
-      ice: "Gelo",
-      cactus: "Cato",
-      flower: "Flor",
-      mushroom: "Cogumelo",
-      iron_ore: "Minério de ferro",
-      gold_ore: "Minério de ouro",
-      glowstone: "Pedra luminosa",
-      chest: "Baú",
-      furnace: "Forno",
-      stone_brick: "Tijolo de pedra",
-      crystal: "Cristal azul",
-      iron_ingot: "Barra de ferro",
-      gold_ingot: "Barra de ouro",
-      iron_pickaxe: "Picareta de ferro",
-      crystal_pickaxe: "Picareta de cristal",
-      iron_sword: "Espada de ferro",
-      crystal_sword: "Espada de cristal",
-      baked_potato: "Batata assada",
-      cooked_fish: "Peixe grelhado",
-    },
-    backpack: "Mochila",
-    recipes: "Receitas",
-    craftIt: "Fabricar",
-    needsBench: "Precisa de uma bancada por perto",
-    benchNear: "Estás perto de uma bancada: podes fabricar tudo.",
-    benchFar: "Algumas receitas precisam de uma bancada por perto.",
-    crafted: "Fabricaste: {item}",
-    allBlocks: "Todos os blocos",
-    pickBlock: "Escolhe um bloco para o espaço {n} da barra.",
-    swapHint: "Toca num espaço e depois noutro para trocar.",
-    emptyHand: "Mão vazia",
-    full: "A mochila está cheia!",
-    asleep: "O Biel adormeceu…",
-    asleepText:
-      "Foi uma aventura cansativa. Descansa um bocadinho e volta a casa.",
-    wake: "Voltar a casa",
-    backpackLeft: "A tua mochila ficou onde adormeceste. Vai buscá-la!",
-    backpackFound: "Recuperaste a mochila!",
-    yum: "Nham! {item}",
-    notHungry: "O Biel não tem fome.",
-    sleepNight: "Bom dia! Esta cama é agora a tua casa.",
-    sleepDay: "Só se dorme à noite, mas esta cama já é a tua casa.",
-    health: "Vida",
-    food: "Comida",
-    gave_chicken: "A galinha deu-te um ovo! 🥚",
-    gave_cow: "A vaca deu-te leite! 🥛",
-    gave_sheep: "Tosquiaste a ovelha: +2 lã",
-    notReady: "Ainda não… volta daqui a pouco.",
-    animalNames: {
-      chicken: "A galinha",
-      cow: "A vaca",
-      sheep: "A ovelha",
-      pig: "O porco",
-      rabbit: "O coelho",
-      dog: "O cão",
-      cat: "O gato",
-      horse: "O cavalo",
-    },
-    animalNouns: { dog: "cão", cat: "gato", horse: "cavalo" },
-    petDefaults: { dog: "Bobi", cat: "Tareco", horse: "Trovão" },
-    wants_dog: "O cão abana a cauda. Dá-lhe um biscoito para ficar teu amigo!",
-    wants_cat: "O gato mia… parece que gosta de peixe.",
-    wants_horse: "O cavalo relincha. Experimenta dar-lhe uma maçã!",
-    tryAgain: "O cavalo comeu a maçã… tenta outra vez!",
-    tamed: "{animal} ficou teu amigo! 💛",
-    nameDog: "Como se chama o teu {animal}?",
-    love: "{animal} ficou contente! ❤️",
-    happy: "{animal} gosta de festinhas!",
-    baby: "É um bebé! Ainda está a crescer.",
-    born: "Nasceu um bebé! 🐣",
-    mount: "A cavalgar! Carrega em C ou Descer para desmontar.",
-    dismount: "Desmontaste.",
-    done: "Pronto",
-    sit: "{name} senta-se e espera por ti.",
-    follow: "{name} vem contigo!",
-    attack: "Atacar",
-    monsterNear: "Ouves um barulho estranho… 👀",
-    cantSleep: "Não consegues dormir: há monstros por perto!",
-    tilled: "Terra lavrada! Agora planta sementes.",
-    weather: "Clima",
-    worldSize: "Tamanho do mundo",
-    chestHint: "Toca num objeto para o passar entre o baú e a mochila.",
-    icloud: "Guardar no iCloud",
-    icloudOn:
-      "Os mundos ficam iguais no Mac, no iPad e no iPhone com a mesma conta.",
-    icloudOff: "Desligado: os mundos ficam só neste dispositivo.",
-    icloudMissing:
-      "iCloud não disponível: inicia sessão no iCloud nas Definições do sistema.",
-    icloudSynced: "Sincronizado às {time}.",
-    conflictTitle: "Este mundo mudou em dois sítios",
-    conflictText:
-      "“{name}” foi alterado neste {here} ({hereDate}) e no {there} ({thereDate}). Qual queres manter?",
-    keepHere: "Manter o deste {device}",
-    keepThere: "Manter o do {device}",
-    furnaceHint:
-      "Toca num minério ou comida para o pôr a cozinhar, e em carvão, madeira, tábuas ou paus para dar lume.",
-    toCook: "Para cozinhar",
-    fuelSlot: "Lume",
-    ready: "Pronto",
-    notForFurnace: "Isto não vai ao forno.",
-    classic: "Vale clássico (57 × 57)",
-    small: "Pequeno (57 × 57)",
-    medium: "Médio (97 × 97)",
-    large: "Grande (129 × 129)",
-    seed: "Semente",
-    seedHint:
-      "Deixa em branco para um mundo surpresa. A mesma semente faz sempre o mesmo mundo.",
-    biomes: {
-      plains: "🌼 Planície",
-      forest: "🌲 Floresta",
-      beach: "🏖️ Praia",
-      desert: "🌵 Deserto",
-      snow: "❄️ Neve",
-      swamp: "🍄 Pântano",
-    },
-    planted: "Plantaste: {item}. Cresce mais depressa ao pé de água.",
-    fishing: "A pescar… 🎣",
-    caught: "Apanhaste um peixe! 🐟",
-    challenges: {
-      shelter: [
-        "O primeiro abrigo",
-        "Coloca 12 blocos e dá uma casa à imaginação.",
-      ],
-      bench: ["Mesa de inventor", "Faz uma bancada de trabalho."],
-      torches: ["Luz na escuridão", "Coloca 5 tochas."],
-      night: ["Corajoso da noite", "Sobrevive à primeira noite na Aventura."],
-      sleep: ["Bons sonhos", "Faz uma cama e dorme nela à noite."],
-      coalIron: ["Caçador de minérios", "Encontra carvão e ferro."],
-      ironPickaxe: ["Ferramenta a sério", "Faz uma picareta de ferro."],
-      wheat: ["Pequeno agricultor", "Planta e colhe trigo."],
-      dog: ["Melhor amigo", "Faz amizade com um cão e dá-lhe um nome."],
-      crystal: ["Tesouro azul", "Encontra um cristal azul."],
-      house: [
-        "Casa a sério",
-        "Dorme numa casa com porta, janela de vidro e cama.",
-      ],
-      biomes: ["Explorador", "Visita 3 biomas diferentes."],
-    },
-    stickers: "Caderneta",
-    stickerBook: "A minha caderneta",
-    stickerCount: "{n} de 12 autocolantes",
-    newSticker: "Autocolante novo! {sticker} {title}",
-    allDone: "Caderneta completa! És um verdadeiro Bieltructor! 🏆",
-    nextGoal: "PRÓXIMO AUTOCOLANTE",
-    tutorial: "Tutorial",
-    tutorialOption: "Tutorial guiado",
-    startTutorial: "Começar o tutorial",
-    skip: "Saltar",
-    tutorialDone: "Tutorial completo! Agora o vale é todo teu. 🎓",
-    tutorialSteps: {
-      move: [
-        "Anda um bocadinho com W A S D ou as setas.",
-        "Anda com os botões das setas.",
-      ],
-      look: [
-        "Arrasta o rato para olhar à volta.",
-        "Arrasta o cenário com o dedo para olhar à volta.",
-      ],
-      break: [
-        "Mantém o clique num bloco para o partir.",
-        "Toca num bloco e mantém Partir carregado.",
-      ],
-      place: [
-        "Escolhe um bloco na barra e usa o botão direito para o pôr.",
-        "Toca num sítio e carrega em Construir.",
-      ],
-      backpack: [
-        "Abre a mochila com a tecla E.",
-        "Abre a mochila com o botão 🎒.",
-      ],
-      bench: [
-        "Parte madeira de uma árvore, faz tábuas e depois uma bancada.",
-        "Parte madeira de uma árvore, faz tábuas e depois uma bancada.",
-      ],
-      torch: [
-        "Faz paus e cava na pedra até achar carvão. Depois faz uma tocha.",
-        "Faz paus e cava na pedra até achar carvão. Depois faz uma tocha.",
-      ],
-      shelter: [
-        "Constrói um abrigo: coloca 12 blocos.",
-        "Constrói um abrigo: coloca 12 blocos.",
-      ],
-      sleep: [
-        "Faz uma cama (com lã das ovelhas) e dorme nela à noite.",
-        "Faz uma cama (com lã das ovelhas) e dorme nela à noite.",
-      ],
-    },
-    parents: "Pais",
-    parentsQuestion: "Para os pais: quanto é {a} mais {b}?",
-    enter: "Entrar",
-    wrongAnswer: "Resposta errada. Esta parte é para os pais.",
-    reminder: "Lembrete de pausa",
-    reminderOff: "Desligado",
-    minutes: "{n} minutos",
-    maxDifficulty: "Dificuldade máxima",
-    noMonstersOption: "Monstros sempre desligados",
-    parentsNote:
-      "Sem Internet, sem contas, sem anúncios e sem recolha de dados.",
-    restTitle: "Hora de uma pausa! 👀",
-    restText:
-      "Já jogaste {n} minutos. Descansa os olhos, bebe água e depois continua.",
-    break: "Partir",
-    place: "Construir",
-    jump: "Saltar",
-    run: "Correr",
-    forward: "Avançar",
-    left: "Esquerda",
-    right: "Direita",
-    backward: "Recuar",
-    loading: "A preparar a aventura",
-    quest: "O teu primeiro abrigo",
-    questText: "Coloca 12 blocos e dá uma casa à imaginação.",
-    done: "Abrigo a crescer! Continua a criar.",
-    view: "Perspetiva",
-    reset: "Regressar ao início",
-    mobile:
-      "Usa os botões para andar. Arrasta o cenário para olhar e toca num bloco para o selecionar. Na Aventura, mantém Partir carregado. 🎒 abre a mochila e as receitas. Escolhe uma porta e carrega em Construir para a abrir ou fechar.",
-    quality: "Qualidade",
-    high: "Alta",
-    low: "Leve",
-    storage: "O mundo é guardado neste dispositivo.",
-    edition: "EDIÇÃO CRIATIVA / 01",
-    made: "Feito para imaginar",
-    space: "Espaço",
-    music: "Música",
-    cycle: "Dia e noite",
-    cycleNormal: "Normal",
-    alwaysDay: "Sempre de dia",
-    alwaysNight: "Sempre de noite",
-    day: "Dia",
-    night: "Noite",
-    dayCount: "Dia {n}",
-    worlds: "Os meus mundos",
-    newWorld: "Novo mundo",
-    create: "Criar mundo",
-    worldName: "Nome do mundo",
-    defaultName: "Mundo do Biel",
-    gameMode: "Modo de jogo",
-    adventure: "Aventura",
-    creativeMode: "Criativo",
-    adventureHint: "Recolhe materiais, fabrica ferramentas e cuida do Biel.",
-    creativeHint:
-      "Todos os blocos, sem perigos. Toca duas vezes em Saltar para voar.",
-    difficulty: "Dificuldade",
-    peaceful: "Pacífico",
-    easy: "Fácil",
-    normal: "Médio",
-    hard: "Difícil",
-    monsters: "Monstros",
-    animals: "Animais",
-    dayLength: "Duração do dia",
-    short: "Curto (10 min)",
-    normalDay: "Normal (20 min)",
-    long: "Longo (30 min)",
-    hunger: "Fome",
-    keepInventory: "Manter a mochila ao adormecer",
-    yes: "Sim",
-    no: "Não",
-    play: "Jogar",
-    deleteWorld: "Apagar",
-    confirmDelete: "Tens a certeza?",
-    worldDeleted: "Mundo apagado.",
-    worldSettings: "Definições do mundo",
-    worldFull: "Já tens 6 mundos. Apaga um para criar outro.",
-    noWorlds: "Ainda não tens mundos. Cria o primeiro!",
-    fixedOptions: "O modo de jogo não muda depois de criar o mundo.",
-    descend: "Descer",
-    flying: "A voar!",
-    walking: "De volta ao chão.",
-  },
-  en: {
-    tag: "A WORLD OF YOUR OWN",
-    title: "Little blocks.<br>Big adventures.",
-    intro: "Hey, Biel! The next great world starts with you.",
-    start: "Let’s build",
-    resume: "Continue adventure",
-    settings: "Settings",
-    back: "Back",
-    language: "Language",
-    appearance: "Appearance",
-    dark: "Dark",
-    light: "Light",
-    system: "System",
-    sound: "Sound effects",
-    on: "On",
-    off: "Off",
-    help: "How to play",
-    helpText:
-      "W A S D or arrow keys to move · Shift to run · Space to jump (and swim). Drag to look around. Click a block to break it (in Adventure, hold the button). Right-click or Shift + click to build. Keys 1–9 or the mouse wheel pick from the bar; E opens the backpack and recipes. Right-click a door to open or close it. At night, amber glows like a lantern. V changes perspective. Esc opens the menu.",
-    world: "Biel’s valley",
-    creative: "CREATIVE MODE",
-    adventureLabel: "ADVENTURE",
-    saved: "World saved",
-    saveError: "Could not save. Export your world to keep your changes.",
-    pause: "A little break",
-    continue: "Back to the adventure",
-    home: "Main menu",
-    export: "Export world",
-    import: "Import world",
-    invalid: "This file is not a valid Bieltructor world.",
-    ready: "Ready to explore?",
-    hint: "Drag to look · Click to break · Right-click to build",
-    hintAdventure:
-      "Drag to look · Hold the click to break · Right-click to build or eat · F or click a monster to attack · E opens the backpack",
-    items: {
-      grass: "Grass",
-      dirt: "Dirt",
-      stone: "Stone",
-      sand: "Sand",
-      wood: "Wood",
-      leaves: "Leaves",
-      brick: "Brick",
-      amber: "Amber lantern",
-      glass: "Glass",
-      door: "Door",
-      planks: "Planks",
-      bench: "Workbench",
-      torch: "Torch",
-      bed: "Bed",
-      coal_ore: "Coal ore",
-      wool: "Wool",
-      stick: "Stick",
-      coal: "Coal",
-      apple: "Apple",
-      egg: "Egg",
-      milk: "Milk",
-      cake: "Cake",
-      treat: "Dog treat",
-      bone: "Bone",
-      slime: "Jelly",
-      wooden_pickaxe: "Wooden pickaxe",
-      stone_pickaxe: "Stone pickaxe",
-      wooden_sword: "Wooden sword",
-      stone_sword: "Stone sword",
-      wooden_hoe: "Wooden hoe",
-      wheat_seeds: "Wheat seeds",
-      wheat: "Wheat",
-      carrot: "Carrot",
-      potato: "Potato",
-      bread: "Bread",
-      fishing_rod: "Fishing rod",
-      fish: "Fish",
-      snow: "Snow",
-      ice: "Ice",
-      cactus: "Cactus",
-      flower: "Flower",
-      mushroom: "Mushroom",
-      iron_ore: "Iron ore",
-      gold_ore: "Gold ore",
-      glowstone: "Glowstone",
-      chest: "Chest",
-      furnace: "Furnace",
-      stone_brick: "Stone bricks",
-      crystal: "Blue crystal",
-      iron_ingot: "Iron bar",
-      gold_ingot: "Gold bar",
-      iron_pickaxe: "Iron pickaxe",
-      crystal_pickaxe: "Crystal pickaxe",
-      iron_sword: "Iron sword",
-      crystal_sword: "Crystal sword",
-      baked_potato: "Baked potato",
-      cooked_fish: "Grilled fish",
-    },
-    backpack: "Backpack",
-    recipes: "Recipes",
-    craftIt: "Craft",
-    needsBench: "Needs a workbench nearby",
-    benchNear: "You are next to a workbench: you can craft everything.",
-    benchFar: "Some recipes need a workbench nearby.",
-    crafted: "You crafted: {item}",
-    allBlocks: "All blocks",
-    pickBlock: "Pick a block for slot {n} of the bar.",
-    swapHint: "Tap a slot, then another one to swap them.",
-    emptyHand: "Empty hand",
-    full: "Your backpack is full!",
-    asleep: "Biel fell asleep…",
-    asleepText: "What a tiring adventure. Rest a little and head home.",
-    wake: "Go home",
-    backpackLeft: "Your backpack stayed where you fell asleep. Go and get it!",
-    backpackFound: "You got your backpack back!",
-    yum: "Yum! {item}",
-    notHungry: "Biel isn’t hungry.",
-    sleepNight: "Good morning! This bed is your home now.",
-    sleepDay: "You can only sleep at night, but this bed is your home now.",
-    health: "Health",
-    food: "Food",
-    gave_chicken: "The chicken gave you an egg! 🥚",
-    gave_cow: "The cow gave you milk! 🥛",
-    gave_sheep: "You sheared the sheep: +2 wool",
-    notReady: "Not yet… come back in a little while.",
-    animalNames: {
-      chicken: "The chicken",
-      cow: "The cow",
-      sheep: "The sheep",
-      pig: "The pig",
-      rabbit: "The rabbit",
-      dog: "The dog",
-      cat: "The cat",
-      horse: "The horse",
-    },
-    animalNouns: { dog: "dog", cat: "cat", horse: "horse" },
-    petDefaults: { dog: "Buddy", cat: "Whiskers", horse: "Thunder" },
-    wants_dog: "The dog wags its tail. Give it a treat to make friends!",
-    wants_cat: "The cat meows… it seems to like fish.",
-    wants_horse: "The horse neighs. Try giving it an apple!",
-    tryAgain: "The horse ate the apple… try again!",
-    tamed: "{animal} is your friend now! 💛",
-    nameDog: "What is your {animal} called?",
-    love: "{animal} is happy! ❤️",
-    happy: "{animal} loves a pat!",
-    baby: "It’s a baby! It’s still growing.",
-    born: "A baby was born! 🐣",
-    mount: "Riding! Press C or Down to get off.",
-    dismount: "You got off.",
-    done: "Done",
-    sit: "{name} sits and waits for you.",
-    follow: "{name} is coming with you!",
-    attack: "Attack",
-    monsterNear: "You hear a funny noise… 👀",
-    cantSleep: "You can’t sleep: there are monsters nearby!",
-    tilled: "Soil tilled! Now plant some seeds.",
-    weather: "Weather",
-    worldSize: "World size",
-    chestHint: "Tap something to move it between the chest and your backpack.",
-    icloud: "Save to iCloud",
-    icloudOn:
-      "Worlds stay the same on Mac, iPad and iPhone with the same account.",
-    icloudOff: "Off: worlds stay on this device only.",
-    icloudMissing:
-      "iCloud is not available: sign in to iCloud in the system Settings.",
-    icloudSynced: "Synced at {time}.",
-    conflictTitle: "This world changed in two places",
-    conflictText:
-      "“{name}” was changed on this {here} ({hereDate}) and on the {there} ({thereDate}). Which one do you want to keep?",
-    keepHere: "Keep this {device}’s",
-    keepThere: "Keep the {device}’s",
-    furnaceHint:
-      "Tap an ore or some food to cook it, and coal, wood, planks or sticks to light the fire.",
-    toCook: "To cook",
-    fuelSlot: "Fire",
-    ready: "Ready",
-    notForFurnace: "That doesn’t go in the furnace.",
-    classic: "Classic valley (57 × 57)",
-    small: "Small (57 × 57)",
-    medium: "Medium (97 × 97)",
-    large: "Large (129 × 129)",
-    seed: "Seed",
-    seedHint:
-      "Leave it empty for a surprise world. The same seed always makes the same world.",
-    biomes: {
-      plains: "🌼 Plains",
-      forest: "🌲 Forest",
-      beach: "🏖️ Beach",
-      desert: "🌵 Desert",
-      snow: "❄️ Snow",
-      swamp: "🍄 Swamp",
-    },
-    planted: "You planted: {item}. It grows faster near water.",
-    fishing: "Fishing… 🎣",
-    caught: "You caught a fish! 🐟",
-    challenges: {
-      shelter: [
-        "First shelter",
-        "Place 12 blocks and give your imagination a home.",
-      ],
-      bench: ["Inventor’s table", "Make a workbench."],
-      torches: ["Light in the dark", "Place 5 torches."],
-      night: [
-        "Brave of the night",
-        "Get through your first night in Adventure.",
-      ],
-      sleep: ["Sweet dreams", "Make a bed and sleep in it at night."],
-      coalIron: ["Ore hunter", "Find coal and iron."],
-      ironPickaxe: ["A proper tool", "Make an iron pickaxe."],
-      wheat: ["Little farmer", "Plant and harvest wheat."],
-      dog: ["Best friend", "Make friends with a dog and give it a name."],
-      crystal: ["Blue treasure", "Find a blue crystal."],
-      house: [
-        "A real home",
-        "Sleep in a house with a door, a glass window and a bed.",
-      ],
-      biomes: ["Explorer", "Visit 3 different biomes."],
-    },
-    stickers: "Stickers",
-    stickerBook: "My sticker book",
-    stickerCount: "{n} of 12 stickers",
-    newSticker: "New sticker! {sticker} {title}",
-    allDone: "Sticker book complete! You are a true Bieltructor! 🏆",
-    nextGoal: "NEXT STICKER",
-    tutorial: "Tutorial",
-    tutorialOption: "Guided tutorial",
-    startTutorial: "Start the tutorial",
-    skip: "Skip",
-    tutorialDone: "Tutorial complete! The valley is all yours. 🎓",
-    tutorialSteps: {
-      move: [
-        "Walk a little with W A S D or the arrow keys.",
-        "Walk with the arrow buttons.",
-      ],
-      look: [
-        "Drag the mouse to look around.",
-        "Drag the scene with your finger to look around.",
-      ],
-      break: [
-        "Hold the click on a block to break it.",
-        "Tap a block and hold Break.",
-      ],
-      place: [
-        "Pick a block in the bar and right-click to place it.",
-        "Tap a spot and press Build.",
-      ],
-      backpack: [
-        "Open the backpack with the E key.",
-        "Open the backpack with the 🎒 button.",
-      ],
-      bench: [
-        "Break wood from a tree, make planks and then a workbench.",
-        "Break wood from a tree, make planks and then a workbench.",
-      ],
-      torch: [
-        "Make sticks and dig into the stone to find coal. Then make a torch.",
-        "Make sticks and dig into the stone to find coal. Then make a torch.",
-      ],
-      shelter: [
-        "Build a shelter: place 12 blocks.",
-        "Build a shelter: place 12 blocks.",
-      ],
-      sleep: [
-        "Make a bed (with wool from the sheep) and sleep in it at night.",
-        "Make a bed (with wool from the sheep) and sleep in it at night.",
-      ],
-    },
-    parents: "Parents",
-    parentsQuestion: "For parents: what is {a} plus {b}?",
-    enter: "Enter",
-    wrongAnswer: "Wrong answer. This part is for parents.",
-    reminder: "Break reminder",
-    reminderOff: "Off",
-    minutes: "{n} minutes",
-    maxDifficulty: "Highest difficulty",
-    noMonstersOption: "Monsters always off",
-    parentsNote: "No Internet, no accounts, no ads and no data collection.",
-    restTitle: "Time for a break! 👀",
-    restText:
-      "You have played for {n} minutes. Rest your eyes, drink some water and then carry on.",
-    break: "Break",
-    place: "Build",
-    jump: "Jump",
-    run: "Run",
-    forward: "Forward",
-    left: "Left",
-    right: "Right",
-    backward: "Backwards",
-    loading: "Getting your adventure ready",
-    quest: "Your first shelter",
-    questText: "Place 12 blocks and give your imagination a home.",
-    done: "Looking like home! Keep creating.",
-    view: "Perspective",
-    reset: "Return to spawn",
-    mobile:
-      "Use the buttons to move. Drag the scene to look and tap a block to select it. In Adventure, hold Break. 🎒 opens the backpack and recipes. Select a door and press Build to open or close it.",
-    quality: "Quality",
-    high: "High",
-    low: "Light",
-    storage: "Your world is saved on this device.",
-    edition: "CREATIVE EDITION / 01",
-    made: "Made for imagination",
-    space: "Space",
-    music: "Music",
-    cycle: "Day and night",
-    cycleNormal: "Normal",
-    alwaysDay: "Always day",
-    alwaysNight: "Always night",
-    day: "Day",
-    night: "Night",
-    dayCount: "Day {n}",
-    worlds: "My worlds",
-    newWorld: "New world",
-    create: "Create world",
-    worldName: "World name",
-    defaultName: "Biel’s world",
-    gameMode: "Game mode",
-    adventure: "Adventure",
-    creativeMode: "Creative",
-    adventureHint: "Gather materials, craft tools and look after Biel.",
-    creativeHint: "Every block, no dangers. Double-tap Jump to fly.",
-    difficulty: "Difficulty",
-    peaceful: "Peaceful",
-    easy: "Easy",
-    normal: "Normal",
-    hard: "Hard",
-    monsters: "Monsters",
-    animals: "Animals",
-    dayLength: "Day length",
-    short: "Short (10 min)",
-    normalDay: "Normal (20 min)",
-    long: "Long (30 min)",
-    hunger: "Hunger",
-    keepInventory: "Keep the backpack when Biel falls asleep",
-    yes: "Yes",
-    no: "No",
-    play: "Play",
-    deleteWorld: "Delete",
-    confirmDelete: "Are you sure?",
-    worldDeleted: "World deleted.",
-    worldSettings: "World settings",
-    worldFull: "You already have 6 worlds. Delete one to make another.",
-    noWorlds: "No worlds yet. Make your first one!",
-    fixedOptions: "The game mode can’t change once the world exists.",
-    descend: "Down",
-    flying: "Flying!",
-    walking: "Back on the ground.",
-  },
-};
 let settings = {
   lang: "pt",
   theme: "system",
@@ -1120,7 +429,7 @@ function render() {
       const f = validateFurnace(world.furnaces[container.key]);
       const cell = (slot, label, cls = "") =>
         `<div class="furnace-cell ${cls}"><small>${label}</small>${slotButton(f[slot] ? { id: f[slot][0], count: f[slot][1] } : null, 0, `data-move="${slot}" data-index="0"`, false)}</div>`;
-      inner = `<span class="eyebrow">🔥</span><h2>${itemName("furnace")}</h2><p class="field-hint">${t("furnaceHint")}</p><div class="furnace">${cell("input", t("toCook"))}${cell("fuel", t("fuelSlot"), f.burn > 0 ? "burning" : "")}<div class="furnace-progress"><i style="width:${Math.round(f.progress * 100)}%"></i></div>${cell("output", t("ready"))}</div><h3>${t("backpack")}</h3><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-move="bag" data-index="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div>${button("back", t("back"), "primary wide")}`;
+      inner = `<span class="eyebrow">🔥</span><h2>${itemName("furnace")}</h2><p class="field-hint">${t("furnaceHint")}</p><div class="furnace">${cell("input", t("toCook"))}${cell("fuel", t("fuelSlot"), f.burn > 0 ? "burning" : "")}<div class="furnace-progress"><i style="width:${Math.round(f.progress * 100)}%"></i></div>${cell("output", t("readySlot"))}</div><h3>${t("backpack")}</h3><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-move="bag" data-index="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div>${button("back", t("back"), "primary wide")}`;
     }
     if (mode === "stickers") {
       const n = Object.keys(progress.done).length;
@@ -3027,24 +2336,89 @@ function addMonster(type, at, small = false, quiet = false) {
   if (!quiet) sparkle([m.x, m.y + 0.6, m.z]);
   return m;
 }
+// Biel is underground when there is rock a few blocks over his head.
+const underground = () =>
+  topAt(Math.round(player.x), Math.round(player.z)) > player.y + 3;
+// A dark empty spot in the cave near Biel, with floor under it.
+function caveSpot() {
+  for (let i = 0; i < 24; i++) {
+    const x = Math.round(player.x + (Math.random() - 0.5) * 20),
+      z = Math.round(player.z + (Math.random() - 0.5) * 20),
+      y = Math.round(player.y + (Math.random() - 0.5) * 6);
+    if (Math.hypot(x - player.x, z - player.z) < 6) continue;
+    if (
+      blocks.has(key(x, y, z)) ||
+      blocks.has(key(x, y + 1, z)) ||
+      !blocks.has(key(x, y - 1, z))
+    )
+      continue;
+    if (
+      lightBlocks.some(([lx, ly, lz]) => Math.hypot(lx - x, ly - y, lz - z) < 6)
+    )
+      continue;
+    return { x, y: y - 0.49, z };
+  }
+  return null;
+}
 function trySpawnMonster() {
+  const below = underground();
   const state = {
     mode: world.mode,
     options: world.options,
     night: isNight(),
     count: monsters.length,
     rules: rules(),
+    underground: below,
   };
   if (!canSpawn(state)) return null;
-  const spot = spawnSpot({
-    rand: Math.random,
-    player,
-    lights: lightBlocks,
-    surface: (x, z) => surfaceY(x, z, 40),
-  });
+  const spot = below
+    ? caveSpot()
+    : spawnSpot({
+        rand: Math.random,
+        player,
+        lights: lightBlocks,
+        surface: (x, z) => surfaceY(x, z, 40),
+      });
   if (!spot) return null;
-  const types = allowedMonsters(world.options.difficulty);
-  return addMonster(types[Math.floor(Math.random() * types.length)], spot);
+  const types = allowedMonsters(world.options.difficulty, below);
+  const m = addMonster(types[Math.floor(Math.random() * types.length)], spot);
+  m.cave = below;
+  return m;
+}
+// PUF: a big push and a few natural blocks knocked over (never Biel's builds).
+function puffBoom(m) {
+  hurtPlayer(MONSTERS.puff.damage, m);
+  const away = Math.atan2(player.x - m.x, player.z - m.z);
+  for (let i = 0; i < 12; i++)
+    for (const [axis, d] of [
+      ["x", Math.sin(away) * 0.12],
+      ["z", Math.cos(away) * 0.12],
+    ]) {
+      player[axis] += d;
+      if (collides(blocks, player)) player[axis] -= d;
+    }
+  const natural = [0, 1, 2, 3, 5, SNOW];
+  const knocked = [];
+  for (let dx = -1; dx <= 1 && knocked.length < 3; dx++)
+    for (let dz = -1; dz <= 1 && knocked.length < 3; dz++)
+      for (let dy = -1; dy <= 1 && knocked.length < 3; dy++) {
+        const p = [
+            Math.round(m.x) + dx,
+            Math.round(m.y) + dy,
+            Math.round(m.z) + dz,
+          ],
+          k = key(...p);
+        if (p[1] < 1 || edits.has(k) || !natural.includes(blocks.get(k)))
+          continue;
+        burst(p, blocks.get(k));
+        blocks.delete(k);
+        edits.set(k, null);
+        knocked.push(p);
+      }
+  if (knocked.length) rebuildAt(...knocked);
+  for (let i = 0; i < 3; i++) sparkle([m.x, m.y + 0.8, m.z]);
+  beepAt(160, 60);
+  removeMonster(m, false);
 }
 function removeMonster(m, poof = true) {
   if (poof) sparkle([m.x, m.y + 0.6, m.z]);
@@ -3146,11 +2520,11 @@ function updateMonsters(dt) {
   spawnClock -= dt;
   if (spawnClock <= 0) {
     spawnClock = 4;
-    if (night) trySpawnMonster();
+    if (night || underground()) trySpawnMonster();
   }
   for (const m of [...monsters]) {
-    // At sunrise they fizzle away in sparkles.
-    if (!night) {
+    // At sunrise they fizzle away in sparkles (cave monsters stay in the dark).
+    if (!night && !(m.cave && underground())) {
       // Each one fizzles at its own moment, within two seconds.
       m.dawn = (m.dawn ?? Math.random() * 2) - dt;
       if (m.dawn <= 0) removeMonster(m);
@@ -3179,6 +2553,19 @@ function updateMonsters(dt) {
         m.cooldown = 2.8;
         shootArrow(m);
       }
+    } else if (
+      MONSTERS[m.type].puff &&
+      d < 2.2 &&
+      Math.abs(player.y - m.y) < 2
+    ) {
+      // Puffy swells up for a moment, then goes PUF.
+      speed = 0;
+      m.fuse = (m.fuse ?? 1.2) - dt;
+      m.flash = Math.max(m.flash, 0.15 * (1 - m.fuse));
+      if (m.fuse <= 0) {
+        puffBoom(m);
+        continue;
+      }
     } else if (d < 1.15 && Math.abs(player.y - m.y) < 1.5) {
       speed = 0;
       if (m.cooldown <= 0) {
@@ -3195,14 +2582,27 @@ function updateMonsters(dt) {
       (a) =>
         a.type === "cat" && a.tamed && Math.hypot(a.x - m.x, a.z - m.z) < 6,
     );
-    if (cat && m.type !== "archer") dir = Math.atan2(m.x - cat.x, m.z - cat.z);
+    if (cat && (m.type === "sleepy" || m.type === "jelly"))
+      dir = Math.atan2(m.x - cat.x, m.z - cat.z);
     m.yaw = Math.atan2(dx, dz);
-    if (speed) {
+    if (MONSTERS[m.type].flies) {
+      // Ghosts float straight through rock towards Biel.
+      const dy = player.y + 0.8 - m.y,
+        len = Math.hypot(dx, dy, dz) || 1;
+      if (len > 1) {
+        m.x += (dx / len) * speed * dt;
+        m.y += (dy / len) * speed * dt;
+        m.z += (dz / len) * speed * dt;
+      } else if (m.cooldown <= 0) {
+        m.cooldown = 1.2;
+        hurtPlayer(MONSTERS[m.type].damage, m);
+      }
+    } else if (speed) {
       const nx = m.x + Math.sin(dir) * speed * dt,
         nz = m.z + Math.cos(dir) * speed * dt,
         ny = surfaceY(nx, nz, m.y);
       if (
-        ny - m.y <= 1.05 &&
+        ny - m.y <= (MONSTERS[m.type].climbs ? 3.05 : 1.05) &&
         ny > -5 &&
         Math.abs(nx) < SIZE &&
         Math.abs(nz) < SIZE
@@ -3211,8 +2611,10 @@ function updateMonsters(dt) {
         m.z = nz;
       }
     }
-    const ground = surfaceY(m.x, m.z, m.y);
-    m.y = ground > m.y ? ground : Math.max(ground, m.y - 6 * dt);
+    if (!MONSTERS[m.type].flies) {
+      const ground = surfaceY(m.x, m.z, m.y);
+      m.y = ground > m.y ? ground : Math.max(ground, m.y - 6 * dt);
+    }
     const mesh = m.mesh;
     mesh.position.set(
       m.x,
@@ -3228,6 +2630,8 @@ function updateMonsters(dt) {
     );
     if (mesh.userData.head)
       mesh.userData.head.rotation.z = Math.sin(elapsed * 2 + m.x) * 0.15;
+    if (MONSTERS[m.type].flies)
+      mesh.position.y += Math.sin(elapsed * 2 + m.z) * 0.15;
     m.flash = Math.max(0, m.flash - dt);
     mesh.scale.setScalar((m.small ? 0.55 : 1) * (1 + m.flash));
   }
@@ -3833,7 +3237,10 @@ function edit(place) {
   // Holding food: eat it instead of building.
   const food = ITEMS[heldId()]?.food;
   if (place && food && !creative()) {
-    if (eat(vitals, food)) {
+    const heal = ITEMS[heldId()]?.heal ?? 0;
+    if (heal && vitals.health < 20)
+      vitals.health = Math.min(20, vitals.health + heal);
+    if (eat(vitals, food) || heal) {
       const name = itemName(inventory.takeFrom(selected));
       toast(t("yum", { item: name }));
       chomp();
@@ -4827,6 +4234,74 @@ if (new URLSearchParams(location.search).has("test"))
     timeOfDay = 0.3;
     for (let i = 0; i < 240; i++) frame(last + 16);
     check("monsters fizzle away at sunrise", monsters.length === 0);
+    // The newer monsters: a climbing spider, Puffy and the cave ghost.
+    world.options = normalizeOptions({
+      ...world.options,
+      difficulty: "hard",
+      monsters: true,
+    });
+    timeOfDay = 0.75;
+    const px0 = Math.round(player.x),
+      pz0 = Math.round(player.z),
+      floor0 = Math.round(player.y - 0.51);
+    setBlock([px0 + 2, floor0 + 1, pz0], 2);
+    setBlock([px0 + 2, floor0 + 2, pz0], 2);
+    rebuildAt([px0 + 2, floor0 + 1, pz0]);
+    const climber = addMonster("spider", { x: px0 + 3.6, y: player.y, z: pz0 });
+    let highest = climber.y;
+    for (let i = 0; i < 120; i++) {
+      frame(last + 16);
+      highest = Math.max(highest, climber.y);
+    }
+    check("the woolly spider climbs walls", highest > player.y + 1.5);
+    removeMonster(climber, false);
+    for (const m of [...monsters]) removeMonster(m, false);
+    const built = [px0 - 1, floor0 + 1, pz0 - 1];
+    setBlock(built, 6);
+    const cloud = addMonster("puff", { x: px0 - 1.4, y: player.y, z: pz0 - 1 });
+    cloud.fuse = 0;
+    vitals.hurtCooldown = 0;
+    vitals.health = 20;
+    const editsBefore = [...edits.values()].filter((v) => v === null).length;
+    frame(last + 16);
+    check(
+      "Puffy goes PUF: knocks natural blocks but never Biel's builds",
+      !monsters.includes(cloud) &&
+        blocks.get(key(...built)) === 6 &&
+        [...edits.values()].filter((v) => v === null).length > editsBefore &&
+        vitals.health < 20,
+    );
+    const roofX = Math.round(player.x),
+      roofZ = Math.round(player.z),
+      roofY = Math.round(player.y);
+    for (let y = roofY + 4; y <= roofY + 6; y++) setBlock([roofX, y, roofZ], 2);
+    timeOfDay = 0.3;
+    let caveMonster = null;
+    for (let i = 0; i < 30 && !caveMonster; i++)
+      caveMonster = trySpawnMonster();
+    check(
+      "on Hard, caves have monsters even by day",
+      underground() && caveMonster?.cave,
+    );
+    for (const m of [...monsters]) removeMonster(m, false);
+    const spook = addMonster("ghost", { x: px0 + 6, y: player.y + 1, z: pz0 });
+    spook.cave = true;
+    const ghostStart = Math.hypot(spook.x - player.x, spook.z - player.z);
+    for (let i = 0; i < 60; i++) frame(last + 16);
+    check(
+      "the mist ghost floats through rock",
+      Math.hypot(spook.x - player.x, spook.z - player.z) < ghostStart - 0.8,
+    );
+    for (const m of [...monsters]) removeMonster(m, false);
+    for (let y = roofY + 4; y <= roofY + 6; y++) {
+      blocks.delete(key(roofX, y, roofZ));
+      edits.set(key(roofX, y, roofZ), null);
+    }
+    rebuildAt([roofX, roofY + 4, roofZ]);
+    world.options = normalizeOptions({
+      ...world.options,
+      difficulty: "normal",
+    });
     world.options = normalizeOptions({ ...world.options, monsters: false });
     timeOfDay = 0.75;
     for (let i = 0; i < 6; i++) trySpawnMonster();

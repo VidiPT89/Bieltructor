@@ -10,24 +10,62 @@ export const MONSTERS = {
   jelly: { hp: 4, speed: 1, damage: 2, from: "easy", drop: ["slime", 1] },
   // Bony archer: keeps its distance and shoots suction-cup arrows.
   archer: { hp: 3, speed: 0.9, damage: 2, from: "normal", drop: ["bone", 2] },
+  // Woolly spider: climbs walls, only at night.
+  spider: {
+    hp: 3,
+    speed: 1.3,
+    damage: 2,
+    from: "normal",
+    drop: ["wool", 2],
+    climbs: true,
+  },
+  // Puffy: a grey cloud that goes "PUF", pushing Biel and knocking over a few
+  // natural blocks (never anything Biel built).
+  puff: {
+    hp: 3,
+    speed: 0.9,
+    damage: 3,
+    from: "hard",
+    drop: ["coal", 2],
+    puff: true,
+  },
+  // Mist ghost: floats through caves and walls.
+  ghost: {
+    hp: 3,
+    speed: 1,
+    damage: 2,
+    from: "hard",
+    drop: ["glowstone", 1],
+    flies: true,
+    cave: true,
+  },
 };
-export const LIGHT_RADIUS = 6;
+const LIGHT_RADIUS = 6;
 
-export const allowedMonsters = (difficulty) =>
+// Monsters for a difficulty; underground only the cave kinds appear.
+export const allowedMonsters = (difficulty, underground = false) =>
   Object.keys(MONSTERS).filter(
     (type) =>
       DIFFICULTIES.indexOf(difficulty) >=
-      DIFFICULTIES.indexOf(MONSTERS[type].from),
+        DIFFICULTIES.indexOf(MONSTERS[type].from) &&
+      (!MONSTERS[type].cave || underground),
   );
 
-// Monsters only come out in Adventure, at night, when switched on and
-// never on Peaceful.
-export function canSpawn({ mode, options, night, count, rules }) {
+// Monsters only come out in Adventure, at night (or in caves on Hard), when
+// switched on and never on Peaceful.
+export function canSpawn({
+  mode,
+  options,
+  night,
+  count,
+  rules,
+  underground = false,
+}) {
   return (
     mode === "adventure" &&
     options.monsters &&
     options.difficulty !== "peaceful" &&
-    night &&
+    (night || (underground && options.difficulty === "hard")) &&
     count < rules.maxMonsters
   );
 }

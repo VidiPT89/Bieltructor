@@ -44,6 +44,15 @@ test("no monster ever appears on Peaceful or with monsters switched off", () => 
 
 test("the archer only shows up from Normal", () => {
   assert.deepEqual(allowedMonsters("easy"), ["sleepy", "jelly"]);
+  assert.deepEqual(allowedMonsters("normal"), [
+    "sleepy",
+    "jelly",
+    "archer",
+    "spider",
+  ]);
+  assert(allowedMonsters("hard").includes("puff"));
+  assert(!allowedMonsters("hard").includes("ghost"), "ghosts only in caves");
+  assert(allowedMonsters("hard", true).includes("ghost"));
   assert(allowedMonsters("normal").includes("archer"));
   assert.deepEqual(allowedMonsters("peaceful"), []);
 });
@@ -90,4 +99,30 @@ test("monsters saved with the world are cleaned up when loading", async () => {
     { type: "sleepy", x: 1, y: 3, z: 1, hp: 4, small: false },
     { type: "archer", x: 1, y: 3, z: 1, hp: 2, small: false },
   ]);
+});
+
+test("on Hard, caves have monsters even by day; never on easier levels", () => {
+  const day = { mode: "adventure", count: 0, night: false, underground: true };
+  assert(
+    canSpawn({
+      ...day,
+      options: normalizeOptions({ difficulty: "hard" }),
+      rules: R.hard,
+    }),
+  );
+  assert(
+    !canSpawn({
+      ...day,
+      options: normalizeOptions({ difficulty: "normal" }),
+      rules: R.normal,
+    }),
+  );
+  assert(
+    !canSpawn({
+      ...day,
+      underground: false,
+      options: normalizeOptions({ difficulty: "hard" }),
+      rules: R.hard,
+    }),
+  );
 });

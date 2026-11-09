@@ -1,6 +1,5 @@
 // Day and night. The cycle position t runs from 0 to 1:
 // 0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
-export const DAY_LENGTH = 480; // seconds for a full day in the game
 export const NOON = 0.25;
 
 const smooth = (a, b, x) => {

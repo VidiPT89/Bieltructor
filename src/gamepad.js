@@ -1,6 +1,6 @@
 // Game controllers (PlayStation, Xbox, MFi): turns a controller's state into
 // the same actions the keyboard and the touch buttons use.
-export const DEADZONE = 0.22;
+const DEADZONE = 0.22;
 
 // state: { lx, ly, rx, ry, lt, rt, a, b, x, y, lb, rb, start, up, down, left, right }
 // Axes go from -1 to 1 (up is negative); triggers from 0 to 1.

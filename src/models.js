@@ -338,6 +338,89 @@ function archer() {
   return g;
 }
 
+function spider() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  box(g, [0.7, 0.42, 0.8], [0, 0.42, -0.1], 0x8d8f9c);
+  const head = new THREE.Group();
+  head.position.set(0, 0.42, 0.38);
+  g.add(head);
+  box(head, [0.46, 0.36, 0.3], [0, 0, 0], 0x9fa1ae);
+  // Eight little round eyes.
+  for (const [x, y] of [
+    [-0.14, 0.06],
+    [0.14, 0.06],
+    [-0.06, 0.1],
+    [0.06, 0.1],
+    [-0.18, -0.04],
+    [0.18, -0.04],
+    [-0.07, -0.02],
+    [0.07, -0.02],
+  ])
+    box(head, [0.06, 0.06, 0.02], [x, y, 0.16], 0x2b2620);
+  g.userData.head = head;
+  for (const side of [-1, 1])
+    for (const z of [0.18, 0.02, -0.14, -0.3]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.34, 0.42, z);
+      const leg = box(
+        pivot,
+        [0.5, 0.07, 0.07],
+        [side * 0.22, -0.12, 0],
+        0x6e7080,
+      );
+      leg.rotation.z = side * -0.6;
+      g.add(pivot);
+      g.userData.legs.push(pivot);
+    }
+  return g;
+}
+
+function puff() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  const body = new THREE.Group();
+  g.add(body);
+  g.userData.body = body;
+  for (const [w, x, y, z] of [
+    [0.7, 0, 0.75, 0],
+    [0.5, 0.3, 0.95, 0.05],
+    [0.5, -0.3, 0.9, -0.05],
+    [0.45, 0, 1.1, -0.1],
+    [0.4, 0.15, 0.55, 0.2],
+  ])
+    box(body, [w, w * 0.8, w], [x, y, z], 0x9aa0a6);
+  for (const x of [-0.13, 0.13])
+    box(body, [0.1, 0.12, 0.02], [x, 0.82, 0.36], 0x2b2f33);
+  box(body, [0.18, 0.05, 0.02], [0, 0.66, 0.36], 0x2b2f33);
+  return g;
+}
+
+function ghost() {
+  const g = new THREE.Group();
+  g.userData.legs = [];
+  const sheet = new THREE.MeshStandardMaterial({
+    color: 0xf2f6ff,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 0.4,
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.9, 0.5), sheet);
+  body.position.y = 0.95;
+  g.add(body);
+  // A wavy hem at the bottom.
+  for (const x of [-0.22, 0, 0.22]) {
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.5), sheet);
+    tail.position.set(x, 0.42, 0);
+    g.add(tail);
+  }
+  for (const x of [-0.12, 0.12])
+    box(g, [0.1, 0.14, 0.02], [x, 1.08, 0.26], 0x3a4157);
+  box(g, [0.12, 0.1, 0.02], [0, 0.88, 0.26], 0x3a4157);
+  g.userData.body = body;
+  return g;
+}
+
 export function arrow() {
   const g = new THREE.Group();
   box(g, [0.05, 0.05, 0.6], [0, 0, 0], 0x9a6a3c);
@@ -357,6 +440,9 @@ export const MODELS = {
   sleepy,
   jelly,
   archer,
+  spider,
+  puff,
+  ghost,
 };
 
 // A floating name tag drawn on a canvas.
