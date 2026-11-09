@@ -1,4 +1,5 @@
 // Worlds: options, difficulty rules, saving format (v2) and migration from v1.
+import { Inventory } from "./inventory.js";
 import { validateSave, validatePlayer, SIZES, MAX_Y } from "./world.js";
 
 const SAVE_VERSION = 2;
@@ -235,7 +236,12 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
           Array.isArray(pack.items),
       )
       .slice(0, 10)
-      .map(({ x, y, z, items }) => ({ x, y, z, items: items.slice(0, 36) }));
+      .map(({ x, y, z, items }) => ({
+        x,
+        y,
+        z,
+        items: Inventory.from(items, Math.min(items.length, 36)).toJSON(),
+      }));
   // Chests and furnaces are stored by block position ("x,y,z").
   const byPlace = (o) =>
     o && typeof o === "object" && !Array.isArray(o)

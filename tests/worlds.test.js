@@ -144,3 +144,27 @@ test("'Animals only friends' is on for gentle levels and for older worlds", asyn
   delete old.options.friendsOnly;
   assert.equal(validateWorld(old, { id: "o" }).options.friendsOnly, true);
 });
+
+test("recovery bags validate their contents and preserve tool wear", () => {
+  const world = newWorld({ id: "loot" });
+  world.backpacks = [
+    {
+      x: 0,
+      y: 5,
+      z: 0,
+      items: [
+        ["wooden_pickaxe", 1, 12],
+        ["unknown", 2],
+        ["apple", -1],
+        ["dirt", 100],
+        { id: "apple" },
+      ],
+    },
+  ];
+  const items = validateWorld(world).backpacks[0].items;
+  assert.deepEqual(items[0], ["wooden_pickaxe", 1, 12]);
+  assert.equal(items[1], null);
+  assert.equal(items[2], null);
+  assert.deepEqual(items[3], ["dirt", 64]);
+  assert.equal(items[4], null);
+});

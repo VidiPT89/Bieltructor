@@ -10,7 +10,8 @@ export class Inventory {
   }
 
   // Adds items, filling existing stacks first. Returns how many did not fit.
-  add(id, count = 1) {
+  add(id, count = 1, wear = 0) {
+    if (!isItem(id) || !Number.isInteger(count) || count <= 0) return count;
     for (const pass of ["stack", "empty"])
       for (let i = 0; i < this.size && count > 0; i++) {
         const slot = this.slots[i];
@@ -21,10 +22,20 @@ export class Inventory {
         } else if (pass === "empty" && !slot) {
           const n = Math.min(count, maxStack(id));
           this.slots[i] = { id, count: n };
+          if (Number.isInteger(wear) && wear > 0 && wear < toolUses(id))
+            this.slots[i].wear = wear;
           count -= n;
         }
       }
     return count;
+  }
+
+  // Collect a container atomically: if anything does not fit, leave both alone.
+  collect(items) {
+    const next = Inventory.from(this.toJSON(), this.size);
+    for (const slot of items) if (next.add(...slot)) return false;
+    this.slots = next.slots;
+    return true;
   }
 
   count(id) {

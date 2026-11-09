@@ -39,3 +39,7 @@ test("chest treasure is always the same for the same place", () => {
   for (let i = 0; i < 27; i++) chest.add("wooden_sword");
   assert.equal(chest.add("wooden_sword"), 1, "a chest holds 27 stacks");
 });
+
+test("unknown furnace items cannot escape into the backpack", () => {
+  assert.equal(validateFurnace({ output: ["unknown", 64] }).output, null);
+});

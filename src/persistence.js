@@ -77,11 +77,15 @@ export function snapshotWorld(
 export function createCloud({ bridge, storage, store, hooks }) {
   let seq = 0,
     timer = null,
-    inFlight = null;
+    inFlight = null,
+    resolving = false;
   const waiting = new Map();
   const marks = () => {
     try {
-      return JSON.parse(storage.getItem("biel-synced") || "{}");
+      const value = JSON.parse(storage.getItem("biel-synced") || "{}");
+      return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
     } catch {
       return {};
     }
@@ -107,11 +111,19 @@ export function createCloud({ bridge, storage, store, hooks }) {
       return new Promise((resolve) => {
         if (!bridge) return resolve(null);
         const req = ++seq;
-        waiting.set(req, resolve);
-        bridge.postMessage({ req, action, ...extra });
-        setTimeout(() => {
-          if (waiting.delete(req)) resolve(null);
+        const timeout = setTimeout(() => {
+          waiting.delete(req);
+          resolve(null);
         }, 8000);
+        waiting.set(req, (value) => {
+          clearTimeout(timeout);
+          resolve(value);
+        });
+        try {
+          bridge.postMessage({ req, action, ...extra });
+        } catch {
+          cloud.reply(req, null);
+        }
       });
     },
     // After a save: automatic uploads use the same conflict checks as a sync.
@@ -121,7 +133,7 @@ export function createCloud({ bridge, storage, store, hooks }) {
       timer = setTimeout(() => cloud.sync(), 4000);
     },
     sync() {
-      if (!hooks.enabled()) return Promise.resolve();
+      if (!hooks.enabled() || resolving) return Promise.resolve();
       if (inFlight) return inFlight;
       inFlight = run()
         .catch(() => {
@@ -134,19 +146,31 @@ export function createCloud({ bridge, storage, store, hooks }) {
     },
     // The player chooses which version to keep; nothing is lost silently.
     async resolve(keepHere) {
-      const c = cloud.conflicts.shift();
-      if (keepHere) {
-        const res = await cloud.call("save", {
-          worldId: c.id,
-          json: JSON.stringify(c.local),
-        });
-        if (res?.ok) markSynced(c.id, c.local.updatedAt);
-      } else {
-        store.save(c.remote);
-        markSynced(c.id, c.remote.updatedAt);
-        if (hooks.currentId() === c.id) hooks.load(c.remote);
+      if (resolving || inFlight || hooks.busy() || !hooks.enabled()) return;
+      const c = cloud.conflicts[0];
+      if (!c) return;
+      resolving = true;
+      try {
+        if (keepHere) {
+          const res = await cloud.call("save", {
+            worldId: c.id,
+            json: JSON.stringify(c.local),
+          });
+          if (!res?.ok) throw new Error("Cloud save failed");
+          markSynced(c.id, c.local.updatedAt);
+        } else {
+          store.save(c.remote);
+          markSynced(c.id, c.remote.updatedAt);
+          if (hooks.currentId() === c.id) hooks.load(c.remote);
+        }
+        cloud.conflicts.shift();
+        hooks.onResolved();
+      } catch {
+        cloud.status = "missing";
+        hooks.onMissing();
+      } finally {
+        resolving = false;
       }
-      hooks.onResolved();
     },
   };
   async function run() {
@@ -159,32 +183,56 @@ export function createCloud({ bridge, storage, store, hooks }) {
     }
     // Never read a failed or incomplete listing as an empty cloud.
     const listing = await cloud.call("list");
-    if (!Array.isArray(listing) || !hooks.enabled()) return;
+    if (!hooks.enabled()) return;
+    if (!Array.isArray(listing)) {
+      cloud.status = "missing";
+      hooks.onMissing();
+      return;
+    }
     // Keep the live game untouched; pausing saves and schedules another try.
     if (hooks.busy()) return;
-    const remotes = listing
-      .map((text) => {
-        try {
-          const raw = JSON.parse(text);
-          const w = validateWorld(raw, { id: raw.id });
-          return w && { ...w, device: raw.device ?? "" };
-        } catch {
+    const remotes = listing.map((text) => {
+      try {
+        const raw = JSON.parse(text);
+        if (
+          !raw ||
+          typeof raw.id !== "string" ||
+          !/^[a-zA-Z0-9_-]{1,40}$/.test(raw.id)
+        )
           return null;
-        }
-      })
-      .filter(Boolean);
+        const w = validateWorld(raw, { id: raw.id });
+        return w && { ...w, device: raw.device ?? "" };
+      } catch {
+        return null;
+      }
+    });
+    // A corrupt remote is not an absent world: never overwrite it blindly.
+    if (
+      remotes.some((w) => !w) ||
+      new Set(remotes.map((w) => w.id)).size !== remotes.length
+    ) {
+      cloud.status = "missing";
+      hooks.onMissing();
+      return;
+    }
     const locals = store
       .list()
       .map((w) => store.load(w.id))
       .filter(Boolean);
     cloud.conflicts = [];
     for (const step of syncPlan(locals, remotes, marks())) {
+      if (!hooks.enabled() || hooks.busy()) return;
       if (step.action === "upload") {
         const res = await cloud.call("save", {
           worldId: step.id,
           json: JSON.stringify(step.local),
         });
-        if (res?.ok) markSynced(step.id, step.local.updatedAt);
+        if (!res?.ok) {
+          cloud.status = "missing";
+          hooks.onMissing();
+          return;
+        }
+        markSynced(step.id, step.local.updatedAt);
       } else if (step.action === "download") {
         if (store.list().length >= MAX_WORLDS && !step.local) continue;
         store.save(step.remote);

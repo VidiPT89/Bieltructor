@@ -2,7 +2,7 @@ import Cocoa
 import UniformTypeIdentifiers
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate,
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate,
   WKScriptMessageHandler
 {
   var window: NSWindow!
@@ -64,7 +64,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     web = WKWebView(frame: .zero, configuration: config)
     web.navigationDelegate = self
-    web.uiDelegate = self
     web.setValue(false, forKey: "drawsBackground")
     window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
@@ -106,25 +105,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
       decisionHandler(.cancel)
       return
     }
-    if url.scheme == "bieltructor" {
+    if url.scheme == "bieltructor", url.host == "app" {
       decisionHandler(.allow)
     } else {
-      if url.scheme == "https", ["ividi.dev", "github.com"].contains(url.host ?? "") {
-        NSWorkspace.shared.open(url)
-      }
       decisionHandler(.cancel)
     }
-  }
-  func webView(
-    _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
-    for action: WKNavigationAction, windowFeatures: WKWindowFeatures
-  ) -> WKWebView? {
-    if let url = action.request.url, url.scheme == "https",
-      ["ividi.dev", "github.com"].contains(url.host ?? "")
-    {
-      NSWorkspace.shared.open(url)
-    }
-    return nil
   }
   func userContentController(
     _ userContentController: WKUserContentController, didReceive message: WKScriptMessage

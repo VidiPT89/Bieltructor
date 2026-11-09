@@ -816,7 +816,31 @@ export function installSmokeTests(g) {
         "things move into the chest",
         g.chestAt(chestKey).count("dirt") >= 5 && !g.inventory.count("dirt"),
       );
+      const beforeTransfer = g.inventory.toJSON();
+      g.inventory = new Inventory();
+      g.inventory.add("wooden_pickaxe", 1, 12);
+      g.moveStack("bag", 0);
+      const toolIndex = g
+        .chestAt(chestKey)
+        .slots.findIndex((s) => s?.id === "wooden_pickaxe");
+      g.moveStack("chest", toolIndex);
+      check(
+        "chest transfers keep tool wear",
+        g.inventory.slots[0]?.wear === 12,
+      );
+      g.inventory = new Inventory();
+      for (let i = 0; i < 36; i++) g.inventory.add("wooden_sword");
+      const chestContents = JSON.stringify(g.world.chests[chestKey]);
       g.action("back");
+      g.target = { p: [cx0, cy0 + 1, cz0], normal: new THREE.Vector3(0, 1, 0) };
+      g.targetAnimal = g.targetMonster = null;
+      g.edit(false);
+      check(
+        "a full backpack cannot destroy a filled chest",
+        g.blocks.get(chestKey) === CHEST &&
+          JSON.stringify(g.world.chests[chestKey]) === chestContents,
+      );
+      g.inventory = Inventory.from(beforeTransfer);
       const fx0 = cx0 + 1;
       g.inventory.add("furnace", 1);
       hold("furnace");

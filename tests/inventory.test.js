@@ -106,3 +106,40 @@ test("splitting puts half a stack into the first empty slot", () => {
   ];
   assert.equal(full.split(0), -1, "no room");
 });
+
+test("moving tools and recovering serialized loot preserves wear", () => {
+  const tool = { id: "wooden_pickaxe", count: 1, wear: 12 };
+  const chest = new Inventory(1);
+  assert.equal(chest.add(tool.id, tool.count, tool.wear), 0);
+  const bag = new Inventory(1);
+  assert.equal(bag.add(...chest.toJSON()[0]), 0);
+  assert.deepEqual(bag.slots[0], tool);
+  assert.equal(bag.add(tool.id, tool.count, tool.wear), 1);
+  assert.deepEqual(bag.slots[0], tool);
+});
+
+test("emptying a container is all-or-nothing when the backpack is full", () => {
+  const bag = new Inventory(2);
+  bag.add("dirt", 63);
+  bag.add("wooden_pickaxe", 1, 12);
+  const before = bag.toJSON();
+  assert.equal(
+    bag.collect([
+      ["dirt", 1],
+      ["apple", 1],
+    ]),
+    false,
+  );
+  assert.deepEqual(bag.toJSON(), before);
+  assert.equal(bag.collect([["dirt", 1]]), true);
+  assert.equal(bag.count("dirt"), 64);
+  assert.equal(bag.slots[1].wear, 12);
+});
+
+test("invalid loot never enters the inventory", () => {
+  const bag = new Inventory();
+  bag.add("not-an-item", 2);
+  bag.add("apple", -1);
+  bag.add("apple", 1.5);
+  assert(bag.slots.every((s) => s === null));
+});

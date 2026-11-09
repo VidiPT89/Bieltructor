@@ -1,3 +1,5 @@
+import { isItem } from "./items.js";
+
 // The furnace: what it cooks or melts, what burns, and how long it takes.
 export const SMELT = {
   iron_ore: "iron_ingot",
@@ -26,10 +28,7 @@ export const emptyFurnace = () => ({
 
 export function validateFurnace(raw) {
   const slot = (s) =>
-    Array.isArray(s) &&
-    typeof s[0] === "string" &&
-    Number.isInteger(s[1]) &&
-    s[1] > 0
+    Array.isArray(s) && isItem(s[0]) && Number.isInteger(s[1]) && s[1] > 0
       ? [s[0], Math.min(s[1], 64)]
       : null;
   if (!raw || typeof raw !== "object") return emptyFurnace();

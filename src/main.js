@@ -871,6 +871,7 @@ const cloud = createCloud({
     load: (w) => loadWorld(w),
     lang: () => settings.lang,
     onMissing: () => {
+      if (mode === "conflict") toast(t("icloudMissing"));
       if (mode === "settings") render();
     },
     onSynced: () => {
@@ -4324,13 +4325,17 @@ function emptyContainer(type, k) {
     type === CHEST
       ? chestAt(k)
           .slots.filter(Boolean)
-          .map((s) => [s.id, s.count])
+          .map((s) => [s.id, s.count, s.wear])
       : ["input", "fuel", "output"]
           .map((slot) => validateFurnace(world.furnaces[k])[slot])
           .filter(Boolean);
-  for (const [id, n] of items) if (inventory.add(id, n)) toast(t("full"));
+  if (!inventory.collect(items)) {
+    toast(t("full"));
+    return false;
+  }
   delete world.chests[k];
   delete world.furnaces[k];
+  return true;
 }
 // Moves a whole stack between the backpack and the open chest or furnace.
 function moveStack(from, index) {
@@ -4340,8 +4345,8 @@ function moveStack(from, index) {
       from === "bag" ? [inventory, chest] : [chest, inventory];
     const slot = source.slots[index];
     if (!slot) return;
-    const left = dest.add(slot.id, slot.count);
-    source.slots[index] = left ? { id: slot.id, count: left } : null;
+    const left = dest.add(slot.id, slot.count, slot.wear);
+    source.slots[index] = left ? { ...slot, count: left } : null;
     world.chests[container.key] = chest.toJSON();
   } else {
     const f = validateFurnace(world.furnaces[container.key]);
@@ -4595,8 +4600,9 @@ function edit(place) {
     }
   } else {
     const type = blocks.get(k);
+    if ((type === CHEST || type === FURNACE) && !emptyContainer(type, k))
+      return;
     burst(p, type);
-    if (type === CHEST || type === FURNACE) emptyContainer(type, k);
     if (type === SIGN) {
       delete world.signs[k];
       refreshSigns();
@@ -4948,8 +4954,8 @@ function frame(now) {
           // Whatever does not fit stays in the backpack on the ground.
           pack.items = pack.items.flatMap((slot) => {
             if (!slot) return [];
-            const left = inventory.add(slot[0], slot[1]);
-            return left ? [[slot[0], left]] : [];
+            const left = inventory.add(...slot);
+            return left ? [[slot[0], left, slot[2]]] : [];
           });
           if (pack.items.length) {
             pack.wait = elapsed + 5;

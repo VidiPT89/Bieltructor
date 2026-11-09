@@ -33,5 +33,5 @@ export const wearBar = (wear, uses) =>
     : "";
 
 export const credits = () =>
-  `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
+  `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><span>iVidi.dev</span></div></div>`;
 export const logo = `<img class="brand-icon" src="logo.webp" alt=""><span>BIEL<span class="brand-accent">TRUCTOR</span></span>`;

@@ -17,7 +17,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 }
 
-final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDelegate,
+final class GameViewController: UIViewController, WKNavigationDelegate,
   WKScriptMessageHandler, UIDocumentPickerDelegate
 {
   private var web: WKWebView!
@@ -46,7 +46,6 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         forMainFrameOnly: true))
     web = WKWebView(frame: .zero, configuration: config)
     web.navigationDelegate = self
-    web.uiDelegate = self
     web.isOpaque = false
     web.backgroundColor = view.backgroundColor
     web.scrollView.isScrollEnabled = false
@@ -74,12 +73,6 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     web.evaluateJavaScript("window.pauseNativeGame?.()", completionHandler: nil)
   }
 
-  private func openExternal(_ url: URL) {
-    guard url.scheme == "https", ["ividi.dev", "github.com"].contains(url.host ?? "") else {
-      return
-    }
-    UIApplication.shared.open(url)
-  }
   func webView(
     _ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
@@ -91,16 +84,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     if url.scheme == "bieltructor", url.host == "app" {
       decisionHandler(.allow)
     } else {
-      openExternal(url)
       decisionHandler(.cancel)
     }
-  }
-  func webView(
-    _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
-    for action: WKNavigationAction, windowFeatures: WKWindowFeatures
-  ) -> WKWebView? {
-    if let url = action.request.url { openExternal(url) }
-    return nil
   }
   func userContentController(
     _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
