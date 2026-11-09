@@ -32,3 +32,7 @@ test("parents can cap the difficulty and get a break reminder", () => {
     },
   );
 });
+
+test("null parental settings recover defaults without preventing startup", () => {
+  assert.deepEqual(normalizeParents(null), normalizeParents());
+});

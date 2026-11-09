@@ -9,6 +9,7 @@ const defaultParents = () => ({
 export const REMINDERS = [0, 30, 45, 60];
 
 export function normalizeParents(raw = {}) {
+  if (!raw || typeof raw !== "object") raw = {};
   const d = defaultParents();
   return {
     reminder: REMINDERS.includes(raw.reminder) ? raw.reminder : d.reminder,

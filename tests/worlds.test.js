@@ -104,3 +104,31 @@ test("the store migrates the old single world once and lists worlds", () => {
     ["n"],
   );
 });
+
+test("malformed optional fields do not crash imported worlds", () => {
+  const w = newWorld({ id: "safe", options: {} });
+  const imported = validateWorld({
+    ...w,
+    options: null,
+    backpacks: [
+      null,
+      {},
+      { x: 0, y: 2, z: 0, items: [["apple", 2]] },
+      { x: 999, y: 2, z: 0, items: [] },
+    ],
+  });
+  assert.equal(imported.options.difficulty, "easy");
+  assert.deepEqual(imported.backpacks, [
+    { x: 0, y: 2, z: 0, items: [["apple", 2]] },
+  ]);
+});
+
+test("invalid world index entries do not prevent saving valid worlds", () => {
+  const storage = memory();
+  storage.setItem("biel-worlds", JSON.stringify([null, {}, "broken"]));
+  const store = createStore(storage);
+  assert.deepEqual(store.list(), []);
+  store.save(newWorld({ id: "valid", options: {} }));
+  assert.equal(store.list()[0].id, "valid");
+  assert.equal(store.load("valid").id, "valid");
+});

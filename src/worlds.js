@@ -1,5 +1,5 @@
 // Worlds: options, difficulty rules, saving format (v2) and migration from v1.
-import { validateSave, validatePlayer, SIZES } from "./world.js";
+import { validateSave, validatePlayer, SIZES, MAX_Y } from "./world.js";
 
 const SAVE_VERSION = 2;
 export const MAX_WORLDS = 6;
@@ -64,6 +64,7 @@ function defaultOptions(difficulty = "easy") {
 }
 
 export function normalizeOptions(raw = {}) {
+  if (!raw || typeof raw !== "object") raw = {};
   const difficulty = pick(raw.difficulty, DIFFICULTIES, "easy");
   const base = defaultOptions(difficulty);
   const flag = (v, d) => (typeof v === "boolean" ? v : d);
@@ -194,7 +195,19 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
   if (Array.isArray(raw.creatures))
     world.creatures = raw.creatures.slice(0, 60);
   if (Array.isArray(raw.backpacks))
-    world.backpacks = raw.backpacks.slice(0, 10);
+    world.backpacks = raw.backpacks
+      .filter(
+        (pack) =>
+          pack &&
+          [pack.x, pack.y, pack.z].every(Number.isFinite) &&
+          Math.abs(pack.x) <= (size ? SIZES[size] : SIZES.small) &&
+          Math.abs(pack.z) <= (size ? SIZES[size] : SIZES.small) &&
+          pack.y >= 0 &&
+          pack.y <= MAX_Y + 10 &&
+          Array.isArray(pack.items),
+      )
+      .slice(0, 10)
+      .map(({ x, y, z, items }) => ({ x, y, z, items: items.slice(0, 36) }));
   // Chests and furnaces are stored by block position ("x,y,z").
   const byPlace = (o) =>
     o && typeof o === "object" && !Array.isArray(o)
@@ -230,7 +243,17 @@ export function createStore(storage) {
   const store = {
     list() {
       const index = read("biel-worlds");
-      return Array.isArray(index) ? index : [];
+      return Array.isArray(index)
+        ? index.filter(
+            (w) =>
+              w &&
+              typeof w.id === "string" &&
+              typeof w.name === "string" &&
+              MODES.includes(w.mode) &&
+              DIFFICULTIES.includes(w.difficulty) &&
+              Number.isFinite(w.updatedAt),
+          )
+        : [];
     },
     load(id) {
       return validateWorld(read("biel-world-" + id), { id });

@@ -41,24 +41,30 @@ final class CloudBridge: NSObject, WKScriptMessageHandler {
         result = ["available": folder != nil]
       case "list":
         var worlds: [String] = []
+        var complete = false
         if let folder,
           let files = try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.fileSizeKey])
         {
+          complete = true
           for file in files {
             // Files not downloaded yet are asked for; they arrive on a later sync.
             if file.lastPathComponent.hasPrefix(".") {
-              try? FileManager.default.startDownloadingUbiquitousItem(at: file)
+              if file.lastPathComponent.hasSuffix(".icloud") {
+                complete = false
+                try? FileManager.default.startDownloadingUbiquitousItem(at: file)
+              }
               continue
             }
-            guard file.pathExtension == "json",
+            guard file.pathExtension == "json" else { continue }
+            guard
               let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 3_000_000,
               let text = try? String(contentsOf: file, encoding: .utf8)
-            else { continue }
+            else { complete = false; continue }
             worlds.append(text)
           }
         }
-        result = worlds
+        if complete { result = worlds }
       case "save":
         if let folder, let worldId, let json, json.utf8.count <= 3_000_000 {
           let ok = (try? json.write(

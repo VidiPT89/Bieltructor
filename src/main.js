@@ -774,18 +774,26 @@ const markSynced = (id, updatedAt) => {
 function scheduleCloudUpload() {
   if (!settings.cloud || !cloudBridge || !world) return;
   clearTimeout(cloudTimer);
-  const id = world.id;
-  cloudTimer = setTimeout(async () => {
-    const saved = store.load(id);
-    if (!saved) return;
-    const res = await cloudCall("save", {
-      worldId: id,
-      json: JSON.stringify(saved),
-    });
-    if (res?.ok) markSynced(id, saved.updatedAt);
+  // Automatic saves use the same conflict checks as manual synchronization.
+  cloudTimer = setTimeout(() => {
+    syncNow();
   }, 4000);
 }
-async function syncNow() {
+let syncInFlight = null;
+function syncNow() {
+  if (!settings.cloud) return Promise.resolve();
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = performSync()
+    .catch(() => {
+      cloudStatus = "missing";
+    })
+    .finally(() => {
+      syncInFlight = null;
+    });
+  return syncInFlight;
+}
+
+async function performSync() {
   if (!settings.cloud) return;
   const status = await cloudCall("status");
   if (!status?.available) {
@@ -793,7 +801,12 @@ async function syncNow() {
     if (mode === "settings") render();
     return;
   }
-  const remotes = ((await cloudCall("list")) ?? [])
+  // Never interpret a failed or incomplete cloud listing as an empty cloud.
+  const listing = await cloudCall("list");
+  if (!Array.isArray(listing) || !settings.cloud) return;
+  // Keep the live game untouched; pausing saves and schedules another attempt.
+  if (mode === "playing") return;
+  const remotes = listing
     .map((text) => {
       try {
         const raw = JSON.parse(text);
@@ -2015,7 +2028,13 @@ function loadWorld(w) {
   for (const a of arrows) scene.remove(a.mesh);
   arrows = [];
   // Monsters from last time come back where they were.
-  for (const saved of validateMonsters(w.monsters)) {
+  for (const saved of validateMonsters(w.monsters).filter(
+    (m) =>
+      w.mode === "adventure" &&
+      w.options.monsters &&
+      !settings.parents.noMonsters &&
+      allowedMonsters(w.options.difficulty, true).includes(m.type),
+  )) {
     const m = addMonster(saved.type, saved, saved.small, true);
     m.hp = saved.hp;
     m.warned = true;
@@ -3216,13 +3235,11 @@ const backpackMaterial = new THREE.MeshStandardMaterial({
   color: 0xe9852b,
   roughness: 0.8,
 });
+const backpackGeometry = new THREE.BoxGeometry(0.5, 0.55, 0.35);
 function rebuildBackpacks() {
   backpackGroup.clear();
   for (const pack of world?.backpacks ?? []) {
-    const m = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.55, 0.35),
-      backpackMaterial,
-    );
+    const m = new THREE.Mesh(backpackGeometry, backpackMaterial);
     m.position.set(pack.x, pack.y + 0.3, pack.z);
     m.userData.pack = pack;
     backpackGroup.add(m);
@@ -3360,7 +3377,7 @@ function openContainer(type, k) {
   open(type === CHEST ? "chest" : "furnace");
   render();
 }
-function emptyContainer(type, k, p) {
+function emptyContainer(type, k) {
   const items =
     type === CHEST
       ? chestAt(k)
@@ -3391,7 +3408,17 @@ function moveStack(from, index) {
       if (!slot) return;
       const where = SMELT[slot.id] ? "input" : FUEL[slot.id] ? "fuel" : null;
       if (!where) return toast(t("notForFurnace"));
-      if (f[where] && f[where][0] !== slot.id) inventory.add(...f[where]);
+      if (f[where] && f[where][0] !== slot.id) {
+        // Swap through the slot being emptied, even when the backpack is full.
+        const previous = f[where];
+        f[where] = [slot.id, slot.count];
+        inventory.slots[index] = { id: previous[0], count: previous[1] };
+        f.progress = 0;
+        world.furnaces[container.key] = f;
+        scheduleSave();
+        render();
+        return;
+      }
       const total = (f[where]?.[0] === slot.id ? f[where][1] : 0) + slot.count;
       f[where] = [slot.id, Math.min(64, total)];
       inventory.slots[index] =
@@ -3562,7 +3589,7 @@ function edit(place) {
   } else {
     const type = blocks.get(k);
     burst(p, type);
-    if (type === CHEST || type === FURNACE) emptyContainer(type, k, p);
+    if (type === CHEST || type === FURNACE) emptyContainer(type, k);
     tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
@@ -4392,12 +4419,18 @@ if (new URLSearchParams(location.search).has("test"))
     action("namedone");
     interactWith(pony);
     check("riding the horse", riding === pony);
+    // Compare identical unobstructed paths, not two random slopes or trees.
+    player.set(0, MAX_Y + 2, 0);
+    flying = true;
+    velocity = 0;
+    yaw = 0;
     const rideStart = player.clone();
     keys.add("KeyW");
     for (let i = 0; i < 30; i++) frame(last + 16);
     keys.delete("KeyW");
     const rideDistance = player.distanceTo(rideStart);
     dismount();
+    player.copy(rideStart);
     const walkStart = player.clone();
     keys.add("KeyW");
     for (let i = 0; i < 30; i++) frame(last + 16);
@@ -4406,6 +4439,7 @@ if (new URLSearchParams(location.search).has("test"))
       "the horse is faster than walking",
       rideDistance > player.distanceTo(walkStart) * 1.3 && riding === null,
     );
+    flying = false;
     // Monsters on Normal at night: appear, hurt, get chased off, vanish at dawn.
     dog.sitting = true;
     spawn();
@@ -4851,7 +4885,6 @@ if (new URLSearchParams(location.search).has("test"))
       "an edit only redraws its own chunk",
       isRendered(ex, ey, ez) && otherChunk[1].meshes[0] === untouched,
     );
-    const firstWorld = store.list().find((w) => !w.id || true);
     save();
     action("pause");
     action("worlds");
@@ -4948,6 +4981,48 @@ if (new URLSearchParams(location.search).has("test"))
         strings.en.tips.length === strings.pt.tips.length,
     );
 
+    const beforePeacefulLoad = saveData();
+    const peacefulImport = validateWorld({
+      ...beforePeacefulLoad,
+      options: {
+        ...beforePeacefulLoad.options,
+        difficulty: "peaceful",
+        monsters: true,
+      },
+      monsters: [{ type: "sleepy", x: 0, y: 3, z: 0, hp: 4 }],
+    });
+    loadWorld(peacefulImport);
+    check(
+      "loading a peaceful save never restores a saved monster",
+      monsters.length === 0,
+    );
+    loadWorld(beforePeacefulLoad);
+
+    // A full backpack must not discard the previous furnace ingredient.
+    const savedInventory = inventory;
+    inventory = new Inventory();
+    for (let i = 0; i < 36; i++)
+      inventory.slots[i] = { id: "stone", count: 64 };
+    inventory.slots[0] = { id: "potato", count: 4 };
+    const swapFurnaceKey = "0,1,0";
+    container = { type: FURNACE, key: swapFurnaceKey };
+    world.furnaces[swapFurnaceKey] = {
+      ...emptyFurnace(),
+      input: ["iron_ore", 7],
+      progress: 0.8,
+    };
+    moveStack("bag", 0);
+    check(
+      "swapping furnace ingredients keeps items in a full backpack",
+      inventory.slots[0].id === "iron_ore" &&
+        inventory.slots[0].count === 7 &&
+        world.furnaces[swapFurnaceKey].input[0] === "potato" &&
+        world.furnaces[swapFurnaceKey].progress === 0,
+    );
+    delete world.furnaces[swapFurnaceKey];
+    inventory = savedInventory;
+    container = null;
+
     // iCloud sync, with a pretend iCloud (the test app has no iCloud capability).
     const realCloud = cloudCall;
     check(
@@ -5002,6 +5077,16 @@ if (new URLSearchParams(location.search).has("test"))
     check(
       "keeping the other device's version",
       store.load("fromipad").name === "Do iPad (mudado)" && mode === "menu",
+    );
+    let unexpectedUploads = 0;
+    cloudCall = async (action) => {
+      if (action === "save") unexpectedUploads++;
+      return action === "status" ? { available: true } : null;
+    };
+    await syncNow();
+    check(
+      "an unavailable cloud listing never uploads local worlds",
+      unexpectedUploads === 0,
     );
     cloudCall = realCloud;
     settings.cloud = false;
