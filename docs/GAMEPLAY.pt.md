@@ -52,7 +52,11 @@ Usa uma cama para ela passar a ser a **tua casa**. À noite, dormir passa logo p
 
 ## Explorar a ilha
 
-Os mundos novos são ilhas com **biomas**: planície com flores, floresta, praia, deserto com catos, montanha com neve e pinheiros, e pântano com cogumelos. O bioma onde estás aparece em cima, ao lado do relógio. Debaixo do chão há **grutas**. Procura também **ruínas** e **cabanas**: cada uma tem um baú com tesouro.
+Os mundos novos são ilhas com **biomas**: planície com flores, floresta, praia, deserto com catos, montanha com neve e pinheiros, e pântano com cogumelos. O bioma onde estás aparece em cima, ao lado do relógio. Debaixo do chão há **grutas**, algumas com **lagos**. Procura também **ruínas** e **cabanas** (cada uma tem um baú com tesouro) e **poços** na planície. Os lagos, os poços, o cobre e os ninhos de abelhas só aparecem nos mundos criados a partir desta versão; os mundos antigos ficam iguais.
+
+**A luz:** o sol entra pelas aberturas e vai ficando mais fraco lá dentro. As grutas e as casas fechadas ficam escuras; as **tochas**, as **lanternas**, a **pedra luminosa** e o **forno** iluminam à volta. Os monstros só aparecem onde está escuro.
+
+**A água:** com um **balde** apanhas água de um lago, de um poço ou do mar, e despejas noutro sítio. A água cai e espalha-se alguns blocos; se tirares a nascente, seca. O Biel nada nela.
 
 ## Fabricar
 
@@ -66,7 +70,18 @@ Para começar:
 4. Cava na pedra para encontrar **carvão** (precisas de uma picareta para o apanhar).
 5. Com pau e carvão fazes **tochas**.
 
-Mais fundo há **ferro**, **ouro** e um **cristal azul** raro. O ferro precisa de uma picareta de pedra; o ouro e o cristal precisam de uma de ferro. Funde o minério num **forno** (com carvão, madeira, tábuas ou paus) para fazer barras, e com elas ferramentas de ferro. Com cristal fazes as melhores ferramentas de todas. O forno também assa batatas e grelha peixe. Guarda as tuas coisas num **baú**.
+Mais fundo há **cobre**, **ferro**, **ouro** e um **cristal azul** raro. O cobre sai com qualquer picareta; o ferro precisa de uma picareta de pedra; o ouro e o cristal precisam de uma de ferro. Funde o minério num **forno** (com carvão, madeira, tábuas ou paus) para fazer barras. Com cobre fazes a **tesoura**, o **balde** e blocos de cobre; com ferro e cristal, as melhores ferramentas. O forno também assa batatas e grelha peixe. Guarda as tuas coisas num **baú**.
+
+## Ferramentas
+
+Há **picaretas**, **espadas**, **machados**, **pás** e **enxadas** em madeira, pedra, ferro e cristal. Cada uma é rápida no seu tipo de bloco: a picareta na pedra, o machado na madeira, a pá na terra e na areia, a tesoura nas folhas e na lã.
+
+No **Médio** e no **Difícil** as ferramentas gastam-se com o uso. Aparece uma barrinha verde por baixo da ferramenta, um aviso quando está quase gasta e uma mensagem simpática quando acaba. No Pacífico, no Fácil e no Criativo nunca se gastam.
+
+## Construir com formas e cores
+
+- **Escada de mão** para subir paredes, **vedação**, **portão** e **alçapão** (abrem e fecham), **placa** onde escreves um nome e **vaso**.
+- **Tintas** de flores, trigo, catos, cristal e carvão (e misturas para laranja e roxo) pintam a **lã**. Uma ovelha pintada dá lã dessa cor.
 
 ## A quinta e a pesca
 
@@ -83,12 +98,14 @@ Com uma **cana de pesca**, usa-a virado para a água e espera um bocadinho para 
 |---|---|---|
 | Galinha | ovos | sementes de trigo |
 | Vaca | leite | trigo |
-| Ovelha | lã (volta a crescer) | trigo |
+| Ovelha | lã (volta a crescer; com tesoura dá mais) | trigo |
 | Porco | festinhas | cenoura |
 | Coelho | foge se te aproximas | cenoura |
 | Cão | um amigo! (biscoito para cão) | |
 | Gato | um amigo que assusta monstros (peixe) | |
 | Cavalo | um amigo para montar (maçãs, às vezes várias) | |
+
+Também há **abelhas** à volta dos ninhos nos carvalhos (de dia, sem chuva): com um **frasco** (feito de vidro) apanhas **mel**, e depois as abelhas precisam de um bocadinho para fazer mais. No mar nadam **peixes** que fogem quando o Biel se aproxima.
 
 Os animais não se magoam. Dá a **comida preferida a dois animais iguais** e nasce uma **cria**, que cresce passado algum tempo.
 

@@ -26,25 +26,29 @@
 **Worlds and modes**
 - ✅ Up to six saved worlds, each with its own name, mode, size, seed and options
 - ✅ Islands in three sizes (57, 97 or 129 blocks across) made from a seed, or the original **Classic valley**
-- ✅ Biomes: plains with flowers, forests, beaches, deserts with cacti, snowy mountains with spruces and ice, swamps with mushrooms; winding caves underground
+- ✅ Biomes: plains with flowers, forests, beaches, deserts with cacti, snowy mountains with spruces and ice, swamps with mushrooms; winding caves underground, with lakes on the cave floor
+- ✅ Block-by-block light (0 to 15): sunlight falls in and fades into caves, torches, lanterns, glowstone and furnaces light up their surroundings, and monsters only appear where it is dark
 - ✅ **Adventure** (gather, craft, survive) or **Creative** (every block, no dangers, fly with a double tap on Jump)
 - ✅ Four difficulties plus switches for monsters, animals, hunger, weather, keeping the backpack, day and night and the day length
 - ✅ Older worlds open without losing a single block
 
 **Building, crafting and farming**
-- ✅ More than 30 blocks, from grass and glass to doors, beds, torches, chests, furnaces, stone bricks and glowstone
-- ✅ Breaking takes time in Adventure; pickaxes in wood, stone, iron and crystal break faster and reach deeper ores
-- ✅ Coal, iron, gold and rare blue crystal underground; a furnace melts ores into bars and cooks food
+- ✅ More than 60 blocks, from grass and glass to doors, beds, torches, chests, furnaces, stone bricks, glowstone and copper
+- ✅ Building shapes: ladders to climb, fences, gates and trapdoors that open, signs you can write on and flower pots; wool in eight colours from dyes, and sheep that can be dyed
+- ✅ Pickaxes, swords, axes, shovels and hoes in wood, stone, iron and crystal, each fast on its own blocks; shears, buckets and bottles
+- ✅ Gentle tool wear on Normal and Hard only: a small bar under the tool, a friendly warning when it is nearly worn out and a kind message when it is gone
+- ✅ Real water: buckets scoop and pour it, it falls and spreads a few blocks and dries up without its source; Biel swims in it
+- ✅ Coal, copper, iron, gold and rare blue crystal underground; a furnace melts ores into bars and cooks food
 - ✅ Backpack with a 9-slot hotbar and 27 more slots, chests with 27 slots, and a visual recipe book (ingredients turn green when you have them)
 - ✅ A small farm: till soil with a hoe, grow wheat, carrots and potatoes (faster near water or in the rain), bake bread; a fishing rod to catch fish
-- ✅ Ruins and cabins on the islands, each with a treasure chest
+- ✅ Ruins and cabins on the islands, each with a treasure chest, and wells in the plains
 - ✅ A bow with arrows, and a golden apple that heals
 
 **Life on the island**
 - ✅ Original animated voxel character, Biel
 - ✅ Hearts, food and air in Adventure; damage, hunger and falls follow the difficulty, and falling asleep is gentle
 - ✅ Beds become home and sleeping skips the night
-- ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky
+- ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky, bees around their nests (a bottle collects honey) and fish in the sea
 - ✅ Silly night monsters (the Sleepy sleepwalker, the bouncy Jelly, the Bony archer, the woolly Spider that climbs walls, Puffy who goes PUF and the mist Ghost of the caves) that never appear on Peaceful and vanish in sparkles at sunrise; torches and lanterns keep them away, and Puffy never breaks anything Biel built
 - ✅ Day and night, sunsets, stars, rain, snow in the cold biome and gentle thunderstorms (Normal and Hard only)
 
@@ -75,6 +79,7 @@
 | Game logic and interface | JavaScript, HTML, CSS |
 | Build tools | Vite, Swift compiler, Xcode, XcodeGen |
 | Tests | Node.js test runner, integrated WebKit smoke tests and XCUITest |
+| Code layout | `src/main.js` (game loop and screens), `src/input/` (one action list for keyboard, touch and controllers), `src/persistence.js` (saving and iCloud), `src/ui/html.js`, `src/dev/smoke-tests.js`, plus small rule modules (world, lighting, water, items, recipes, creatures, monsters...) |
 | Minimum system | macOS 13 / iOS and iPadOS 16 |
 
 ## 🚀 Quick Start
@@ -130,7 +135,7 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 | Jump / swim up | Space | Jump | A |
 | Fly (Creative) | Double tap Space, C to go down | Double tap Jump, Down | Double tap A, B |
 | Break | Click (hold in Adventure) | Tap the block, hold Break | Right trigger |
-| Build, eat, open, sleep, use an animal | Right-click or Shift + click | Tap the block, then Build | Left trigger |
+| Build, eat, open, sleep, use an animal or a tool (bucket, bottle, shears) | Right-click or Shift + click | Tap the block, then Build | Left trigger |
 | Attack | Click the monster or F | Tap the monster, or Attack | X |
 | Hotbar | 1–9 or the mouse wheel | Tap the slot | Shoulder buttons |
 | Backpack and recipes | E | 🎒 | Y |
@@ -164,13 +169,13 @@ npm run build:ios
 # In Xcode: pick an iPad or iPhone simulator, then Product > Test.
 ```
 
-The unit suite (66 tests) covers terrain and seeds, biomes, caves and ores, collisions, saved worlds and their migration, difficulty rules, stacking, recipes, smelting and treasure, health and hunger, animals, babies, taming and riding, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, controller mapping, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (136 checks, shared by the Mac and iOS apps) plays through worlds, building, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, a game controller, the minimap and map, volumes, the bow and arrows, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad, iPhone 17e and iPhone 17 Pro Max. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
+The unit suite (91 tests) covers terrain and seeds, biomes, caves, ores and the newer island features (copper, lakes, wells and bee nests, only in new worlds), block lighting, flowing water, collisions, saved worlds and their migration, difficulty rules, stacking, tool families and wear, recipes, smelting and treasure, health and hunger, animals, babies, taming, riding and shearing, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, the input action layer and controller mapping, the HTML helpers, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (165 checks in `src/dev/smoke-tests.js`, shared by the Mac and iOS apps) plays through worlds, building and building shapes, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, block lighting, tools and wear, buckets and flowing water, honey and shears, bees, a game controller, the minimap and map, volumes, the bow and arrows, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad and iPhone simulators. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`. iOS simulator tests need the Mac's display awake (with the lid closed, WebGL in the simulator loses its graphics context).
 
 ## Current scope
 
 The original v2 brief is only partially fulfilled. See the [phase-by-phase review](docs/REVIEW-2026-11-09.md) for outstanding requirements, recent fixes and validation limits.
 
-Bieltructor is a single-player game. Multiplayer and an endless world are outside its scope (islands go up to 129 × 129). Requested v2 features still missing include lava, bees and honey, block-by-block lighting (torches use a few real lights near Biel), tool wear, a shield, more building shapes (ladders, fences, gates, trapdoors, signs) and coloured wool. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
+Bieltructor is a single-player game. Multiplayer and an endless world are outside its scope (islands go up to 129 × 129). Requested v2 features still missing include lava (left out on purpose for a young player), a shield and charged bow, world thumbnails, inventory drag and drop with stack splitting, and some sounds and map markers. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
 
 ## 📄 License
 
