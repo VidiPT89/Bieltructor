@@ -12,6 +12,8 @@ export const DAY_LENGTHS = { short: 600, normal: 1200, long: 1800 };
 // Everything that changes with difficulty lives here.
 export const difficultyRules = {
   peaceful: {
+    // Tools wear out only on Normal and Hard.
+    toolWear: false,
     maxMonsters: 0,
     damage: 0,
     hungerRate: 0,
@@ -20,6 +22,8 @@ export const difficultyRules = {
     starvationHurts: false,
   },
   easy: {
+    // Tools wear out only on Normal and Hard.
+    toolWear: false,
     maxMonsters: 2,
     damage: 0.5,
     hungerRate: 0.5,
@@ -28,6 +32,8 @@ export const difficultyRules = {
     starvationHurts: false,
   },
   normal: {
+    // Tools wear out only on Normal and Hard.
+    toolWear: true,
     maxMonsters: 4,
     damage: 1,
     hungerRate: 1,
@@ -36,6 +42,8 @@ export const difficultyRules = {
     starvationHurts: true,
   },
   hard: {
+    // Tools wear out only on Normal and Hard.
+    toolWear: true,
     maxMonsters: 6,
     damage: 1.5,
     hungerRate: 1.5,
@@ -106,6 +114,8 @@ export function newWorld({
     // Worlds without a seed use the original valley (all worlds before v3).
     size: Object.hasOwn(SIZES, size) ? size : null,
     seed: Number.isInteger(seed) ? seed : null,
+    // Terrain generation: 2 adds copper, lakes, wells and bee nests.
+    gen: 2,
     edits: [],
     player: null,
     inventory: [],
@@ -163,6 +173,8 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     seed: size ? raw.seed : null,
     now,
   });
+  // Worlds saved before generation 2 keep their original terrain.
+  world.gen = raw.gen === 2 ? 2 : 1;
   world.createdAt = finite(raw.createdAt, now);
   world.updatedAt = finite(raw.updatedAt, now);
   world.edits = edits;

@@ -47,12 +47,6 @@ export const RECIPES = [
   },
   { id: "bread", out: ["bread", 1], needs: { wheat: 3 } },
   {
-    id: "wooden_hoe",
-    out: ["wooden_hoe", 1],
-    needs: { planks: 2, stick: 2 },
-    bench: true,
-  },
-  {
     id: "fishing_rod",
     out: ["fishing_rod", 1],
     needs: { stick: 3, wool: 1 },
@@ -133,6 +127,34 @@ export const RECIPES = [
       needs: { wool: 1, [`${color}_dye`]: 1 },
     }),
   ),
+  // Axes, shovels and hoes: the same material as the pickaxe of each tier.
+  ...[
+    ["wooden", "planks"],
+    ["stone", "stone"],
+    ["iron", "iron_ingot"],
+    ["crystal", "crystal"],
+  ].flatMap(([material, from]) =>
+    [
+      ["axe", 3],
+      ["shovel", 1],
+      ["hoe", 2],
+    ].map(([tool, n]) => ({
+      id: `${material}_${tool}`,
+      out: [`${material}_${tool}`, 1],
+      needs: { [from]: n, stick: 2 },
+      bench: true,
+    })),
+  ),
+  // Copper makes shears, buckets and shiny blocks.
+  { id: "shears", out: ["shears", 1], needs: { copper_ingot: 2 }, bench: true },
+  { id: "bucket", out: ["bucket", 1], needs: { copper_ingot: 3 }, bench: true },
+  {
+    id: "copper_block",
+    out: ["copper_block", 1],
+    needs: { copper_ingot: 4 },
+    bench: true,
+  },
+  { id: "bottle", out: ["bottle", 3], needs: { glass: 2 } },
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

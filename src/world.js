@@ -42,7 +42,23 @@ export const GLASS = 8,
   POT = 50,
   // Wool in seven more colours (white wool is WOOL).
   WOOL_BASE = 51,
-  TYPES = 58;
+  // Water: a still source, then flowing water at levels 3, 2 and 1.
+  WATER = 58,
+  FLOW_BASE = 59,
+  COPPER_ORE = 62,
+  COPPER_BLOCK = 63,
+  BEE_NEST = 64,
+  TYPES = 65;
+// How much water a block holds: 4 for a source, 3 to 1 as it flows away.
+export const waterLevel = (type) =>
+  type === WATER
+    ? 4
+    : type >= FLOW_BASE && type < FLOW_BASE + 3
+      ? 3 - (type - FLOW_BASE)
+      : 0;
+export const isWater = (type) => waterLevel(type) > 0;
+export const flowBlock = (level) =>
+  level >= 4 ? WATER : FLOW_BASE + 3 - level;
 export const WOOL_COLORS = [
   "red",
   "orange",
@@ -82,6 +98,7 @@ export const passable = (type) =>
   type === TRAPDOOR_OPEN ||
   type === SIGN ||
   type === POT ||
+  isWater(type) ||
   cropInfo(type) !== null ||
   isPlant(type);
 export const seeThrough = (type) =>
@@ -92,6 +109,7 @@ export const seeThrough = (type) =>
   type === DOOR_OPEN ||
   type === TORCH ||
   type === BED ||
+  isWater(type) ||
   cropInfo(type) !== null;
 export const key = (x, y, z) => `${x},${y},${z}`;
 function legacyHeight(x, z) {
@@ -145,7 +163,9 @@ export const generate = () => terrainGenerate();
 export const biomeAt = (x, z) => terrainBiome(x, z);
 
 // Worlds without a seed keep the original valley, so old worlds never change.
-export function useTerrain({ seed = null, size = null } = {}) {
+// `gen` 2 adds copper, underground lakes, wells and bee nests; older
+// seeded worlds keep generation 1 so nothing moves under their buildings.
+export function useTerrain({ seed = null, size = null, gen = 1 } = {}) {
   if (!Number.isInteger(seed)) {
     SIZE = 28;
     WATER_LEVEL = 2.2;
@@ -154,7 +174,7 @@ export function useTerrain({ seed = null, size = null } = {}) {
     terrainBiome = () => "valley";
     return;
   }
-  const t = makeTerrain(seed, SIZES[size] ?? SIZES.medium);
+  const t = makeTerrain(seed, SIZES[size] ?? SIZES.medium, gen);
   SIZE = t.size;
   WATER_LEVEL = t.water;
   terrainHeight = t.height;
@@ -232,7 +252,8 @@ const spot = (seed, x, z, salt = 0) => {
 };
 
 // The island for new worlds: biomes, hills, caves and plants.
-export function makeTerrain(seed, size) {
+export function makeTerrain(seed, size, gen = 1) {
+  const extras = gen >= 2;
   const n = makeNoise(seed),
     SEA = 12;
   const fbm = (x, z) =>
@@ -276,6 +297,9 @@ export function makeTerrain(seed, size) {
               if (!blocks.has(key(x + dx, h + dy, z + dz)))
                 put(x + dx, h + dy, z + dz, 5);
           }
+      // Some oaks carry a bee nest on the side of the trunk.
+      if (extras && kind === "oak" && spot(seed, x, z, 11) < 0.25)
+        put(x + 1, h + tall - 2, z, BEE_NEST);
     };
     for (let x = -size; x <= size; x++)
       for (let z = -size; z <= size; z++) {
@@ -300,6 +324,7 @@ export function makeTerrain(seed, size) {
             else if (o < 0.095 && y < 9) t = GOLD_ORE;
             else if (o < 0.1 && y < 6) t = CRYSTAL_ORE;
             else if (o < 0.104 && y < 11) t = GLOWSTONE;
+            else if (extras && o < 0.124 && y < 20) t = COPPER_ORE;
           }
           put(x, y, z, t);
         }
@@ -319,6 +344,45 @@ export function makeTerrain(seed, size) {
           put(x, h + 1, z, r < 0.05 ? FLOWER : TALL_GRASS);
         else if (b === "swamp" && r < 0.12) put(x, h + 1, z, MUSHROOM);
       }
+    if (extras) {
+      // Underground lakes: a layer of water on the floor of some caves.
+      for (let x = -size; x <= size; x++)
+        for (let z = -size; z <= size; z++) {
+          if (n.noise2(x * 0.045 + 900, z * 0.045 - 900) < 0.3) continue;
+          const h = height(x, z);
+          for (let y = 3; y <= Math.min(SEA - 3, h - 5); y++)
+            if (
+              !blocks.has(key(x, y, z)) &&
+              blocks.has(key(x, y - 1, z)) &&
+              !isWater(blocks.get(key(x, y - 1, z)))
+            ) {
+              put(x, y, z, WATER);
+              break;
+            }
+        }
+      // Wells in the plains: a stone ring with water, posts and a roof.
+      for (let cx = -size + 18; cx < size - 6; cx += 24)
+        for (let cz = -size + 18; cz < size - 6; cz += 24) {
+          const x = cx + Math.floor(spot(seed, cx, cz, 12) * 8),
+            z = cz + Math.floor(spot(seed, cz, cx, 13) * 8),
+            h = height(x, z);
+          if (biome(x, z) !== "plains" || spot(seed, x, z, 14) > 0.6) continue;
+          if (h <= SEA + 1) continue;
+          for (let dx = -1; dx <= 1; dx++)
+            for (let dz = -1; dz <= 1; dz++) {
+              for (let y = h + 1; y <= h + 6; y++)
+                blocks.delete(key(x + dx, y, z + dz));
+              const middle = dx === 0 && dz === 0;
+              for (let y = h - 3; y <= h + 1; y++)
+                if (!middle || y === h - 3) put(x + dx, y, z + dz, STONE_BRICK);
+                else if (y <= h) put(x + dx, y, z + dz, WATER);
+              if (dx && dz)
+                for (let y = h + 2; y <= h + 3; y++)
+                  put(x + dx, y, z + dz, FENCE);
+              put(x + dx, h + 4, z + dz, PLANKS);
+            }
+        }
+    }
     // Ruins and cabins, each with a treasure chest.
     for (let cx = -size + 6; cx < size - 6; cx += 24)
       for (let cz = -size + 6; cz < size - 6; cz += 24) {
@@ -374,9 +438,10 @@ export function findSpawn(free = () => true) {
 
 // Real water: under the sea line with open sky above (caves stay dry).
 export function inWater(blocks, x, y, z) {
-  if (y >= WATER_LEVEL) return false;
   const bx = Math.round(x),
     bz = Math.round(z);
+  if (isWater(blocks.get(key(bx, Math.floor(y + 0.5), bz)))) return true;
+  if (y >= WATER_LEVEL) return false;
   for (let yy = Math.floor(y + 0.5); yy <= Math.floor(WATER_LEVEL); yy++) {
     const t = blocks.get(key(bx, yy, bz));
     if (t !== undefined && !passable(t)) return false;

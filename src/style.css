@@ -1594,3 +1594,21 @@ kbd {
     height: 88px;
   }
 }
+/* How much of a tool is left (Normal and Hard). */
+.slot .wear {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 0.45);
+}
+.slot .wear::after {
+  content: "";
+  display: block;
+  width: var(--left);
+  height: 100%;
+  border-radius: 2px;
+  background: #7cc46a;
+}

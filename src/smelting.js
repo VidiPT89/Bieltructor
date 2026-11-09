@@ -2,6 +2,7 @@
 export const SMELT = {
   iron_ore: "iron_ingot",
   gold_ore: "gold_ingot",
+  copper_ore: "copper_ingot",
   sand: "glass",
   potato: "baked_potato",
   fish: "cooked_fish",
@@ -68,6 +69,7 @@ const LOOT = [
   ["coal", 2, 5, 1],
   ["torch", 2, 6, 0.8],
   ["iron_ore", 1, 3, 0.7],
+  ["copper_ore", 1, 4, 0.5],
   ["bread", 1, 2, 0.6],
   ["apple", 2, 4, 0.6],
   ["wheat_seeds", 2, 4, 0.5],

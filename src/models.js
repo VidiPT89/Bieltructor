@@ -255,6 +255,35 @@ export function bird() {
   return g;
 }
 
+// A round little bee with stripes and buzzing wings.
+export function bee() {
+  const g = new THREE.Group();
+  box(g, [0.2, 0.18, 0.26], [0, 0, 0], 0xf2c94c);
+  for (const z of [-0.05, 0.06])
+    box(g, [0.21, 0.19, 0.04], [0, 0, z], 0x2b2b30);
+  eyes(g, 0.03, 0.135, 0.05, 0.04);
+  g.userData.wings = [-1, 1].map((side) => {
+    const w = box(g, [0.16, 0.02, 0.12], [side * 0.12, 0.11, 0], 0xf4f8fb);
+    w.castShadow = false;
+    w.userData.side = side;
+    return w;
+  });
+  return g;
+}
+
+// A small fish with a tail that wiggles.
+export function fish(color = 0xe98d2b) {
+  const g = new THREE.Group();
+  box(g, [0.1, 0.18, 0.32], [0, 0, 0], color);
+  eyes(g, 0.03, 0.161, 0.03, 0.035);
+  const tail = new THREE.Group();
+  tail.position.set(0, 0, -0.16);
+  box(tail, [0.04, 0.16, 0.12], [0, 0, -0.06], color);
+  g.add(tail);
+  g.userData.tail = tail;
+  return g;
+}
+
 // Monsters: silly rather than scary.
 function sleepy() {
   const g = new THREE.Group();

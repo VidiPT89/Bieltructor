@@ -1,5 +1,5 @@
 // Biel's backpack: 9 hotbar slots followed by 27 backpack slots.
-import { isItem, maxStack } from "./items.js";
+import { isItem, maxStack, toolUses } from "./items.js";
 
 export const SLOTS = 36;
 
@@ -54,12 +54,28 @@ export class Inventory {
     return slot.id;
   }
 
+  // Wears the tool in a slot by one use. Returns "tired" once, when it is
+  // nearly worn out, "broke" when it is gone, otherwise null.
+  wearOut(index) {
+    const slot = this.slots[index],
+      uses = toolUses(slot?.id);
+    if (!uses) return null;
+    slot.wear = (slot.wear ?? 0) + 1;
+    if (slot.wear >= uses) {
+      this.slots[index] = null;
+      return "broke";
+    }
+    return slot.wear === Math.ceil(uses * 0.9) ? "tired" : null;
+  }
+
   swap(a, b) {
     [this.slots[a], this.slots[b]] = [this.slots[b], this.slots[a]];
   }
 
   toJSON() {
-    return this.slots.map((s) => (s ? [s.id, s.count] : null));
+    return this.slots.map((s) =>
+      s ? (s.wear ? [s.id, s.count, s.wear] : [s.id, s.count]) : null,
+    );
   }
 
   static from(raw, size = SLOTS) {
@@ -71,8 +87,11 @@ export class Inventory {
         isItem(s[0]) &&
         Number.isInteger(s[1]) &&
         s[1] > 0
-      )
+      ) {
         inv.slots[i] = { id: s[0], count: Math.min(s[1], maxStack(s[0])) };
+        if (Number.isInteger(s[2]) && s[2] > 0 && s[2] < toolUses(s[0]))
+          inv.slots[i].wear = s[2];
+      }
     });
     return inv;
   }

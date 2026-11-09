@@ -35,6 +35,9 @@ import {
   POT,
   WOOL_COLORS,
   woolBlock,
+  COPPER_ORE,
+  COPPER_BLOCK,
+  BEE_NEST,
 } from "./world.js";
 
 // Block items place the block type given by `block`.
@@ -68,7 +71,6 @@ export const ITEMS = {
   stone_pickaxe: { icon: "⛏️", tool: "pickaxe", tier: 2 },
   wooden_sword: { icon: "🗡️", tool: "sword", tier: 1, damage: 2 },
   stone_sword: { icon: "🗡️", tool: "sword", tier: 2, damage: 3 },
-  wooden_hoe: { icon: "🪓", tool: "hoe", tier: 1 },
   wheat_seeds: { icon: "🌱", plants: "wheat" },
   wheat: { icon: "🌾" },
   carrot: { icon: "🥕", food: 3, plants: "carrot" },
@@ -105,6 +107,38 @@ export const ITEMS = {
   sign: { block: SIGN },
   pot: { block: POT },
   arrows: { icon: "🪶" },
+  copper_ore: { block: COPPER_ORE },
+  copper_block: { block: COPPER_BLOCK },
+  copper_ingot: { icon: "🥉" },
+  bee_nest: { block: BEE_NEST },
+  shears: { icon: "✂️", tool: "shears", tier: 1, uses: 200 },
+  bucket: { icon: "🪣", tool: "bucket", tier: 1 },
+  water_bucket: { icon: "🌊", tool: "bucket", tier: 1, full: true },
+  bottle: { icon: "🫙" },
+  honey: { icon: "🍯", food: 6 },
+};
+// Axes, shovels and hoes in the same four materials as pickaxes and swords.
+export const TOOL_MATERIALS = ["wooden", "stone", "iron", "crystal"];
+TOOL_MATERIALS.forEach((material, i) => {
+  ITEMS[`${material}_axe`] = {
+    icon: "🪓",
+    tool: "axe",
+    tier: i + 1,
+    damage: i + 2,
+  };
+  ITEMS[`${material}_shovel`] = { icon: "🪏", tool: "shovel", tier: i + 1 };
+  ITEMS[`${material}_hoe`] = { icon: "⚒️", tool: "hoe", tier: i + 1 };
+});
+// How many times a tool can be used before it wears out (Normal and Hard
+// only). Buckets never wear out.
+const USES = { 1: 60, 2: 130, 3: 250, 4: 800 };
+export const toolUses = (id) => {
+  const item = ITEMS[id];
+  if (!item?.tool || item.tool === "bucket") return 0;
+  return (
+    item.uses ??
+    (item.tool === "bow" ? 150 : item.tool === "rod" ? 60 : USES[item.tier])
+  );
 };
 // Seven dyes and the wool they colour.
 const DYE_ICONS = {
@@ -133,9 +167,10 @@ export const itemForBlock = (type) =>
         : Object.keys(ITEMS).find((id) => ITEMS[id].block === type);
 
 // Every block a creative builder can pick.
-export const CREATIVE_BLOCKS = Object.keys(ITEMS).filter(
-  (id) => ITEMS[id].block !== undefined,
-);
+export const CREATIVE_BLOCKS = [
+  ...Object.keys(ITEMS).filter((id) => ITEMS[id].block !== undefined),
+  "water_bucket",
+];
 
 // Seconds to break each block by hand; stone-like blocks love a pickaxe.
 const HARDNESS = {
@@ -177,6 +212,9 @@ Object.assign(HARDNESS, {
   [TRAPDOOR_OPEN]: 0.7,
   [SIGN]: 0.5,
   [POT]: 0.3,
+  [COPPER_ORE]: 2.2,
+  [COPPER_BLOCK]: 2,
+  [BEE_NEST]: 0.6,
 });
 for (const color of WOOL_COLORS) HARDNESS[woolBlock(color)] = 0.4;
 const STONY = new Set([
@@ -188,13 +226,36 @@ const STONY = new Set([
   CRYSTAL_ORE,
   FURNACE,
   STONE_BRICK,
+  COPPER_ORE,
+  COPPER_BLOCK,
 ]);
+// Each tool is fast on its own kind of block.
+const FAVOURS = {
+  pickaxe: STONY,
+  axe: new Set([
+    4,
+    PLANKS,
+    BENCH,
+    DOOR,
+    DOOR_OPEN,
+    CHEST,
+    LADDER,
+    FENCE,
+    GATE,
+    GATE_OPEN,
+    TRAPDOOR,
+    TRAPDOOR_OPEN,
+    SIGN,
+    BEE_NEST,
+  ]),
+  shovel: new Set([0, 1, 3, SNOW, FARMLAND]),
+  shears: new Set([5, WOOL, ...WOOL_COLORS.map((color) => woolBlock(color))]),
+};
 export function breakTime(type, toolId) {
   const tool = ITEMS[toolId];
   if (cropInfo(type) || isPlant(type)) return 0.05;
   const base = HARDNESS[type] ?? 1;
-  if (STONY.has(type) && tool?.tool === "pickaxe")
-    return base / [1, 3, 5, 8, 12][tool.tier];
+  if (FAVOURS[tool?.tool]?.has(type)) return base / [1, 3, 5, 8, 12][tool.tier];
   return base;
 }
 
@@ -238,6 +299,7 @@ export function drops(type, toolId, roll) {
   }
   if (type === COAL)
     return ITEMS[toolId]?.tool === "pickaxe" ? [["coal", 1]] : [];
+  if (type === COPPER_ORE) return tier >= 1 ? [["copper_ore", 1]] : [];
   if (type === 5) return roll < 0.2 ? [["apple", 1]] : [["leaves", 1]];
   const id = itemForBlock(type);
   return id ? [[id, 1]] : [];

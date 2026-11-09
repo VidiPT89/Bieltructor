@@ -51,10 +51,17 @@ import {
   POT,
   OPENS,
   WOOL_COLORS,
+  WATER,
+  FLOW_BASE,
+  isWater,
+  COPPER_ORE,
+  COPPER_BLOCK,
+  BEE_NEST,
   woolBlock,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
+import { flowWater, around } from "./water.js";
 import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
 import { plan as syncPlan, deviceKind } from "./sync.js";
 import {
@@ -72,7 +79,7 @@ import {
   validateWeather,
   approach,
 } from "./weather.js";
-import { ITEMS, CREATIVE_BLOCKS, breakTime, drops } from "./items.js";
+import { ITEMS, CREATIVE_BLOCKS, breakTime, drops, toolUses } from "./items.js";
 import { Inventory } from "./inventory.js";
 import {
   ANIMALS,
@@ -82,7 +89,7 @@ import {
   findCouples,
   makeBaby,
 } from "./creatures.js";
-import { MODELS, nameTag, arrow, bird } from "./models.js";
+import { MODELS, nameTag, arrow, bird, bee, fish } from "./models.js";
 import {
   CHALLENGES,
   createProgress,
@@ -196,6 +203,10 @@ let mode = "splash",
   spawnClock = 2,
   attackCooldown = 0,
   lightBlocks = [],
+  nestBlocks = [],
+  targetWater = null,
+  waterDirty = new Set(),
+  waterClock = 0,
   cropKeys = [],
   growClock = 5,
   rainLevel = 0,
@@ -275,6 +286,8 @@ const colors = [
   0xb5603c,
   // Wool: red, orange, yellow, green, blue, purple, black.
   0xc8473c, 0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30,
+  // Water (still, then flowing), copper ore, copper block, bee nest.
+  0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0xb87350, 0xd8834f, 0xe0b54a,
 ];
 const credits = () =>
   `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
@@ -301,7 +314,7 @@ const icon = (id) =>
     ? `<i class="swatch" style="--block:#${colors[ITEMS[id].block].toString(16).padStart(6, "0")}"></i>`
     : `<span class="item-icon">${ITEMS[id].icon}</span>`;
 function slotButton(slot, i, attrs, active, label = "") {
-  return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}</button>`;
+  return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}${slot?.wear && !creative() ? `<i class="wear" style="--left:${Math.round(100 - (100 * slot.wear) / toolUses(slot.id))}%"></i>` : ""}</button>`;
 }
 const escapeHtml = (text) =>
   String(text).replace(
@@ -1286,6 +1299,33 @@ const blockTextures = {
   [IRON_ORE]: oreTexture("#d6a77a"),
   [GOLD_ORE]: oreTexture("#f2c94c"),
   [CRYSTAL_ORE]: oreTexture("#5fd0f2"),
+  [COPPER_ORE]: oreTexture("#e07b4f"),
+  [COPPER_BLOCK]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#d8834f";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#f0a875";
+      ctx.fillRect(1, 1, 14, 2);
+      ctx.fillRect(1, 1, 2, 14);
+      ctx.fillStyle = "#a95f37";
+      ctx.fillRect(1, 13, 14, 2);
+      ctx.fillRect(13, 1, 2, 14);
+      ctx.fillStyle = "#5fb8a0";
+      for (const [x, y] of [
+        [5, 6],
+        [9, 9],
+      ])
+        ctx.fillRect(x, y, 2, 2);
+    }),
+  [BEE_NEST]: () =>
+    drawTexture((ctx) => {
+      ctx.fillStyle = "#e0b54a";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#b8862e";
+      for (const y of [3, 8, 13]) ctx.fillRect(0, y, 16, 1);
+      ctx.fillStyle = "#3b2a14";
+      ctx.fillRect(6, 9, 4, 3);
+    }),
   [GLOWSTONE]: () =>
     drawTexture((ctx) => {
       ctx.fillStyle = "#ffd36b";
@@ -1523,6 +1563,15 @@ for (const [type, draw] of Object.entries(plantTextures))
     side: THREE.DoubleSide,
     roughness: 1,
   });
+// Water blocks share one see-through material; flowing water is lower.
+const waterMaterial = new THREE.MeshStandardMaterial({
+  color: 0x4dacae,
+  transparent: true,
+  opacity: 0.62,
+  roughness: 0.28,
+  depthWrite: false,
+});
+for (let i = 0; i < 4; i++) materials[WATER + i] = waterMaterial;
 materials[ICE] = new THREE.MeshStandardMaterial({
   color: 0xbfe6f5,
   transparent: true,
@@ -1553,7 +1602,17 @@ const shapes = {
   [DOOR_OPEN]: new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0),
   [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
   [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
+  [WATER]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
 };
+// Flowing water: levels 3, 2 and 1 get lower and lower.
+[0.7, 0.5, 0.3].forEach(
+  (h, i) =>
+    (shapes[FLOW_BASE + i] = new THREE.BoxGeometry(1, h, 1).translate(
+      0,
+      -0.5 + h / 2,
+      0,
+    )),
+);
 for (const crop of CROPS)
   for (let stage = 0; stage < 4; stage++)
     shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
@@ -1738,7 +1797,7 @@ function updateMinimap(dt) {
 const CHUNK = 16;
 const chunks = new Map();
 const chunkKey = (cx, cz) => `${cx},${cz}`;
-const exposed = (x, y, z) =>
+const exposed = (x, y, z, wet = isWater(blocks.get(key(x, y, z)))) =>
   [
     [1, 0, 0],
     [-1, 0, 0],
@@ -1748,7 +1807,7 @@ const exposed = (x, y, z) =>
     [0, 0, -1],
   ].some(([a, b, c]) => {
     const next = blocks.get(key(x + a, y + b, z + c));
-    return next === undefined || seeThrough(next);
+    return next === undefined || (seeThrough(next) && !(wet && isWater(next)));
   });
 function clearChunk(id) {
   const chunk = chunks.get(id);
@@ -1764,9 +1823,11 @@ function buildChunk(cx, cz, cells) {
   clearChunk(id);
   const groups = new Map(),
     lights = [],
+    nests = [],
     crops = [];
   for (const [x, y, z, type] of cells) {
     if (type === TORCH || type === 7 || type === 36) lights.push([x, y, z]);
+    if (type === BEE_NEST) nests.push([x, y, z]);
     if (cropInfo(type) && cropInfo(type).stage < 3) crops.push(key(x, y, z));
     if (!exposed(x, y, z)) continue;
     if (!groups.has(type)) groups.set(type, []);
@@ -1787,6 +1848,7 @@ function buildChunk(cx, cz, cells) {
       type !== GLASS &&
       type !== TORCH &&
       type !== ICE &&
+      !isWater(type) &&
       !cropInfo(type) &&
       !isPlant(type);
     mesh.receiveShadow = true;
@@ -1800,6 +1862,7 @@ function buildChunk(cx, cz, cells) {
   chunks.set(id, {
     meshes: meshList,
     lights,
+    nests,
     crops,
     x: cx * CHUNK + CHUNK / 2,
     z: cz * CHUNK + CHUNK / 2,
@@ -1810,7 +1873,9 @@ function refreshChunkLists() {
   meshes = [];
   lightBlocks = [];
   cropKeys = [];
+  nestBlocks = [];
   for (const chunk of chunks.values()) {
+    nestBlocks.push(...chunk.nests);
     meshes.push(...chunk.meshes);
     lightBlocks.push(...chunk.lights);
     cropKeys.push(...chunk.crops);
@@ -2159,7 +2224,7 @@ spawn();
 function loadWorld(w) {
   world = w;
   store.setCurrent(w.id);
-  useTerrain({ seed: w.seed, size: w.size });
+  useTerrain({ seed: w.seed, size: w.size, gen: w.gen });
   water.scale.setScalar((SIZE * 2 + 90) / 125);
   blocks.clear();
   for (const [k, v] of generate()) blocks.set(k, v);
@@ -2178,6 +2243,8 @@ function loadWorld(w) {
       type !== undefined && !seeThrough(type) && !passable(type),
   });
   light.relightAll();
+  waterDirty = new Set();
+  honeyReady.clear();
   rebuild();
   // The menu needs dry ground for Biel and nothing tall between him and the camera.
   const clear = (x, z) =>
@@ -2463,6 +2530,11 @@ function interactWith(a) {
     emit("tame:" + a.type);
     namingDog = a;
     mode = "namedog";
+  } else if (res.result === "shorn") {
+    if (!creative() && inventory.add(...res.give)) toast(t("full"));
+    else toast(t("shorn", { n: res.give[1] }));
+    beepAt(620, 920);
+    wearHeld();
   } else if (res.result === "mount") {
     mount(a);
   } else if (res.result === "dyed") {
@@ -2537,6 +2609,94 @@ function updateBirds(dt, daylight) {
     for (const w of b.userData.wings)
       w.rotation.z =
         Math.sin(elapsed * 12 + b.userData.phase) * 0.6 * w.userData.side;
+  }
+}
+// Bees buzz around their nests by day; they go home at night and in rain.
+const swarm = new THREE.Group();
+scene.add(swarm);
+for (let i = 0; i < 8; i++) {
+  const b = bee();
+  b.userData.phase = i * 2.4;
+  swarm.add(b);
+}
+function updateBees(dt, daylight) {
+  const on =
+    scenery === "game" &&
+    (world?.options.animals ?? false) &&
+    daylight > 0.45 &&
+    rainLevel < 0.5;
+  const near = on
+    ? nestBlocks
+        .map((p) => [p, Math.hypot(p[0] - player.x, p[2] - player.z)])
+        .filter(([, d]) => d < 32)
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, 4)
+        .map(([p]) => p)
+    : [];
+  swarm.children.forEach((b, i) => {
+    const home = near[i % Math.max(1, near.length)];
+    b.visible = !!home && i < near.length * 2;
+    if (!b.visible) return;
+    const a = elapsed * (0.9 + (i % 3) * 0.2) + b.userData.phase,
+      r = 1.4 + (i % 2) * 1.1;
+    b.position.set(
+      home[0] + Math.cos(a) * r,
+      home[1] + 0.4 + Math.sin(a * 2.3) * 0.5,
+      home[2] + Math.sin(a) * r,
+    );
+    b.rotation.y = -a;
+    for (const w of b.userData.wings)
+      w.rotation.z = Math.sin(elapsed * 40 + i) * 0.7 * w.userData.side;
+  });
+}
+// Fish swim in the sea near Biel, and dart away when he gets close.
+const school = new THREE.Group();
+scene.add(school);
+[0xe98d2b, 0x5fb8e8, 0xf2c94c, 0xe85d8a, 0x9fd36b, 0xe98d2b].forEach(
+  (color, i) => {
+    const f = fish(color);
+    f.userData.phase = i * 1.7;
+    school.add(f);
+  },
+);
+let fishClock = 0;
+function updateFish(dt) {
+  const on = scenery === "game" && (world?.options.animals ?? false);
+  fishClock -= dt;
+  if (on && fishClock <= 0) {
+    // Every few seconds each fish picks deep water near Biel to swim around.
+    fishClock = 6;
+    school.children.forEach((f, i) => {
+      f.userData.home = null;
+      for (let tries = 0; tries < 12 && !f.userData.home; tries++) {
+        const x = Math.round(player.x + (Math.random() - 0.5) * 28),
+          z = Math.round(player.z + (Math.random() - 0.5) * 28),
+          floor = topAt(x, z);
+        if (
+          Math.abs(x) <= SIZE &&
+          Math.abs(z) <= SIZE &&
+          floor + 0.5 < WATER_LEVEL - 1.2
+        )
+          f.userData.home = [x, (floor + 0.5 + WATER_LEVEL) / 2, z];
+      }
+      if (i === 0 && !f.userData.home) fishClock = 2;
+    });
+  }
+  for (const f of school.children) {
+    const home = f.userData.home;
+    f.visible = on && !!home;
+    if (!f.visible) continue;
+    const scared =
+      Math.hypot(f.position.x - player.x, f.position.z - player.z) < 2.5;
+    f.userData.phase += dt * (scared ? 2.4 : 0.6);
+    const a = f.userData.phase;
+    f.position.set(
+      home[0] + Math.cos(a) * 2.2,
+      Math.min(WATER_LEVEL - 0.35, home[1] + Math.sin(a * 1.7) * 0.25),
+      home[2] + Math.sin(a) * 2.2,
+    );
+    f.rotation.y = -a;
+    f.userData.tail.rotation.y = Math.sin(elapsed * (scared ? 22 : 9)) * 0.5;
   }
 }
 let breedClock = 1;
@@ -2875,6 +3035,7 @@ function attack() {
   attackCooldown = 0.45;
   rightArm.rotation.x = -1.6;
   hitMonster(foe, weaponDamage(heldId()));
+  if (ITEMS[heldId()]?.damage) wearHeld();
 }
 // Biel's own arrows: they fly where he aims and fall a little.
 let bielArrows = [];
@@ -2902,6 +3063,7 @@ function shootBow() {
     life: 3,
   });
   beepAt(500, 900);
+  wearHeld();
   render();
 }
 function updateBielArrows(dt) {
@@ -3291,8 +3453,15 @@ function pick() {
       return;
     }
   }
+  targetWater = null;
   for (const hit of hits) {
     const p = hit.object.userData.cells[hit.instanceId];
+    // Water is looked through; a bucket can still scoop it.
+    if (isWater(hit.object.userData.type)) {
+      if (!targetWater && new THREE.Vector3(...p).distanceTo(player) < 6)
+        targetWater = p;
+      continue;
+    }
     if (new THREE.Vector3(...p).distanceTo(player) < 7) {
       target = { p, normal: hit.face.normal };
       outline.position.set(...p);
@@ -3489,8 +3658,113 @@ function updateVitalsHud(underwater) {
 }
 function setBlock(p, type) {
   const k = key(...p);
-  blocks.set(k, type);
+  if (type === null) blocks.delete(k);
+  else blocks.set(k, type);
   edits.set(k, type);
+}
+// Water near a changed block gets a look on the next water step.
+function wakeWater(...points) {
+  for (const p of points) for (const k of around(p)) waterDirty.add(k);
+}
+function updateWater(dt) {
+  waterClock -= dt;
+  if (waterClock > 0 || !waterDirty.size) return;
+  waterClock = 0.35;
+  const { changes, dirty } = flowWater(
+    waterDirty,
+    (x, y, z) => blocks.get(key(x, y, z)),
+    (x, y, z) =>
+      Math.abs(x) <= SIZE && Math.abs(z) <= SIZE && y >= 1 && y < MAX_Y,
+    48,
+  );
+  waterDirty = dirty;
+  if (!changes.length) return;
+  for (const [x, y, z, type] of changes) setBlock([x, y, z], type);
+  rebuildAt(...changes.map(([x, y, z]) => [x, y, z]));
+  scheduleSave();
+}
+// Tools wear out on Normal and Hard, with a friendly warning first.
+function wearHeld() {
+  if (creative() || !rules().toolWear) return;
+  const name = itemName(heldId()),
+    result = inventory.wearOut(selected);
+  if (result === "tired") toast(t("toolTired", { item: name }));
+  if (result === "broke") {
+    toast(t("toolBroke", { item: name }));
+    beepAt(320, 160);
+  }
+  render();
+}
+// An empty bucket scoops still water (or the sea); a full one pours it.
+function useBucket(full) {
+  if (!full) {
+    let ok = false;
+    if (targetWater && blocks.get(key(...targetWater)) === WATER) {
+      setBlock(targetWater, null);
+      wakeWater(targetWater);
+      rebuildAt(targetWater);
+      ok = true;
+    } else {
+      const aim = new THREE.Raycaster();
+      aim.setFromCamera(
+        (firstPerson && pointerKind !== "touch") || pointerKind === "pad"
+          ? center
+          : pointer,
+        camera,
+      );
+      const hit = aim.intersectObject(water)[0];
+      ok =
+        !!hit &&
+        hit.point.distanceTo(player) < 6 &&
+        (!target ||
+          hit.distance <
+            aim.ray.origin.distanceTo(new THREE.Vector3(...target.p))) &&
+        topAt(Math.round(hit.point.x), Math.round(hit.point.z)) + 0.5 <
+          WATER_LEVEL;
+    }
+    if (!ok) return flashLabel(t("noWater"));
+    if (!creative())
+      inventory.slots[selected] = { id: "water_bucket", count: 1 };
+    toast(t("gotWater"));
+    beepAt(300, 520);
+  } else {
+    if (!target) return;
+    const p = target.p.map((v, i) =>
+      Math.round(v + [target.normal.x, target.normal.y, target.normal.z][i]),
+    );
+    const there = blocks.get(key(...p));
+    if (
+      Math.abs(p[0]) > SIZE ||
+      Math.abs(p[2]) > SIZE ||
+      p[1] < 1 ||
+      p[1] >= MAX_Y ||
+      (there !== undefined && !isWater(there))
+    )
+      return;
+    setBlock(p, WATER);
+    wakeWater(p);
+    rebuildAt(p);
+    if (!creative()) inventory.slots[selected] = { id: "bucket", count: 1 };
+    toast(t("pouredWater"));
+    beepAt(520, 260);
+  }
+  emit("bucket");
+  scheduleSave();
+  render();
+}
+// Bee nests give honey to a bottle, then the bees need a little while.
+const honeyReady = new Map();
+function collectHoney(k) {
+  if ((honeyReady.get(k) ?? 0) > world.age) return toast(t("beesBusy"));
+  honeyReady.set(k, world.age + 60);
+  if (!creative()) {
+    inventory.takeFrom(selected);
+    if (inventory.add("honey", 1)) toast(t("full"));
+  }
+  toast(t("gotHoney"));
+  emit("got:honey");
+  beepAt(620, 880);
+  render();
 }
 // Height of the highest block in a column (the water line is just above 1).
 function topAt(x, z) {
@@ -3561,6 +3835,7 @@ function updateFishing() {
     if (!creative() && inventory.add("fish", 1)) toast(t("full"));
     else toast(t("caught"));
     beepAt(700, 1000);
+    wearHeld();
     render();
   }
 }
@@ -3720,6 +3995,10 @@ function edit(place) {
     castLine();
     return;
   }
+  if (place && ITEMS[heldId()]?.tool === "bucket") {
+    useBucket(ITEMS[heldId()].full === true);
+    return;
+  }
   if (!target) return;
   const p = [...target.p];
   const targetType = blocks.get(key(...p)),
@@ -3732,6 +4011,7 @@ function edit(place) {
     !blocks.has(above)
   ) {
     setBlock(p, FARMLAND);
+    wearHeld();
     toast(t("tilled"));
     beepAt(200, 140);
     rebuildAt(p);
@@ -3754,6 +4034,10 @@ function edit(place) {
   const usedType = blocks.get(key(...p));
   if (place && (usedType === CHEST || usedType === FURNACE)) {
     openContainer(usedType, key(...p));
+    return;
+  }
+  if (place && usedType === BEE_NEST && heldId() === "bottle") {
+    collectHoney(key(...p));
     return;
   }
   if (place && blocks.get(key(...p)) === BED) {
@@ -3810,14 +4094,18 @@ function edit(place) {
   const k = key(...p);
   const held = ITEMS[heldId()];
   if (place) {
-    if (held?.block === undefined || blocks.has(k)) return;
-    const type = held.block;
+    if (held?.block === undefined || (blocks.has(k) && !isWater(blocks.get(k))))
+      return;
+    const type = held.block,
+      wasWater = blocks.get(k);
     blocks.set(k, type);
     if (collides(blocks, player)) {
-      blocks.delete(k);
+      if (wasWater === undefined) blocks.delete(k);
+      else blocks.set(k, wasWater);
       return;
     }
     edits.set(k, type);
+    wakeWater(p);
     if (!creative()) inventory.takeFrom(selected);
     if (type === CHEST) world.chests[k] = [];
     if (type === SIGN) setTimeout(() => editSign(k));
@@ -3843,6 +4131,8 @@ function edit(place) {
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
       const got = drops(type, heldId(), Math.random());
+      const kind = ITEMS[heldId()]?.tool;
+      if (kind && kind !== "bow" && kind !== "rod") wearHeld();
       if (cropInfo(type)?.crop === "wheat" && cropInfo(type).stage === 3)
         emit("harvest:wheat");
       for (const [id] of got) {
@@ -3868,6 +4158,7 @@ function edit(place) {
     for (const y of removed) {
       blocks.delete(key(p[0], y, p[2]));
       edits.set(key(p[0], y, p[2]), null);
+      wakeWater([p[0], y, p[2]]);
     }
   }
   beep(place);
@@ -4115,6 +4406,7 @@ function frame(now) {
     updateBielArrows(dt);
     growCrops(dt);
     updateFishing();
+    updateWater(dt);
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
       if (grounded || swimming || flying || onLadder) {
@@ -4227,6 +4519,8 @@ function frame(now) {
   updateTorchLights(dt, skyNow.daylight);
   paintAll(0.5 + 0.5 * skyNow.daylight);
   updateBirds(dt, skyNow.daylight);
+  updateBees(dt, skyNow.daylight);
+  updateFish(dt);
   updateWeather(dt, scenery === "game" && !!world);
   const clockEl = app.querySelector(".clock");
   if (clockEl && clockEl.textContent !== clock()) clockEl.textContent = clock();
@@ -5205,6 +5499,91 @@ if (new URLSearchParams(location.search).has("test"))
       edits.set(key(x, y, z), null);
     }
     rebuildAt(...roomCells);
+    // Tools, wear, buckets and flowing water, honey and shears.
+    const wx0 = Math.round(player.x) + 4,
+      wz0 = Math.round(player.z) - 3,
+      wy0 = topAt(wx0, wz0);
+    setBlock([wx0, wy0 + 1, wz0], 4);
+    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
+    hold("stone_axe");
+    check(
+      "an axe chops wood faster",
+      breakTime(4, heldId()) < breakTime(4, null),
+    );
+    const savedOptions = world.options;
+    world.options = { ...world.options, difficulty: "easy" };
+    edit(false);
+    check(
+      "tools do not wear out on Easy",
+      !inventory.slots[0].wear && inventory.count("wood") >= 1,
+    );
+    world.options = { ...world.options, difficulty: "normal" };
+    setBlock([wx0, wy0 + 1, wz0], 4);
+    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
+    edit(false);
+    check("tools wear out on Normal", inventory.slots[0].wear === 1);
+    render();
+    check("the bar shows the wear", !!app.querySelector(".hotbar .wear"));
+    inventory.slots[0].wear = toolUses("stone_axe") - 1;
+    wearHeld();
+    check(
+      "a worn-out tool goes away with a kind message",
+      inventory.slots[0] === null && toastEl.textContent.includes("bancada"),
+    );
+    world.options = savedOptions;
+    check("the wood was chopped", !blocks.has(key(wx0, wy0 + 1, wz0)));
+    // A water bucket poured on the ground flows and fills the bucket again.
+    inventory.slots[0] = { id: "water_bucket", count: 1 };
+    selected = 0;
+    target = { p: [wx0, wy0, wz0], normal: new THREE.Vector3(0, 1, 0) };
+    targetAnimal = targetMonster = null;
+    edit(true);
+    const wellAt = [wx0, wy0 + 1, wz0];
+    check(
+      "a water bucket pours water",
+      blocks.get(key(...wellAt)) === WATER && heldId() === "bucket",
+    );
+    for (let i = 0; i < 12; i++) updateWater(0.4);
+    const wet = [...blocks.entries()].filter(
+      ([k, v]) => isWater(v) && v !== WATER && k.split(",")[1] <= wy0 + 1,
+    ).length;
+    check("the water flows around", wet >= 4);
+    check("Biel swims in water blocks", inWater(blocks, wx0, wy0 + 1, wz0));
+    pick();
+    targetWater = wellAt;
+    targetAnimal = targetMonster = null;
+    edit(true);
+    check(
+      "an empty bucket scoops the water back",
+      heldId() === "water_bucket" && !blocks.has(key(...wellAt)),
+    );
+    for (let i = 0; i < 80 && waterDirty.size; i++) updateWater(0.4);
+    check(
+      "the water dries up without its source",
+      ![...blocks.values()].some((v) => isWater(v)),
+    );
+    // Honey from a bee nest, with a bottle.
+    setBlock([wx0, wy0 + 1, wz0], BEE_NEST);
+    inventory.slots[0] = { id: "bottle", count: 2 };
+    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
+    targetAnimal = targetMonster = null;
+    edit(true);
+    targetAnimal = targetMonster = null;
+    edit(true);
+    check(
+      "a bottle collects honey, then the bees need a rest",
+      inventory.count("honey") === 1 && inventory.count("bottle") === 1,
+    );
+    blocks.delete(key(wx0, wy0 + 1, wz0));
+    edits.set(key(wx0, wy0 + 1, wz0), null);
+    rebuildAt([wx0, wy0 + 1, wz0]);
+    const shorn = animals.find((x) => x.type === "sheep");
+    shorn.readyAt = 0;
+    shorn.color = "";
+    const woolBefore = inventory.count("wool");
+    hold("shears");
+    interactWith(shorn);
+    check("shears give more wool", inventory.count("wool") === woolBefore + 3);
     // A game controller drives the same actions.
     const padStart = player.clone();
     window.nativeGamepad({ ly: -1 });
@@ -5267,6 +5646,29 @@ if (new URLSearchParams(location.search).has("test"))
     for (let x = -46; x <= 46; x += 3)
       for (let z = -46; z <= 46; z += 3) biomesHere.add(biomeAt(x, z));
     check("the island has several biomes", biomesHere.size >= 3);
+    const typesHere = new Set(blocks.values());
+    check(
+      "new islands have copper, lakes and bee nests",
+      world.gen === 2 &&
+        typesHere.has(COPPER_ORE) &&
+        typesHere.has(WATER) &&
+        typesHere.has(BEE_NEST),
+    );
+    const nest = nestBlocks[0];
+    player.set(nest[0] + 2, nest[1], nest[2]);
+    world.options = { ...world.options, animals: true };
+    timeOfDay = 0.3;
+    rainLevel = 0;
+    frame(last + 16);
+    check(
+      "bees buzz around their nest",
+      swarm.children.some(
+        (b) =>
+          b.visible &&
+          Math.hypot(b.position.x - nest[0], b.position.z - nest[2]) < 4,
+      ),
+    );
+    spawn();
     const ex = Math.round(player.x) + 2,
       ez = Math.round(player.z),
       ey = topAt(ex, ez) + 1;

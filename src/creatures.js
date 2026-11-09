@@ -142,6 +142,9 @@ export function interact(animal, heldId, now, roll = 0) {
     animal.type === "sheep" && animal.color
       ? `wool_${animal.color}`
       : kind.product;
+  // Shears give a sheep's wool more neatly: one more each time.
+  if (animal.type === "sheep" && heldId === "shears")
+    return { result: "shorn", give: [product, kind.count + 1], wear: true };
   return { result: "gave", give: [product, kind.count] };
 }
 
