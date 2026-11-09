@@ -358,7 +358,8 @@ h2 {
   width: 100%;
   margin-top: 8px;
   padding: 12px 36px 12px 12px;
-  font-size: 14px;
+  /* 16px or more: iOS zooms the whole page into smaller fields. */
+  font-size: 16px;
   -webkit-appearance: none;
   appearance: none;
   background-image:
@@ -1010,7 +1011,7 @@ kbd {
   margin-top: 8px;
   padding: 13px 14px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text);
   background: var(--field);
   border: 1px solid var(--border);
@@ -1033,7 +1034,7 @@ kbd {
 }
 .world-card {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 8px;
   padding: 12px 12px 12px 16px;
@@ -1611,4 +1612,48 @@ kbd {
   height: 100%;
   border-radius: 2px;
   background: #7cc46a;
+}
+/* Backpack slots can be dragged onto each other. */
+.inv-grid [data-inv] {
+  touch-action: none;
+}
+.slot.dragging {
+  opacity: 0.4;
+  outline: 2px dashed var(--orange, #ed8524);
+}
+/* A small picture of each world in the list. */
+.world-thumb {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 45px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--border);
+  color: var(--muted);
+}
+@media (max-width: 420px) {
+  .world-thumb {
+    width: 48px;
+    height: 30px;
+  }
+}
+/* How far the bow is drawn. */
+.draw-meter {
+  display: none;
+  width: 120px;
+  height: 6px;
+  margin: 0 auto 6px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.45);
+  overflow: hidden;
+}
+.drawing .draw-meter {
+  display: block;
+}
+.draw-meter i {
+  display: block;
+  height: 100%;
+  width: calc(var(--draw, 0) * 100%);
+  background: #f2b84b;
 }

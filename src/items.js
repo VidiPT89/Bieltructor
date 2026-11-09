@@ -100,6 +100,7 @@ export const ITEMS = {
   cooked_fish: { icon: "🍣", food: 5 },
   golden_apple: { icon: "🍏", food: 8, heal: 10 },
   bow: { icon: "🏹", tool: "bow", tier: 1 },
+  shield: { icon: "🛡️", tool: "shield", tier: 1, uses: 120 },
   ladder: { block: LADDER },
   fence: { block: FENCE },
   gate: { block: GATE },

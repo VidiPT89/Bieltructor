@@ -92,6 +92,12 @@ export const RECIPES = [
   },
   { id: "treat_bone", out: ["treat", 3], needs: { bone: 1 } },
   { id: "bow", out: ["bow", 1], needs: { stick: 3, wool: 2 }, bench: true },
+  {
+    id: "shield",
+    out: ["shield", 1],
+    needs: { planks: 6, iron_ingot: 1 },
+    bench: true,
+  },
   { id: "arrows", out: ["arrows", 4], needs: { stick: 1, stone: 1 } },
   { id: "ladder", out: ["ladder", 3], needs: { stick: 7 }, bench: true },
   {

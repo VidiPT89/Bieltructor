@@ -75,3 +75,34 @@ test("coal is generated underground and never in the protected floor", () => {
   assert(coal.every(([, y]) => y >= 1));
   assert(!coal.some(([x, y, z]) => !blocks.has(key(x, y + 1, z))));
 });
+
+test("moving a stack onto the same item joins them; other items swap", () => {
+  const inv = new Inventory();
+  inv.slots[0] = { id: "dirt", count: 40 };
+  inv.slots[1] = { id: "dirt", count: 50 };
+  inv.slots[2] = { id: "apple", count: 3 };
+  inv.move(0, 1);
+  assert.deepEqual(inv.slots[1], { id: "dirt", count: 64 });
+  assert.deepEqual(inv.slots[0], { id: "dirt", count: 26 }, "the rest stays");
+  inv.move(2, 0);
+  assert.equal(inv.slots[0].id, "apple");
+  assert.equal(inv.slots[2].id, "dirt");
+  inv.move(5, 0);
+  assert.equal(inv.slots[0].id, "apple", "moving an empty slot does nothing");
+});
+
+test("splitting puts half a stack into the first empty slot", () => {
+  const inv = new Inventory();
+  inv.slots[0] = { id: "dirt", count: 9 };
+  inv.slots[1] = { id: "stone", count: 1 };
+  assert.equal(inv.split(0), 2);
+  assert.equal(inv.slots[0].count, 5);
+  assert.deepEqual(inv.slots[2], { id: "dirt", count: 4 });
+  assert.equal(inv.split(1), -1, "one item cannot be split");
+  const full = new Inventory(2);
+  full.slots = [
+    { id: "dirt", count: 8 },
+    { id: "stone", count: 8 },
+  ];
+  assert.equal(full.split(0), -1, "no room");
+});

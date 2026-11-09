@@ -4,7 +4,7 @@
 // away from a light loses one level.
 
 // How much light each kind of block gives (block types from world.js).
-export const LIGHT_SOURCES = { 13: 14, 7: 15, 36: 15, 41: 12 };
+const LIGHT_SOURCES = { 13: 14, 7: 15, 36: 15, 41: 12 };
 export const MAX_LIGHT = 15;
 
 export class LightMap {

@@ -113,6 +113,7 @@ import {
   spawnSpot,
   strike,
   weaponDamage,
+  bowShot,
   validateMonsters,
 } from "./monsters.js";
 import { RECIPES, canCraft, craft } from "./recipes.js";
@@ -122,6 +123,7 @@ import {
   hurt,
   tick,
   eat,
+  shieldDamage,
   MAX_AIR,
 } from "./survival.js";
 import { sky, NOON } from "./daynight.js";
@@ -136,6 +138,7 @@ import {
   MAX_WORLDS,
 } from "./worlds.js";
 import { Music, audioContext, pauseAudio } from "./music.js";
+import { stepKind, playStep, playVoice } from "./sounds.js";
 import "./style.css";
 import { strings } from "./strings.js";
 import { installSmokeTests } from "./dev/smoke-tests.js";
@@ -191,11 +194,11 @@ const t = (k, vars = {}) =>
   String(strings[settings.lang][k]).replace(/\{(\w+)\}/g, (_, v) => vars[v]);
 const touchInput = new TouchInput();
 let mode = "splash",
-  started = false,
   selected = 0,
   firstPerson = false,
   confirmDelete = null,
   invPick = null,
+  invDrag = null,
   inventory = new Inventory(),
   vitals = createVitals(),
   animals = [],
@@ -372,7 +375,7 @@ function render() {
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v2.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div>${settings.minimap ? `<canvas class="minimap" width="132" height="132" aria-hidden="true"></canvas>` : ""}<div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div>${settings.minimap ? `<canvas class="minimap" width="132" height="132" aria-hidden="true"></canvas>` : ""}<div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="draw-meter" aria-hidden="true"><i></i></div><div class="hotbar">${inventory.slots
       .slice(0, 9)
       .map((slot, i) =>
         slotButton(
@@ -412,7 +415,7 @@ function render() {
           ? list
               .map(
                 (w) =>
-                  `<div class="world-card ${w.id === world?.id ? "current" : ""}"><div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
+                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
               )
               .join("")
           : `<p class="help-copy">${t("noWorlds")}</p>`
@@ -424,7 +427,7 @@ function render() {
       inner = `<span class="eyebrow">${t("creativeMode")}</span><h2>${t("allBlocks")}</h2><p class="field-hint">${t("pickBlock", { n: selected + 1 })}</p><div class="inv-grid">${CREATIVE_BLOCKS.map((id) => slotButton({ id, count: 1 }, 0, `data-give="${id}" title="${itemName(id)}"`, heldId() === id)).join("")}</div>${button("back", t("back"), "primary wide")}`;
     else if (mode === "inventory") {
       const bench = nearBench();
-      inner = `<span class="eyebrow">${t("adventure")}</span><h2>${t("backpack")}</h2><p class="field-hint">${t("swapHint")}</p><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-inv="${i}" title="${itemName(slot?.id)}"`, invPick === i, i < 9 ? i + 1 : "")).join("")}</div><h3>${t("recipes")}</h3><p class="field-hint">${bench ? t("benchNear") : t("benchFar")}</p><div class="recipes">${RECIPES.map(
+      inner = `<span class="eyebrow">${t("adventure")}</span><h2>${t("backpack")}</h2><p class="field-hint">${t("swapHint")}</p><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-inv="${i}" title="${itemName(slot?.id)}"`, invPick === i, i < 9 ? i + 1 : "")).join("")}</div>${invPick !== null && inventory.slots[invPick]?.count > 1 ? button("split", "✂︎ " + t("split"), "secondary") : ""}<h3>${t("recipes")}</h3><p class="field-hint">${bench ? t("benchNear") : t("benchFar")}</p><div class="recipes">${RECIPES.map(
         (r) => {
           const ok = canCraft(inventory, r, bench);
           return `<div class="recipe ${ok ? "ok" : ""}">${icon(r.out[0])}<div><strong>${itemName(r.out[0])}${r.out[1] > 1 ? ` ×${r.out[1]}` : ""}</strong><span class="needs">${Object.entries(
@@ -533,19 +536,23 @@ function render() {
       (b) =>
         (b.onclick = () => moveStack(b.dataset.move, Number(b.dataset.index))),
     );
-  // Backpack: tap one slot, then another, to swap them.
-  app.querySelectorAll("[data-inv]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const i = +b.dataset.inv;
-        if (invPick === null) invPick = i;
-        else {
-          if (invPick !== i) inventory.swap(invPick, i);
-          invPick = null;
-        }
-        render();
-      }),
-  );
+  // Backpack: tap one slot, then another (or drag it there) to move it.
+  // The same item joins the stack; anything else swaps places.
+  app.querySelectorAll("[data-inv]").forEach((b) => {
+    b.onpointerdown = (e) => {
+      if (inventory.slots[+b.dataset.inv])
+        invDrag = { from: +b.dataset.inv, x: e.clientX, y: e.clientY };
+    };
+    b.onclick = () => {
+      const i = +b.dataset.inv;
+      if (invPick === null) invPick = inventory.slots[i] ? i : null;
+      else {
+        inventory.move(invPick, i);
+        invPick = null;
+      }
+      render();
+    };
+  });
   app.querySelectorAll("[data-give]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -798,10 +805,10 @@ function action(a, arg) {
     } else {
       mode = "playing";
       history.length = 0;
-      started = true;
       keys.clear();
     }
   } else if (a === "pause") {
+    snapThumb();
     mode = "paused";
     save();
   } else if (a === "signdone") {
@@ -909,7 +916,6 @@ function action(a, arg) {
       if (settings.cloud) cloud.call("delete", { worldId: arg });
       if (world?.id === arg) {
         world = null;
-        started = false;
       }
       toast(t("worldDeleted"));
     }
@@ -945,6 +951,9 @@ function action(a, arg) {
   } else if (a === "import") {
     importWorld();
     return;
+  } else if (a === "split") {
+    if (invPick !== null) inventory.split(invPick);
+    invPick = null;
   } else if (a === "place") {
     edit(true);
     return;
@@ -989,6 +998,34 @@ function save() {
     toast(t("saveError"));
     return false;
   }
+}
+// Keeps a small picture of the world being played, for the world list.
+const thumbCanvas = document.createElement("canvas");
+function snapThumb() {
+  if (!world || mode !== "playing") return;
+  try {
+    renderer.render(scene, camera);
+    const src = renderer.domElement,
+      h = 90,
+      w = Math.round((h * src.width) / src.height);
+    thumbCanvas.width = Math.min(w, 200);
+    thumbCanvas.height = h;
+    const ctx = thumbCanvas.getContext("2d");
+    // Crop to the middle when the screen is very wide or very tall.
+    const sw = (src.height * thumbCanvas.width) / h;
+    ctx.drawImage(
+      src,
+      (src.width - sw) / 2,
+      0,
+      sw,
+      src.height,
+      0,
+      0,
+      thumbCanvas.width,
+      h,
+    );
+    store.saveThumb(world.id, thumbCanvas.toDataURL("image/jpeg", 0.7));
+  } catch {}
 }
 function scheduleSave() {
   clearTimeout(saveTimer);
@@ -2158,7 +2195,6 @@ function loadWorld(w) {
       ].forEach((id, i) => (inventory.slots[i] = { id, count: 1 }));
     else inventory.add("apple", 3);
   }
-  started = true;
   document.documentElement.classList.toggle("first-person", firstPerson);
 }
 document.documentElement.classList.toggle("first-person", firstPerson);
@@ -2252,14 +2288,10 @@ function pollGamepad(dt) {
     pitch = Math.max(-0.25, Math.min(1.15, pitch + now.look[1] * 2 * dt));
     if (hit("confirm")) trigger("jump");
     if (hit("back")) trigger("down");
-    for (const name of [
-      "place",
-      "attack",
-      "backpack",
-      "pause",
-      "next",
-      "previous",
-    ])
+    // With a bow, pressing draws it and letting go shoots.
+    if (hit("place")) holdingBow() ? startDraw() : trigger("place");
+    if (before?.place && !now.place && drawStart !== null) trigger("place");
+    for (const name of ["attack", "backpack", "pause", "next", "previous"])
       if (hit(name)) trigger(name);
     return;
   }
@@ -2303,6 +2335,7 @@ window.addEventListener(
   { passive: true },
 );
 app.addEventListener("pointerdown", (e) => {
+  if (e.target.closest('[data-action="place"]')) startDraw();
   const control = e.target.closest("[data-key]");
   if (!control || mode !== "playing") return;
   e.preventDefault();
@@ -2313,6 +2346,31 @@ app.addEventListener("pointerdown", (e) => {
 });
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
   app.addEventListener(event, (e) => touchInput.release(e.pointerId));
+// Dragging in the backpack: let go over another slot to move the stack there.
+window.addEventListener("pointermove", (e) => {
+  if (!invDrag || mode !== "inventory") return;
+  const far = Math.hypot(e.clientX - invDrag.x, e.clientY - invDrag.y) > 12;
+  app
+    .querySelector(`[data-inv="${invDrag.from}"]`)
+    ?.classList.toggle("dragging", far);
+});
+window.addEventListener("pointerup", (e) => {
+  // A finger that slides off Build lets the bow go slack.
+  const drawn = drawStart;
+  if (drawn !== null && e.pointerType === "touch")
+    setTimeout(() => drawStart === drawn && (drawStart = null), 400);
+  const drag = invDrag;
+  invDrag = null;
+  if (!drag || mode !== "inventory") return;
+  // A short tap is a click; the click handler deals with it.
+  if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) <= 12) return;
+  const over = document
+    .elementFromPoint(e.clientX, e.clientY)
+    ?.closest("[data-inv]");
+  if (over) inventory.move(drag.from, +over.dataset.inv);
+  invPick = null;
+  render();
+});
 window.pauseNativeGame = () => {
   pauseAudio(true);
   keys.clear();
@@ -2386,6 +2444,7 @@ function interactWith(a) {
     held = creative() && kind.tameWith && !a.tamed ? kind.tameWith : heldId();
   const res = interact(a, held, world.age, Math.random());
   const who = nested("animalNames", a.type);
+  animalVoice(a);
   if (res.use && !creative()) inventory.remove(res.use, 1);
   if (res.result === "gave") {
     if (!creative() && inventory.add(...res.give)) toast(t("full"));
@@ -2852,6 +2911,23 @@ function sparkle(p) {
 }
 function hurtPlayer(amount, from) {
   if (creative()) return;
+  // A shield anywhere in the hotbar stops half of a hit from the front.
+  const shield = inventory.slots.findIndex(
+    (s, i) => i < 9 && s?.id === "shield",
+  );
+  if (shield >= 0 && vitals.hurtCooldown <= 0) {
+    const through = shieldDamage(amount, yaw, player, from);
+    if (through < amount) {
+      beepAt(180, 110);
+      wearSlot(shield);
+      emit("block");
+      if (!through) {
+        vitals.hurtCooldown = 0.8;
+        return;
+      }
+      amount = through;
+    }
+  }
   if (!hurt(vitals, amount, rules())) return;
   hurtFlash();
   beepAt(240, 120);
@@ -2905,7 +2981,16 @@ function attack() {
 }
 // Biel's own arrows: they fly where he aims and fall a little.
 let bielArrows = [];
-function shootBow() {
+// Drawing the bow: pressing Build starts it, letting go shoots.
+let drawStart = null;
+const holdingBow = () => ITEMS[heldId()]?.tool === "bow";
+function startDraw() {
+  if (mode === "playing" && holdingBow()) drawStart = performance.now();
+}
+function shootBow(drawnAt) {
+  const shot = bowShot(
+    drawnAt === null ? undefined : (performance.now() - drawnAt) / 1000,
+  );
   if (!creative() && !inventory.remove("arrows", 1))
     return toast(t("noArrows"));
   const aim = new THREE.Raycaster();
@@ -2925,10 +3010,11 @@ function shootBow() {
   scene.add(mesh);
   bielArrows.push({
     mesh,
-    vel: aim.ray.direction.clone().multiplyScalar(18),
+    vel: aim.ray.direction.clone().multiplyScalar(shot.speed),
+    damage: shot.damage,
     life: 3,
   });
-  beepAt(500, 900);
+  beepAt(400 + 300 * shot.power, 700 + 400 * shot.power);
   wearHeld();
   render();
 }
@@ -2942,7 +3028,7 @@ function updateBielArrows(dt) {
     const foe = monsters.find(
       (m) => Math.hypot(m.x - p.x, m.y + 0.8 - p.y, m.z - p.z) < 0.8,
     );
-    if (foe) hitMonster(foe, 3);
+    if (foe) hitMonster(foe, a.damage);
     const t0 = blocks.get(
       key(Math.round(p.x), Math.round(p.y), Math.round(p.z)),
     );
@@ -3363,6 +3449,7 @@ function updateBreaking(dt) {
   }
 }
 function beepAt(from, to, delay = 0) {
+  if (!settings.sound) return;
   try {
     const audio = audioContext(),
       at = audio.currentTime + delay,
@@ -3467,6 +3554,44 @@ function chomp() {
   if (!settings.sound) return;
   for (const delay of [0, 0.12]) beepAt(300, 200, delay);
 }
+// A footstep that sounds like the ground under Biel.
+function footstep() {
+  if (!settings.sound) return;
+  const x = Math.round(player.x),
+    z = Math.round(player.z),
+    wading = blocks.get(key(x, Math.round(player.y + 0.2), z));
+  const kind = isWater(wading)
+    ? "water"
+    : stepKind(blocks.get(key(x, Math.round(player.y - 0.3), z)));
+  try {
+    if (kind) playStep(audioContext(), kind, settings.volume.fx);
+  } catch {}
+}
+// An animal says something, softer when it is further away.
+function animalVoice(a) {
+  if (!settings.sound) return;
+  const far = Math.hypot(a.x - player.x, a.z - player.z);
+  try {
+    playVoice(
+      audioContext(),
+      a.type,
+      settings.volume.fx * Math.max(0.15, 1 - far / 14),
+      a.baby ? 1.4 : 0.9 + Math.random() * 0.2,
+    );
+  } catch {}
+}
+// Now and then a nearby animal moos, baas or clucks.
+let stepClock = 0,
+  chatterClock = 6;
+function animalChatter(dt) {
+  chatterClock -= dt;
+  if (chatterClock > 0) return;
+  chatterClock = 8 + Math.random() * 12;
+  const near = animals.filter(
+    (a) => a !== riding && Math.hypot(a.x - player.x, a.z - player.z) < 12,
+  );
+  if (near.length) animalVoice(near[Math.floor(Math.random() * near.length)]);
+}
 // Backpacks left behind on harder difficulties, waiting to be picked up.
 const backpackGroup = new THREE.Group();
 scene.add(backpackGroup);
@@ -3551,9 +3676,12 @@ function updateWater(dt) {
 }
 // Tools wear out on Normal and Hard, with a friendly warning first.
 function wearHeld() {
+  wearSlot(selected);
+}
+function wearSlot(index) {
   if (creative() || !rules().toolWear) return;
-  const name = itemName(heldId()),
-    result = inventory.wearOut(selected);
+  const name = itemName(inventory.slots[index]?.id),
+    result = inventory.wearOut(index);
   if (result === "tired") toast(t("toolTired", { item: name }));
   if (result === "broke") {
     toast(t("toolBroke", { item: name }));
@@ -3832,6 +3960,9 @@ function flashLabel(text) {
   }, 1200);
 }
 function edit(place) {
+  // Any use of Build ends drawing the bow; only a shot uses the draw.
+  const drawnAt = drawStart;
+  drawStart = null;
   if (mode !== "playing") return;
   // Holding food: eat it instead of building.
   const food = ITEMS[heldId()]?.food;
@@ -3853,7 +3984,7 @@ function edit(place) {
   }
   // A bow shoots an arrow where Biel is aiming.
   if (place && ITEMS[heldId()]?.tool === "bow") {
-    shootBow();
+    shootBow(drawnAt);
     return;
   }
   // Fishing: cast the line onto water in front of Biel.
@@ -3904,6 +4035,11 @@ function edit(place) {
   }
   if (place && usedType === BEE_NEST && heldId() === "bottle") {
     collectHoney(key(...p));
+    return;
+  }
+  // Without a bottle (and nothing to build with), say what the bees want.
+  if (place && usedType === BEE_NEST && ITEMS[heldId()]?.block === undefined) {
+    toast(t("needBottle"));
     return;
   }
   if (place && blocks.get(key(...p)) === BED) {
@@ -4053,6 +4189,7 @@ canvas.onpointerdown = (e) => {
     attack();
     return;
   }
+  if (e.button === 2) startDraw();
   // Adventure: holding the left mouse button breaks the block under it.
   mouseBreak =
     !creative() && e.pointerType !== "touch" && e.button === 0 && !e.shiftKey;
@@ -4084,7 +4221,10 @@ canvas.onpointerup = (e) => {
     (e.clientX / innerWidth) * 2 - 1,
     (-e.clientY / innerHeight) * 2 + 1,
   );
-  if (pointerDown && !pointerDown.moved) {
+  // A drawn bow shoots when the button is let go, even after turning to aim.
+  if (pointerDown?.button === 2 && pointerDown.moved && drawStart !== null)
+    edit(true);
+  else if (pointerDown && !pointerDown.moved) {
     pick();
     const place = pointerDown.button === 2 || e.shiftKey;
     // Creative breaks on click; Adventure breaks while the button is held.
@@ -4163,6 +4303,15 @@ function frame(now) {
   last = now;
   elapsed += dt;
   pollGamepad(dt);
+  // How far the bow is drawn, shown above the hotbar.
+  if (drawStart !== null && (mode !== "playing" || !holdingBow()))
+    drawStart = null;
+  document.documentElement.classList.toggle("drawing", drawStart !== null);
+  if (drawStart !== null)
+    document.documentElement.style.setProperty(
+      "--draw",
+      bowShot((now - drawStart) / 1000).power,
+    );
   if (mode === "playing") scenery = "game";
   if (mode === "menu" || mode === "splash") scenery = "menu";
   if (mode === "playing" && world.options.cycle === "normal") {
@@ -4236,6 +4385,15 @@ function frame(now) {
       }
     }
     if (player.y < -5) spawn();
+    // Footsteps while walking on the ground (riding and flying are quiet).
+    if (grounded && !flying && !riding && (dx || dz)) {
+      stepClock -= speed * dt;
+      if (stepClock <= 0) {
+        stepClock = 1.8;
+        footstep();
+      }
+    }
+    animalChatter(dt);
     world.age += dt;
     // Visiting a new biome counts for the explorer sticker.
     biomeClock -= dt;
@@ -4491,6 +4649,12 @@ window.importNativeWorld = (json) => {
 installSmokeTests({
   get $() {
     return $;
+  },
+  get hurtPlayer() {
+    return hurtPlayer;
+  },
+  get snapThumb() {
+    return snapThumb;
   },
   get action() {
     return action;

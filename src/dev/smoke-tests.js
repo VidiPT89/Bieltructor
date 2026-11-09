@@ -1276,6 +1276,47 @@ export function installSmokeTests(g) {
         "the bow shoots arrows at monsters",
         !g.monsters.includes(target0) && g.inventory.count("arrows") === 1,
       );
+      // A shield in the hotbar takes half of a hit from the front.
+      g.inventory = new Inventory();
+      g.inventory.slots[4] = { id: "shield", count: 1 };
+      const blow = (dz) => {
+        g.vitals.health = 20;
+        g.vitals.hurtCooldown = 0;
+        g.hurtPlayer(4, { x: g.player.x, z: g.player.z + dz });
+        return 20 - g.vitals.health;
+      };
+      g.yaw = 0;
+      const front = blow(-2),
+        back = blow(2);
+      check(
+        "a shield stops half of a hit from the front",
+        front > 0 && front < back && g.inventory.slots[4]?.wear === 1,
+      );
+      // The world list shows a small picture of each world.
+      g.snapThumb();
+      check(
+        "pausing keeps a picture of the world",
+        g.store.thumb(g.world.id)?.startsWith("data:image/jpeg"),
+      );
+      // Backpack: tapping one stack and then the same item joins them;
+      // a picked stack can be split in half.
+      g.inventory = new Inventory();
+      g.inventory.slots[0] = { id: "dirt", count: 10 };
+      g.inventory.slots[1] = { id: "dirt", count: 5 };
+      g.action("inventory");
+      g.app.querySelector('[data-inv="1"]').click();
+      g.app.querySelector('[data-inv="0"]').click();
+      check(
+        "the backpack joins stacks of the same item",
+        g.inventory.slots[0].count === 15 && !g.inventory.slots[1],
+      );
+      g.app.querySelector('[data-inv="0"]').click();
+      g.app.querySelector('[data-action="split"]').click();
+      check(
+        "the backpack splits a stack in half",
+        g.inventory.slots[0].count === 8 && g.inventory.slots[1]?.count === 7,
+      );
+      g.action("back");
       g.firstPerson = false;
       g.vitals.health = 6;
       hold("golden_apple");

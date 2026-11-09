@@ -4,7 +4,7 @@ Um guia simples para o Biel e para os pais.
 
 ## Os mundos
 
-Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo ou apagas um (é preciso carregar duas vezes, para não apagar sem querer).
+Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
 
 Ao criar um mundo escolhes:
 
@@ -60,7 +60,7 @@ Os mundos novos são ilhas com **biomas**: planície com flores, floresta, praia
 
 ## Fabricar
 
-Abre a **mochila** (🎒, tecla E ou Y no comando). Em baixo está o **livro de receitas**: os ingredientes ficam verdes quando os tens. Algumas receitas precisam de uma **bancada** por perto.
+Abre a **mochila** (🎒, tecla E ou Y no comando). Toca num espaço e depois noutro, ou arrasta, para mudar as coisas de sítio: itens iguais juntam-se. Com um monte escolhido, **Dividir ao meio** separa-o em dois. Em baixo está o **livro de receitas**: os ingredientes ficam verdes quando os tens. Algumas receitas precisam de uma **bancada** por perto.
 
 Para começar:
 
@@ -122,7 +122,7 @@ Só aparecem na **Aventura**, **à noite**, em sítios **escuros**, e nunca no P
 - **Fumarento** (só no Difícil): incha e faz "PUF!", empurra o Biel e deita abaixo alguns blocos naturais. Nunca estraga o que tu construíste.
 - **Fantasma da névoa** (só no Difícil): flutua pelas grutas e atravessa a pedra. No Difícil as grutas têm monstros mesmo de dia.
 
-Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Ao nascer do sol desfazem-se em faíscas.
+Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Mantém carregado em Construir para esticar o arco (a barra amarela enche) e larga para disparar: quanto mais esticado, mais longe e com mais força vai a seta. Um **escudo** (6 tábuas e 1 barra de ferro, na bancada) em qualquer espaço da barra de baixo trava metade de cada golpe que vem da frente. Ao nascer do sol desfazem-se em faíscas.
 
 ## Mapa e bússola
 

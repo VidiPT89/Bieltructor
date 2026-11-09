@@ -77,7 +77,7 @@ export const OPENS = {
   [TRAPDOOR_OPEN]: TRAPDOOR,
 };
 // Shapes that do not fill their whole block.
-export const isShape = (type) => type >= LADDER && type <= POT;
+const isShape = (type) => type >= LADDER && type <= POT;
 // Small plants drawn as two crossed panels.
 export const isPlant = (type) =>
   type === FLOWER || type === TALL_GRASS || type === MUSHROOM;

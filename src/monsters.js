@@ -80,7 +80,7 @@ export const litNear = (lights, x, z, y = null) =>
 // Looks for a dark, dry spot a little away from Biel. Returns null if none.
 // `lightAt(x, y, z)` gives the light level there; monsters need 7 or less.
 // (A list of `lights` can be given instead, for simple cases.)
-export const DARK_ENOUGH = 7;
+const DARK_ENOUGH = 7;
 export function spawnSpot({
   rand,
   player,
@@ -106,6 +106,13 @@ export function spawnSpot({
 }
 
 export const weaponDamage = (heldId) => ITEMS[heldId]?.damage ?? 1;
+
+// The longer the bow is drawn (up to one second), the faster and harder the
+// arrow flies. A shot without a measured draw counts as a medium one.
+export function bowShot(seconds = 0.6) {
+  const power = Math.max(0.2, Math.min(1, seconds));
+  return { power, speed: 10 + 16 * power, damage: 1 + Math.round(4 * power) };
+}
 
 // One hit. Big jellies split into two little ones instead of vanishing.
 export function strike(monster, damage) {

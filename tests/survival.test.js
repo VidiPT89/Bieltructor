@@ -62,3 +62,14 @@ test("air runs out under water and then hurts, and refills on the surface", () =
   tick(v, 3, { rules: R.normal, hunger: false });
   assert.equal(v.air, 10);
 });
+
+test("a shield stops half of a hit from the front, not from behind", async () => {
+  const { shieldDamage } = await import("../src/survival.js");
+  const biel = { x: 0, z: 0 };
+  // With yaw 0 Biel looks towards -z.
+  assert.equal(shieldDamage(4, 0, biel, { x: 0, z: -3 }), 2);
+  assert.equal(shieldDamage(1, 0, biel, { x: 0.5, z: -3 }), 0);
+  assert.equal(shieldDamage(4, 0, biel, { x: 0, z: 3 }), 4, "from behind");
+  assert.equal(shieldDamage(4, 0, biel, { x: 3, z: 0 }), 4, "from the side");
+  assert.equal(shieldDamage(4, Math.PI / 2, biel, { x: -3, z: 0 }), 2);
+});

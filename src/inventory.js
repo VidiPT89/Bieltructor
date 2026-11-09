@@ -72,6 +72,36 @@ export class Inventory {
     [this.slots[a], this.slots[b]] = [this.slots[b], this.slots[a]];
   }
 
+  // Moves slot a onto slot b: the same item joins b's stack (what does not
+  // fit stays in a), anything else swaps places.
+  move(a, b) {
+    const from = this.slots[a],
+      to = this.slots[b];
+    if (a === b || !from) return;
+    if (to?.id === from.id && !from.wear && !to.wear) {
+      const n = Math.min(from.count, maxStack(to.id) - to.count);
+      if (n > 0) {
+        to.count += n;
+        from.count -= n;
+        if (!from.count) this.slots[a] = null;
+        return;
+      }
+    }
+    this.swap(a, b);
+  }
+
+  // Splits a stack in two, putting half into the first empty slot.
+  // Returns that slot, or -1 when there is nothing to split or no room.
+  split(index) {
+    const slot = this.slots[index],
+      empty = this.slots.indexOf(null);
+    if (!slot || slot.count < 2 || empty < 0) return -1;
+    const half = Math.floor(slot.count / 2);
+    slot.count -= half;
+    this.slots[empty] = { id: slot.id, count: half };
+    return empty;
+  }
+
   toJSON() {
     return this.slots.map((s) =>
       s ? (s.wear ? [s.id, s.count, s.wear] : [s.id, s.count]) : null,

@@ -138,3 +138,13 @@ test("monsters only appear where the light level is 7 or less", () => {
     spawnSpot({ rand: seeded(2), player, lightAt: () => 7, surface: dry }),
   );
 });
+
+test("a bow drawn longer shoots faster and harder", async () => {
+  const { bowShot } = await import("../src/monsters.js");
+  const quick = bowShot(0),
+    full = bowShot(1),
+    longer = bowShot(5);
+  assert(quick.speed < full.speed && quick.damage < full.damage);
+  assert.deepEqual(longer, full, "no more than a full draw");
+  assert.equal(bowShot().damage, 3, "an unmeasured shot is a medium one");
+});

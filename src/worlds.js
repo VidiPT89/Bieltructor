@@ -283,8 +283,23 @@ export function createStore(storage) {
       index.unshift(summary(world));
       storage.setItem("biel-worlds", JSON.stringify(index));
     },
+    // A small picture of each world for the list. It stays on this device.
+    thumb(id) {
+      const url = storage.getItem("biel-thumb-" + id);
+      return typeof url === "string" &&
+        url.startsWith("data:image/jpeg;base64,") &&
+        url.length < 60000
+        ? url
+        : null;
+    },
+    saveThumb(id, url) {
+      try {
+        storage.setItem("biel-thumb-" + id, url);
+      } catch {}
+    },
     remove(id) {
       storage.removeItem("biel-world-" + id);
+      storage.removeItem("biel-thumb-" + id);
       storage.setItem(
         "biel-worlds",
         JSON.stringify(store.list().filter((w) => w.id !== id)),
