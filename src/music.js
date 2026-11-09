@@ -32,6 +32,7 @@ const frequency = (semitone) => 261.63 * 2 ** (semitone / 12);
 
 export class Music {
   enabled = false;
+  volume = 0.8;
   night = false;
   #timer;
   #barIndex = 0;
@@ -53,11 +54,17 @@ export class Music {
       feedback.connect(delay);
       delay.connect(ctx.destination);
     }
-    this.#out.gain.setTargetAtTime(0.05, ctx.currentTime, 0.8);
+    this.#out.gain.setTargetAtTime(0.06 * this.volume, ctx.currentTime, 0.8);
     if (this.#timer) return;
     this.enabled = true;
     this.#nextBar = ctx.currentTime + 0.2;
     this.#timer = setInterval(() => this.#schedule(), 200);
+  }
+
+  setVolume(v) {
+    this.volume = v;
+    if (this.#out && this.enabled)
+      this.#out.gain.setTargetAtTime(0.06 * v, audioContext().currentTime, 0.2);
   }
 
   stop() {

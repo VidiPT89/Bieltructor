@@ -97,6 +97,8 @@ export const RECIPES = [
     bench: true,
   },
   { id: "treat_bone", out: ["treat", 3], needs: { bone: 1 } },
+  { id: "bow", out: ["bow", 1], needs: { stick: 3, wool: 2 }, bench: true },
+  { id: "arrows", out: ["arrows", 4], needs: { stick: 1, stone: 1 } },
 ];
 
 export function canCraft(inventory, recipe, nearBench) {

@@ -142,6 +142,18 @@ if (firstRun) {
     phone || (navigator.hardwareConcurrency ?? 8) <= 4 ? "low" : "high";
 }
 settings.cloud = settings.cloud === true;
+// Volumes from 0 to 1; older settings with sound or music off start at 0.
+const vol = (v, on) =>
+  Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : on === false ? 0 : 0.8;
+settings.volume = {
+  music: vol(settings.volume?.music, settings.music),
+  fx: vol(settings.volume?.fx, settings.sound),
+  ambient: vol(settings.volume?.ambient, settings.sound),
+};
+settings.sound = settings.volume.fx > 0;
+settings.music = settings.volume.music > 0;
+settings.bigText = settings.bigText === true;
+settings.minimap = settings.minimap !== false;
 if (!strings[settings.lang]) settings.lang = "pt";
 settings.parents = normalizeParents(settings.parents);
 const itemName = (id) =>
@@ -191,7 +203,10 @@ let mode = "splash",
   scenery = "menu",
   toastTimer,
   saveTimer;
+const tips = strings[settings.lang].tips,
+  tip = tips[Math.floor(Math.random() * tips.length)];
 const music = new Music();
+music.volume = settings.volume.music;
 // Worlds live in the browser storage of the app; see src/worlds.js.
 const storage = {
   getItem: (k) => {
@@ -247,6 +262,7 @@ const credits = () =>
 const logo = `<img class="brand-icon" src="logo.webp" alt=""><span>BIEL<span class="brand-accent">TRUCTOR</span></span>`;
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
+  document.documentElement.classList.toggle("big-text", settings.bigText);
   document.documentElement.lang = settings.lang === "pt" ? "pt-PT" : "en";
   try {
     localStorage.setItem("biel-settings", JSON.stringify(settings));
@@ -351,11 +367,11 @@ function render() {
   if (mode !== "playing") touchInput.clear();
   let content = "";
   if (mode === "splash")
-    content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
+    content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p><p class="tip">${tip}</p></div>${credits()}`;
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v2.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div><div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div>${settings.minimap ? `<canvas class="minimap" width="132" height="132" aria-hidden="true"></canvas>` : ""}<div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
       .slice(0, 9)
       .map((slot, i) =>
         slotButton(
@@ -431,6 +447,8 @@ function render() {
         `<div class="furnace-cell ${cls}"><small>${label}</small>${slotButton(f[slot] ? { id: f[slot][0], count: f[slot][1] } : null, 0, `data-move="${slot}" data-index="0"`, false)}</div>`;
       inner = `<span class="eyebrow">🔥</span><h2>${itemName("furnace")}</h2><p class="field-hint">${t("furnaceHint")}</p><div class="furnace">${cell("input", t("toCook"))}${cell("fuel", t("fuelSlot"), f.burn > 0 ? "burning" : "")}<div class="furnace-progress"><i style="width:${Math.round(f.progress * 100)}%"></i></div>${cell("output", t("readySlot"))}</div><h3>${t("backpack")}</h3><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-move="bag" data-index="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div>${button("back", t("back"), "primary wide")}`;
     }
+    if (mode === "map")
+      inner = `<span class="eyebrow">🗺️ ${escapeHtml(world.name)}</span><h2>${t("map")}</h2><canvas class="big-map" width="520" height="520"></canvas><p class="field-hint">${t("mapLegend")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "stickers") {
       const n = Object.keys(progress.done).length;
       inner = `<span class="eyebrow">${t("stickerCount", { n })}</span><h2>${t("stickerBook")}</h2><div class="sticker-grid">${CHALLENGES.map(
@@ -466,11 +484,11 @@ function render() {
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("map", "🗺️ " + t("map"), "wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloudStatus === "missing" ? t("icloudMissing") : cloudStatus ? t("icloudSynced", { time: cloudStatus }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloudStatus === "missing" ? t("icloudMissing") : cloudStatus ? t("icloudSynced", { time: cloudStatus }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
@@ -490,17 +508,16 @@ function render() {
     for (const [id, prop] of [
       ["language", "lang"],
       ["appearance", "theme"],
-      ["sound", "sound"],
-      ["music", "music"],
       ["quality", "quality"],
       ["cloud", "cloud"],
+      ["bigtext", "bigText"],
+      ["minimap", "minimap"],
     ])
       $("#" + id).onchange = (e) => {
         settings[prop] =
-          prop === "sound" || prop === "music" || prop === "cloud"
+          prop === "cloud" || prop === "bigText" || prop === "minimap"
             ? e.target.value === "on"
             : e.target.value;
-        if (prop === "music") settings.music ? music.start() : music.stop();
         if (prop === "cloud" && settings.cloud) syncNow();
         theme();
         applyQuality();
@@ -531,6 +548,19 @@ function render() {
       (b.onclick = () => {
         inventory.slots[selected] = { id: b.dataset.give, count: 1 };
         action("back");
+      }),
+  );
+  app.querySelectorAll("[data-volume]").forEach(
+    (el) =>
+      (el.oninput = () => {
+        settings.volume[el.dataset.volume] = Number(el.value) / 100;
+        settings.sound = settings.volume.fx > 0;
+        settings.music = settings.volume.music > 0;
+        el.previousElementSibling.textContent = `${el.value}%`;
+        music.setVolume(settings.volume.music);
+        if (settings.music && !music.enabled) music.start();
+        if (!settings.music && music.enabled) music.stop();
+        theme();
       }),
   );
   app.querySelectorAll("[data-parent]").forEach(
@@ -827,6 +857,7 @@ const MODALS = [
   "inventory",
   "chest",
   "furnace",
+  "map",
   "stickers",
   "parentsgate",
   "parents",
@@ -869,6 +900,11 @@ function action(a, arg) {
     namingDog = null;
     mode = "playing";
     scheduleSave();
+  } else if (a === "map") {
+    open("map");
+    render();
+    drawMap($(".big-map"), 0, 0, SIZE, true);
+    return;
   } else if (a === "stickers") {
     open("stickers");
   } else if (a === "parentsgate") {
@@ -1487,6 +1523,113 @@ const amber = materials[7];
 amber.emissive.set(0xffa040);
 amber.emissiveMap = amber.map;
 amber.emissiveIntensity = 0;
+// Top block of each column, remembered for the maps until something changes.
+const topCache = new Map();
+function topInfo(x, z) {
+  const k = x + "," + z;
+  let info = topCache.get(k);
+  if (!info) {
+    info = { y: -1, type: undefined };
+    for (let y = MAX_Y; y >= 0; y--) {
+      const type = blocks.get(key(x, y, z));
+      if (
+        type !== undefined &&
+        !cropInfo(type) &&
+        !isPlant(type) &&
+        type !== TORCH
+      ) {
+        info = { y, type };
+        break;
+      }
+    }
+    topCache.set(k, info);
+  }
+  return info;
+}
+// Draws the island around (cx, cz). Home always shows, pinned to the edge
+// when it is far away, so the map is also a compass.
+function drawMap(canvas, cx, cz, radius, whole = false) {
+  if (!canvas || !world) return;
+  const ctx = canvas.getContext("2d"),
+    size = canvas.width,
+    cells = radius * 2 + 1,
+    cell = size / cells;
+  ctx.fillStyle = "#1f6f86";
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < cells; i++)
+    for (let j = 0; j < cells; j++) {
+      const x = Math.round(cx) - radius + i,
+        z = Math.round(cz) - radius + j;
+      if (Math.abs(x) > SIZE || Math.abs(z) > SIZE) continue;
+      const { y, type } = topInfo(x, z);
+      if (type === undefined) continue;
+      if (y + 0.5 < WATER_LEVEL) ctx.fillStyle = "#3f9fb4";
+      else {
+        const shade = Math.max(-0.25, Math.min(0.25, (y - player.y) * 0.03));
+        const c = new THREE.Color(colors[type] ?? 0x888888);
+        c.offsetHSL(0, 0, shade);
+        ctx.fillStyle = "#" + c.getHexString();
+      }
+      ctx.fillRect(i * cell, j * cell, Math.ceil(cell), Math.ceil(cell));
+    }
+  const toMap = (x, z, pin) => {
+    let u = (x - (Math.round(cx) - radius) + 0.5) * cell,
+      v = (z - (Math.round(cz) - radius) + 0.5) * cell;
+    if (pin) {
+      u = Math.max(8, Math.min(size - 8, u));
+      v = Math.max(8, Math.min(size - 8, v));
+    }
+    return [u, v];
+  };
+  const dot = (x, z, color, r, pin = false) => {
+    const [u, v] = toMap(x, z, pin);
+    if (u < 0 || v < 0 || u > size || v > size) return;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(u, v, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  for (const k of Object.keys(world.chests)) {
+    const [x, , z] = k.split(",").map(Number);
+    dot(x, z, "#f2c14e", whole ? 4 : 2.5);
+  }
+  for (const a of animals) if (a.tamed) dot(a.x, a.z, "#ffd36b", whole ? 4 : 3);
+  for (const m of monsters) dot(m.x, m.z, "#ef5b4c", whole ? 4 : 3);
+  // Home is the bed, or the starting point of the world.
+  const [hx, hz] = world.spawnPoint
+    ? [world.spawnPoint[0], world.spawnPoint[2]]
+    : menuAnchor;
+  const [hu, hv] = toMap(hx, hz, true);
+  ctx.font = `${whole ? 22 : 15}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("🏠", hu, hv);
+  // Biel: an arrow pointing the way he looks.
+  const [pu, pv] = toMap(player.x, player.z);
+  ctx.save();
+  ctx.translate(pu, pv);
+  ctx.rotate(-yaw);
+  ctx.fillStyle = "#ed8524";
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const s = whole ? 9 : 7;
+  ctx.moveTo(0, -s);
+  ctx.lineTo(s * 0.7, s);
+  ctx.lineTo(0, s * 0.5);
+  ctx.lineTo(-s * 0.7, s);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fill();
+  ctx.restore();
+}
+let minimapClock = 0;
+function updateMinimap(dt) {
+  minimapClock -= dt;
+  if (minimapClock > 0) return;
+  minimapClock = 0.4;
+  drawMap(app.querySelector(".minimap"), player.x, player.z, 24);
+}
 // The world is drawn in 16 × 16 chunks; an edit only redraws its own chunk.
 const CHUNK = 16;
 const chunks = new Map();
@@ -1558,6 +1701,7 @@ function buildChunk(cx, cz, cells) {
   });
 }
 function refreshChunkLists() {
+  topCache.clear();
   meshes = [];
   lightBlocks = [];
   cropKeys = [];
@@ -2499,6 +2643,54 @@ function attack() {
   rightArm.rotation.x = -1.6;
   hitMonster(foe, weaponDamage(heldId()));
 }
+// Biel's own arrows: they fly where he aims and fall a little.
+let bielArrows = [];
+function shootBow() {
+  if (!creative() && !inventory.remove("arrows", 1))
+    return toast(t("noArrows"));
+  const aim = new THREE.Raycaster();
+  aim.setFromCamera(
+    (firstPerson && pointerKind !== "touch") || pointerKind === "pad"
+      ? center
+      : pointer,
+    camera,
+  );
+  const mesh = arrow(),
+    from = new THREE.Vector3(
+      player.x,
+      player.y + 1.4,
+      player.z,
+    ).addScaledVector(aim.ray.direction, 0.6);
+  mesh.position.copy(from);
+  scene.add(mesh);
+  bielArrows.push({
+    mesh,
+    vel: aim.ray.direction.clone().multiplyScalar(18),
+    life: 3,
+  });
+  beepAt(500, 900);
+  render();
+}
+function updateBielArrows(dt) {
+  for (const a of [...bielArrows]) {
+    a.life -= dt;
+    a.vel.y -= 6 * dt;
+    a.mesh.position.addScaledVector(a.vel, dt);
+    a.mesh.lookAt(a.mesh.position.clone().add(a.vel));
+    const p = a.mesh.position;
+    const foe = monsters.find(
+      (m) => Math.hypot(m.x - p.x, m.y + 0.8 - p.y, m.z - p.z) < 0.8,
+    );
+    if (foe) hitMonster(foe, 3);
+    const t0 = blocks.get(
+      key(Math.round(p.x), Math.round(p.y), Math.round(p.z)),
+    );
+    if (foe || (t0 !== undefined && !passable(t0)) || a.life <= 0) {
+      scene.remove(a.mesh);
+      bielArrows = bielArrows.filter((x) => x !== a);
+    }
+  }
+}
 function shootArrow(m) {
   const mesh = arrow(),
     from = new THREE.Vector3(m.x, m.y + 1.2, m.z),
@@ -2716,7 +2908,7 @@ scene.add(rain);
 const STORM_SKY = new THREE.Color(0x5d6b73);
 let rainSound = null;
 function rainNoise(level) {
-  if (!settings.sound || level < 0.05) {
+  if (!settings.volume.ambient || level < 0.05) {
     if (rainSound) rainSound.gain.gain.value = 0;
     return;
   }
@@ -2743,7 +2935,7 @@ function rainNoise(level) {
       source.start();
       rainSound = { source, gain };
     }
-    rainSound.gain.gain.value = level * 0.035;
+    rainSound.gain.gain.value = level * 0.035 * settings.volume.ambient;
   } catch {}
 }
 function thunder() {
@@ -2759,7 +2951,10 @@ function thunder() {
     osc.frequency.setValueAtTime(55, at);
     osc.frequency.exponentialRampToValueAtTime(30, at + 1.6);
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(0.05, at + 0.1);
+    gain.gain.exponentialRampToValueAtTime(
+      0.05 * settings.volume.ambient + 0.0001,
+      at + 0.1,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, at + 1.8);
     osc.connect(gain);
     gain.connect(audio.destination);
@@ -2907,7 +3102,7 @@ function beepAt(from, to, delay = 0) {
       gain = audio.createGain();
     osc.frequency.setValueAtTime(from, at);
     osc.frequency.exponentialRampToValueAtTime(to, at + 0.1);
-    gain.gain.setValueAtTime(0.06, at);
+    gain.gain.setValueAtTime(0.06 * settings.volume.fx + 0.0001, at);
     gain.gain.exponentialRampToValueAtTime(0.001, at + 0.12);
     osc.connect(gain);
     gain.connect(audio.destination);
@@ -2928,7 +3123,10 @@ function beep(build) {
       build ? 780 : 70,
       audio.currentTime + 0.11,
     );
-    gain.gain.setValueAtTime(0.08, audio.currentTime);
+    gain.gain.setValueAtTime(
+      0.08 * settings.volume.fx + 0.0001,
+      audio.currentTime,
+    );
     gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.15);
     osc.connect(gain);
     gain.connect(audio.destination);
@@ -3250,6 +3448,11 @@ function edit(place) {
   }
   if (place && targetAnimal) {
     interactWith(targetAnimal);
+    return;
+  }
+  // A bow shoots an arrow where Biel is aiming.
+  if (place && ITEMS[heldId()]?.tool === "bow") {
+    shootBow();
     return;
   }
   // Fishing: cast the line onto water in front of Biel.
@@ -3607,8 +3810,10 @@ function frame(now) {
     if (dx || dz) tutorialEvent("walk", speed * dt);
     updateAnimals(dt);
     breedAnimals(dt);
+    updateMinimap(dt);
     updateFurnaces(dt);
     updateMonsters(dt);
+    updateBielArrows(dt);
     growCrops(dt);
     updateFishing();
     // Adventure: falls, hunger, air and health.
@@ -3737,11 +3942,52 @@ function frame(now) {
     }
   }
   renderer.render(scene, camera);
+  updateStats(dt);
 }
 // The saved world loads once every part of the scene exists.
 if (world) loadWorld(world);
 setTimeout(syncNow, 1500);
 render();
+// Performance numbers, shown with F3 or a triple tap with two fingers.
+const statsEl = document.createElement("div");
+statsEl.id = "stats";
+document.body.append(statsEl);
+let statsOn = false,
+  statsFrames = 0,
+  statsClock = 0,
+  twoFingerTaps = [];
+function toggleStats() {
+  statsOn = !statsOn;
+  statsEl.classList.toggle("show", statsOn);
+}
+window.addEventListener("keydown", (e) => {
+  if (e.code === "F3") {
+    e.preventDefault();
+    toggleStats();
+  }
+});
+window.addEventListener(
+  "touchstart",
+  (e) => {
+    if (e.touches.length !== 2) return;
+    const now = performance.now();
+    twoFingerTaps = [...twoFingerTaps.filter((t0) => now - t0 < 900), now];
+    if (twoFingerTaps.length >= 3) {
+      twoFingerTaps = [];
+      toggleStats();
+    }
+  },
+  { passive: true },
+);
+function updateStats(dt) {
+  statsFrames++;
+  statsClock += dt;
+  if (!statsOn || statsClock < 0.5) return;
+  const shown = [...chunks.values()].filter((c) => c.meshes[0]?.visible).length;
+  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""}`;
+  statsFrames = 0;
+  statsClock = 0;
+}
 // Low Power Mode: draw at about 30 frames per second.
 let lowPower = false,
   lastDrawn = 0;
@@ -4608,6 +4854,90 @@ if (new URLSearchParams(location.search).has("test"))
       "classic worlds keep the original valley",
       SIZE === 28 && WATER_LEVEL === 2.2 && world.seed === null,
     );
+    // Settings and helpers added in the final review.
+    if (!world) loadWorld(store.load(store.list()[0].id));
+    mode = "playing";
+    render();
+    minimapClock = 0;
+    frame(last + 16);
+    const mini = app.querySelector(".minimap");
+    const px = mini?.getContext("2d").getImageData(66, 66, 1, 1).data;
+    check("the minimap is drawn", mini && px[3] === 255);
+    action("pause");
+    action("map");
+    check(
+      "the big map opens from the pause menu",
+      mode === "map" && $(".big-map"),
+    );
+    action("back");
+    action("settings");
+    const fxSlider = app.querySelector('[data-volume="fx"]');
+    fxSlider.value = "30";
+    fxSlider.dispatchEvent(new Event("input"));
+    check(
+      "effects volume slider",
+      settings.volume.fx === 0.3 && settings.sound,
+    );
+    $("#bigtext").value = "on";
+    $("#bigtext").dispatchEvent(new Event("change"));
+    check(
+      "large text",
+      document.documentElement.classList.contains("big-text"),
+    );
+    $("#bigtext").value = "off";
+    $("#bigtext").dispatchEvent(new Event("change"));
+    action("back");
+    action("play");
+    toggleStats();
+    statsClock = 1;
+    frame(last + 16);
+    check(
+      "the performance overlay shows numbers",
+      /fps/.test(statsEl.textContent),
+    );
+    toggleStats();
+    world.options = normalizeOptions({
+      ...world.options,
+      monsters: true,
+      difficulty: "normal",
+    });
+    const target0 = addMonster("sleepy", {
+      x: player.x,
+      y: player.y,
+      z: player.z - 4,
+    });
+    target0.hp = 3;
+    inventory.add("arrows", 2);
+    hold("bow");
+    firstPerson = true;
+    pointerKind = "mouse";
+    yaw = 0;
+    pitch = 0.18;
+    frame(last + 16);
+    edit(true);
+    for (let i = 0; i < 40; i++) frame(last + 16);
+    check(
+      "the bow shoots arrows at monsters",
+      !monsters.includes(target0) && inventory.count("arrows") === 1,
+    );
+    firstPerson = false;
+    vitals.health = 6;
+    hold("golden_apple");
+    edit(true);
+    check("a golden apple heals", vitals.health === 16);
+    inventory.add("bone", 1);
+    const treatsBefore = inventory.count("treat");
+    action("craft", "treat_bone");
+    check(
+      "bones make dog treats",
+      inventory.count("treat") === treatsBefore + 3,
+    );
+    check(
+      "there are tips for the intro",
+      strings.pt.tips.length >= 5 &&
+        strings.en.tips.length === strings.pt.tips.length,
+    );
+
     // iCloud sync, with a pretend iCloud (the test app has no iCloud capability).
     const realCloud = cloudCall;
     check(

@@ -87,6 +87,8 @@ export const ITEMS = {
   baked_potato: { icon: "🥔", food: 6 },
   cooked_fish: { icon: "🍣", food: 5 },
   golden_apple: { icon: "🍏", food: 8, heal: 10 },
+  bow: { icon: "🏹", tool: "bow", tier: 1 },
+  arrows: { icon: "🪶" },
 };
 export const isItem = (id) => Object.hasOwn(ITEMS, id);
 export const maxStack = (id) => (ITEMS[id]?.tool ? 1 : 64);

@@ -1517,3 +1517,80 @@ kbd {
     right: 14px;
   }
 }
+.tip {
+  max-width: 340px;
+  margin: 18px auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d9d2c3;
+}
+.volume-value {
+  float: right;
+  font-weight: 600;
+  color: var(--text);
+}
+.panel input[type="range"] {
+  padding: 0;
+  height: 28px;
+  accent-color: #ed8524;
+  background: none;
+  border: 0;
+}
+/* Large text for young readers. */
+.big-text #app {
+  zoom: 1.18;
+}
+#stats {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #000a;
+  color: #9fffa8;
+  font:
+    11px ui-monospace,
+    Menlo,
+    monospace;
+  z-index: 9;
+  pointer-events: none;
+}
+#stats.show {
+  display: block;
+}
+.minimap {
+  position: absolute;
+  top: 84px;
+  right: 28px;
+  width: 132px;
+  height: 132px;
+  border: 2px solid #ffffff38;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px #0004;
+}
+.big-map {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1;
+  margin: 12px auto;
+  border-radius: 14px;
+  image-rendering: pixelated;
+}
+@media (max-width: 520px) {
+  .minimap {
+    top: 64px;
+    right: 10px;
+    width: 92px;
+    height: 92px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .minimap {
+    top: 58px;
+    width: 88px;
+    height: 88px;
+  }
+}
