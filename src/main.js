@@ -190,6 +190,7 @@ let mode = "splash",
   container = null,
   containerClock = 0,
   menuAnchor = [0, 0],
+  homeAnchor = [0, 0],
   lastBiome = null,
   biomeClock = 0,
   darkLevel = 0,
@@ -1598,7 +1599,7 @@ function drawMap(canvas, cx, cz, radius, whole = false) {
   // Home is the bed, or the starting point of the world.
   const [hx, hz] = world.spawnPoint
     ? [world.spawnPoint[0], world.spawnPoint[2]]
-    : menuAnchor;
+    : homeAnchor;
   const [hu, hv] = toMap(hx, hz, true);
   ctx.font = `${whole ? 22 : 15}px sans-serif`;
   ctx.textAlign = "center";
@@ -1964,6 +1965,7 @@ function spawn() {
         !blocks.has(key(x, height(x, z) + 2, z)),
     );
     player.set(sx, height(sx, sz) + 0.51, sz);
+    homeAnchor = [sx, sz];
   }
   while (collides(blocks, player) && player.y < 33) player.y++;
   velocity = 0;
@@ -1974,7 +1976,6 @@ function loadWorld(w) {
   world = w;
   store.setCurrent(w.id);
   useTerrain({ seed: w.seed, size: w.size });
-  menuAnchor = findSpawn();
   water.scale.setScalar((SIZE * 2 + 90) / 125);
   blocks.clear();
   for (const [k, v] of generate()) blocks.set(k, v);
@@ -1986,6 +1987,15 @@ function loadWorld(w) {
     else blocks.set(k, type);
   }
   rebuild();
+  // The menu needs dry ground for Biel and nothing tall between him and the camera.
+  const clear = (x, z) =>
+    [1, 2, 3, 4].every((dy) => !blocks.has(key(x, height(x, z) + dy, z)));
+  menuAnchor = findSpawn((x, z) => {
+    if (height(x + 6, z + 5) <= WATER_LEVEL) return false;
+    for (let dx = 2; dx <= 14; dx++)
+      for (let dz = 1; dz <= 19; dz++) if (!clear(x + dx, z + dz)) return false;
+    return true;
+  });
   lastBiome = null;
   spawn();
   if (w.player) {
