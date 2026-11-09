@@ -2,7 +2,7 @@
 
 # Bieltructor 🧱
 
-> A voxel adventure for macOS, iPad and iPhone, starring Biel. Build in Creative mode, or gather, craft, make friends with animals and get through the night in Adventure mode, on a difficulty made for young players.
+> A voxel adventure for macOS, iPad and iPhone, starring Biel. Explore seeded islands with biomes and caves, build in Creative mode, or gather, craft, farm, make animal friends and get through the night in Adventure mode, on a difficulty made for young players.
 
 [![macOS](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)](https://github.com/VidiPT89/Bieltructor)
 [![iPadOS](https://img.shields.io/badge/iOS%20%7C%20iPadOS-16%2B-black?logo=apple)](https://github.com/VidiPT89/Bieltructor)
@@ -24,36 +24,40 @@
 ## ✨ Features
 
 **Worlds and modes**
-- ✅ Up to six saved worlds, each with its own name, mode and options
-- ✅ **Adventure**: gather materials, craft, look after Biel's health and food, survive the night
-- ✅ **Creative**: every block, nothing used up, no dangers, fly with a double tap on Jump
-- ✅ Four difficulties (Peaceful, Easy, Normal, Hard) plus switches for monsters, animals, hunger, keeping the backpack, the day and night cycle (normal, always day, always night) and the day length (10, 20 or 30 minutes)
-- ✅ Older worlds open as Creative worlds without losing a single block
+- ✅ Up to six saved worlds, each with its own name, mode, size, seed and options
+- ✅ Islands in three sizes (57, 97 or 129 blocks across) made from a seed, or the original **Classic valley**
+- ✅ Biomes: plains with flowers, forests, beaches, deserts with cacti, snowy mountains with spruces and ice, swamps with mushrooms; winding caves underground
+- ✅ **Adventure** (gather, craft, survive) or **Creative** (every block, no dangers, fly with a double tap on Jump)
+- ✅ Four difficulties plus switches for monsters, animals, hunger, weather, keeping the backpack, day and night and the day length
+- ✅ Older worlds open without losing a single block
 
-**Building and crafting**
-- ✅ Sixteen blocks: grass, dirt, stone, sand, wood, leaves, brick, amber lantern, glass, door, planks, workbench, torch, bed, coal ore and wool
-- ✅ Breaking takes time in Adventure (pickaxes speed up stone) and everything goes into the backpack
-- ✅ Backpack with a 9-slot hotbar and 27 more slots, stacks of 64
-- ✅ A visual recipe book: ingredients turn green when you have them; advanced recipes need a workbench nearby
-- ✅ Tools and weapons in wood and stone, torches, doors, beds, glass, bricks, lanterns, cake and dog treats
+**Building, crafting and farming**
+- ✅ More than 30 blocks, from grass and glass to doors, beds, torches, chests, furnaces, stone bricks and glowstone
+- ✅ Breaking takes time in Adventure; pickaxes in wood, stone, iron and crystal break faster and reach deeper ores
+- ✅ Coal, iron, gold and rare blue crystal underground; a furnace melts ores into bars and cooks food
+- ✅ Backpack with a 9-slot hotbar and 27 more slots, chests with 27 slots, and a visual recipe book (ingredients turn green when you have them)
+- ✅ A small farm: till soil with a hoe, grow wheat, carrots and potatoes (faster near water or in the rain), bake bread; a fishing rod to catch fish
+- ✅ Ruins and cabins on the islands, each with a treasure chest
 
-**Life in the valley**
-- ✅ Original animated voxel character, Biel, with an orange explorer jacket and backpack
-- ✅ Hearts, food and air bubbles in Adventure; falls, drowning and hunger hurt only as much as the difficulty allows
-- ✅ Falling asleep is gentle: Biel goes home, and on harder levels his backpack waits where he fell asleep
-- ✅ Beds become home, and sleeping at night skips to the morning
-- ✅ Friendly chickens (eggs), cows (milk), sheep (wool that grows back) and a dog that becomes your friend with a treat, gets a name and follows you
-- ✅ Silly night monsters in dark places: the Sleepy sleepwalker, the bouncy Jelly that splits in two and, from Normal, the Bony archer with suction-cup arrows. They vanish in sparkles at sunrise and never appear on Peaceful
-- ✅ Torches and lanterns light up the night and keep monsters away; the dog helps chase them off
+**Life on the island**
+- ✅ Original animated voxel character, Biel
+- ✅ Hearts, food and air in Adventure; damage, hunger and falls follow the difficulty, and falling asleep is gentle
+- ✅ Beds become home and sleeping skips the night
+- ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky
+- ✅ Silly night monsters (the Sleepy sleepwalker, the bouncy Jelly, the Bony archer) that never appear on Peaceful and vanish in sparkles at sunrise; torches and lanterns keep them away
+- ✅ Day and night, sunsets, stars, rain, snow in the cold biome and gentle thunderstorms (Normal and Hard only)
 
-**World and presentation**
-- ✅ A 3D island with hills, trees, sandy shores, animated water, clouds, sunsets, stars and moonlight
-- ✅ Calm background music generated live in the game, softer at night, with its own on/off switch
-- ✅ Walking, running, jumping, swimming and first/third-person views
-- ✅ Portuguese (Portugal) and English, and Dark, Light and System appearance with the iVidi.dev palette
-- ✅ Animated introduction with the game logo and developer credits, followed by the main menu
-- ✅ macOS window with full screen; iOS/iPadOS app with multi-touch controls, Files import/export, portrait and landscape
-- ✅ Automatic local saving, JSON import and export, two quality levels, fully offline
+**Helping young players**
+- ✅ Optional guided tutorial in new Adventure worlds
+- ✅ Twelve challenges with stickers in a sticker book shared by every world
+- ✅ A parents' corner behind a simple question: break reminder, highest difficulty allowed and monsters always off
+
+**Everywhere**
+- ✅ Mac, iPad and iPhone with the same menus, rules and saves; layouts for iPhone in portrait and landscape
+- ✅ Keyboard and mouse, multi-touch, and PlayStation, Xbox and MFi controllers (menus too)
+- ✅ Optional iCloud sync of worlds between devices, asking before overwriting anything; JSON export and import always available
+- ✅ Portuguese (Portugal) and English, Dark, Light and System appearance with the iVidi.dev palette
+- ✅ Calm background music generated live, two quality levels picked automatically on first run, 30 fps in Low Power Mode, fully offline
 
 ## 🛠️ Tech Stack
 
@@ -61,11 +65,13 @@
 |----------|------------|
 | macOS application | Swift, AppKit, WebKit |
 | iOS / iPadOS application | Swift, UIKit, WebKit |
-| Game renderer | Three.js / WebGL |
+| Game controllers | GameController framework (native), Gamepad API (browser) |
+| Sync | iCloud Drive (ubiquity container), optional |
+| Game renderer | Three.js / WebGL, chunked instanced meshes |
 | Music and sound | Web Audio API (generated live, no audio files) |
 | Game logic and interface | JavaScript, HTML, CSS |
-| Build tools | Vite, Swift compiler |
-| Tests | Node.js test runner and integrated WebKit smoke tests |
+| Build tools | Vite, Swift compiler, Xcode, XcodeGen |
+| Tests | Node.js test runner, integrated WebKit smoke tests and XCUITest |
 | Minimum system | macOS 13 / iOS and iPadOS 16 |
 
 ## 🚀 Quick Start
@@ -114,23 +120,30 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 
 ## 📖 Controls
 
-| Action | Mac | iPad |
-|--------|-----|------|
-| Move | W A S D or arrow keys | Arrow buttons |
-| Run | Shift + movement | Run |
-| Jump / swim up | Space | Jump |
-| Fly (Creative) | Double tap Space, C to go down | Double tap Jump, Down |
-| Look around | Drag the scene | Drag the scene |
-| Break a block | Click (hold in Adventure) | Tap the block, hold Break |
-| Place a block, eat, open a door, sleep, use an animal | Right-click or Shift + click | Tap the block, then Build |
-| Attack | Click the monster or F | Tap the monster, or Attack |
-| Choose from the hotbar | 1–9 or the mouse wheel | Tap the slot |
-| Backpack and recipes | E | 🎒 |
-| Change perspective | V | ◉ |
-| Pause | Escape | Ⅱ |
-| Full screen | Control + Command + F | |
+| Action | Mac | iPad / iPhone | Controller |
+|--------|-----|---------------|------------|
+| Move / run | W A S D or arrows, Shift to run | Arrow buttons, Run | Left stick (all the way to run) |
+| Look around | Drag the scene | Drag the scene | Right stick |
+| Jump / swim up | Space | Jump | A |
+| Fly (Creative) | Double tap Space, C to go down | Double tap Jump, Down | Double tap A, B |
+| Break | Click (hold in Adventure) | Tap the block, hold Break | Right trigger |
+| Build, eat, open, sleep, use an animal | Right-click or Shift + click | Tap the block, then Build | Left trigger |
+| Attack | Click the monster or F | Tap the monster, or Attack | X |
+| Hotbar | 1–9 or the mouse wheel | Tap the slot | Shoulder buttons |
+| Backpack and recipes | E | 🎒 | Y |
+| Get off the horse | C | Down | B |
+| Pause / menus | Escape | Ⅱ | Menu, then the d-pad, A and B |
+| New world · Export · Settings | ⌘N · ⌘E · ⌘, | | |
 
-Building has a seven-block reach. The bottom layer is protected. Use **Return to spawn** in the pause menu if you get lost. Export a world from Settings to keep a backup; importing a file always creates a new world. A simple guide in Portuguese for Biel and for parents lives in [`docs/GAMEPLAY.pt.md`](docs/GAMEPLAY.pt.md).
+The bottom layer is protected. Use **Return to spawn** in the pause menu if you get lost. A simple guide in Portuguese for Biel and for parents lives in [`docs/GAMEPLAY.pt.md`](docs/GAMEPLAY.pt.md).
+
+## ☁️ iCloud and distribution
+
+iCloud sync is off by default (Settings › Save to iCloud). It needs the **iCloud** capability with the container `iCloud.dev.ividi.bieltructor` on the App ID, which comes with a paid Apple Developer account. Without it, or without an iCloud account, the game says iCloud is not available and keeps saving locally; worlds can always move between devices with **Export world** and **Import world**.
+
+- **TestFlight (iPad and iPhone):** `TEAM_ID=XXXXXXXXXX scripts/release-ios.sh` archives the app and exports an `.ipa`. It does not upload: send it with Transporter or `xcrun altool`.
+- **Mac outside the App Store:** `TEAM_ID=XXXXXXXXXX scripts/release-macos.sh` archives the **Bieltructor-macOS** target and signs it with Developer ID (hardened runtime). Notarization only runs with `--notarize` and a `notarytool` keychain profile in `NOTARY_PROFILE`.
+- One bundle identifier (`dev.ividi.bieltructor`) and version (2.0.0, build 2) for every platform, set in `project.yml`. The Mac stays a native AppKit app rather than Mac Catalyst: it is already small and simple, and the game itself is shared.
 
 ## 🎨 App icon
 
@@ -143,14 +156,14 @@ npm test
 npm run build
 npm run build:macos
 npm run build:ios
-# In Xcode: select an iPad simulator, then Product > Test.
+# In Xcode: pick an iPad or iPhone simulator, then Product > Test.
 ```
 
-The unit suite (31 tests) covers terrain and coal generation, collisions, saved worlds and their migration, world options and difficulty rules, stacking and recipes, block drops and break times, health, hunger, healing and air, animals and the dog, monster spawning rules (including "never on Peaceful" and "never when switched off"), light, weapons, the day/night curve, the music generator and multi-touch. The integrated smoke suite (66 checks, shared by the Mac and iPad apps) plays through creating, reopening and deleting worlds, building, breaking and crafting, eating, falling, sleeping, falling asleep and getting the backpack back, the animals and the dog, monsters at night, combat and sunrise, plus rendering, languages, themes, perspective, multi-touch and pause. The iPad UI test also drives the touch controls in landscape and portrait. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
+The unit suite (59 tests) covers terrain and seeds, biomes, caves and ores, collisions, saved worlds and their migration, difficulty rules, stacking, recipes, smelting and treasure, health and hunger, animals, babies, taming and riding, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, controller mapping, iCloud sync decisions and the music generator. The integrated smoke suite (120 checks, shared by the Mac and iOS apps) plays through worlds, building, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, a game controller and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad, iPhone 17e and iPhone 17 Pro Max. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
 
 ## Current scope
 
-Bieltructor is a single-player game with a finite 57 × 57 block island. Monsters are not saved: each night brings new ones. Not included yet: bigger worlds with chunks, biomes and caves, ores beyond coal, iron and crystal tools, farming, more animals and breeding, weather, achievements and a tutorial, a parents section, game controllers, an iPhone-specific layout and iCloud sync. The macOS build is compiled and its integrated tests run on Apple Silicon; the iOS/iPadOS build is tested on the iPad Pro 11-inch simulator. Intel Macs, iPhones and physical iPads have not been tested yet.
+Bieltructor is a single-player game. Not included: multiplayer, an endless world (islands go up to 129 × 129), lava, bees and honey, block-by-block lighting (torches use a few real lights near Biel) and tool wear. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
 
 ## 📄 License
 
