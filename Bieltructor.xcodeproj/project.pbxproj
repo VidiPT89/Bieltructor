@@ -12,6 +12,7 @@
 		AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C2D41A078BE649D974AEBB /* LocalAssets.swift */; };
 		B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B277819F6D18035498A1E7 /* BieltructorApp.swift */; };
 		BA62B8AF10A1844C825D7A20 /* BieltructorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204580D7B0917563B3352488 /* BieltructorUITests.swift */; };
+		BD94F63236F1AD6414012651 /* GamepadBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,6 +31,7 @@
 		9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Bieltructor-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6C2D41A078BE649D974AEBB /* LocalAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAssets.swift; sourceTree = "<group>"; };
 		BDA93582D5C22927B504D334 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamepadBridge.swift; sourceTree = "<group>"; };
 		E3B277819F6D18035498A1E7 /* BieltructorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BieltructorApp.swift; sourceTree = "<group>"; };
 		EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Bieltructor-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -38,6 +40,7 @@
 		1FC5B17A92F1D40CDD5036C5 /* shared */ = {
 			isa = PBXGroup;
 			children = (
+				C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */,
 				B6C2D41A078BE649D974AEBB /* LocalAssets.swift */,
 			);
 			path = shared;
@@ -176,6 +179,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */,
+				BD94F63236F1AD6414012651 /* GamepadBridge.swift in Sources */,
 				AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

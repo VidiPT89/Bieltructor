@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 {
   var window: NSWindow!
   var web: WKWebView!
+  var gamepads: GamepadBridge?
   let assets = LocalAssets()
   let smoke = CommandLine.arguments.contains("--smoke-test")
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -16,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     let appMenu = NSMenu()
     item.submenu = appMenu
     appMenu.addItem(withTitle: "Bieltructor", action: #selector(showAbout), keyEquivalent: "")
+    appMenu.addItem(.separator())
+    appMenu.addItem(withTitle: "Settings…", action: #selector(menuSettings), keyEquivalent: ",")
     appMenu.addItem(.separator())
     appMenu.addItem(
       withTitle: "Hide Bieltructor", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
@@ -27,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     appMenu.addItem(
       withTitle: "Quit Bieltructor", action: #selector(NSApplication.terminate(_:)),
       keyEquivalent: "q")
+    let fileItem = NSMenuItem()
+    menu.addItem(fileItem)
+    let fileMenu = NSMenu(title: "File")
+    fileItem.submenu = fileMenu
+    fileMenu.addItem(withTitle: "New World", action: #selector(menuNewWorld), keyEquivalent: "n")
+    fileMenu.addItem(withTitle: "Export World…", action: #selector(menuExport), keyEquivalent: "e")
     let viewItem = NSMenuItem()
     menu.addItem(viewItem)
     let viewMenu = NSMenu(title: "Window")
@@ -62,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     window.minSize = NSSize(width: 720, height: 500)
     window.backgroundColor = NSColor(red: 0.08, green: 0.1, blue: 0.1, alpha: 1)
     window.contentView = web
+    gamepads = GamepadBridge(web: web)
     window.center()
     window.setFrameAutosaveName("BieltructorWindow")
     window.makeKeyAndOrderFront(nil)
@@ -69,6 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     let url = URL(string: "bieltructor://app/index.html" + (smoke ? "?test=1" : ""))!
     web.load(URLRequest(url: url))
   }
+  // Menu shortcuts are handled by the game itself.
+  @objc func menuNewWorld() { web.evaluateJavaScript("window.nativeMenu?.('newworld')") }
+  @objc func menuExport() { web.evaluateJavaScript("window.nativeMenu?.('export')") }
+  @objc func menuSettings() { web.evaluateJavaScript("window.nativeMenu?.('settings')") }
   @objc func showAbout() {
     NSApp.orderFrontStandardAboutPanel(options: [
       .applicationName: "Bieltructor", .applicationVersion: "1.0.0",

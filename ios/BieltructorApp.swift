@@ -21,6 +21,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
   WKScriptMessageHandler, UIDocumentPickerDelegate
 {
   private var web: WKWebView!
+  private var gamepads: GamepadBridge?
   private let assets = LocalAssets()
   private let smoke = ProcessInfo.processInfo.arguments.contains("--smoke-test")
   private let status = UILabel()
@@ -59,6 +60,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     NotificationCenter.default.addObserver(
       self, selector: #selector(pauseGame), name: UIApplication.willResignActiveNotification,
       object: nil)
+    gamepads = GamepadBridge(web: web)
     web.load(
       URLRequest(url: URL(string: "bieltructor://app/index.html" + (smoke ? "?test=1" : ""))!))
   }

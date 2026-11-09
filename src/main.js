@@ -46,6 +46,7 @@ import {
   cropInfo,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
+import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
 import {
   SMELT,
   FUEL,
@@ -2445,7 +2446,95 @@ let target = null,
   breaking = { key: null, time: 0 },
   breakCooldown = 0;
 const keys = new Set();
-const pressed = (code) => keys.has(code) || touchInput.has(code);
+const pressed = (code) =>
+  keys.has(code) || touchInput.has(code) || padHeld.has(code);
+// Game controllers: the native apps send the state; browsers use the Gamepad API.
+let nativePad = null,
+  padActions = null,
+  padHeld = new Set(),
+  menuRepeat = 0;
+window.nativeGamepad = (state) => (nativePad = state);
+function pollGamepad(dt) {
+  let state = nativePad;
+  if (!state && navigator.getGamepads)
+    state = fromStandardGamepad([...navigator.getGamepads()].find(Boolean));
+  const now = state ? readPad(state) : null,
+    before = padActions;
+  padActions = now;
+  padHeld = mode === "playing" && now ? now.held : new Set();
+  if (!now) return;
+  const hit = (name) => pressedNow(now, before, name);
+  const touched =
+    now.held.size ||
+    now.look.some(Boolean) ||
+    [
+      "place",
+      "attack",
+      "backpack",
+      "pause",
+      "next",
+      "previous",
+      "confirm",
+      "back",
+    ].some((n) => now[n]);
+  if (touched) {
+    document.documentElement.classList.add("gamepad");
+    pointerKind = "pad";
+  }
+  if (mode === "playing") {
+    yaw -= now.look[0] * 2.6 * dt;
+    pitch = Math.max(-0.25, Math.min(1.15, pitch + now.look[1] * 2 * dt));
+    if (hit("confirm")) jumpTapped();
+    if (hit("place")) edit(true);
+    if (hit("attack")) attack();
+    if (hit("backpack")) action("inventory");
+    if (hit("pause")) action("pause");
+    if (hit("next") || hit("previous")) {
+      selected = (selected + (hit("next") ? 1 : 8)) % 9;
+      render();
+    }
+    if (hit("back") && riding) dismount();
+    return;
+  }
+  // Menus: up and down move between buttons, A presses, B goes back.
+  const focusable = [
+    ...app.querySelectorAll("button:not([disabled]), select, input"),
+  ];
+  if (!focusable.length) return;
+  menuRepeat -= dt;
+  const step = now.menuDown ? 1 : now.menuUp ? -1 : 0;
+  if (step && (menuRepeat <= 0 || hit("menuUp") || hit("menuDown"))) {
+    menuRepeat = 0.25;
+    const at = focusable.indexOf(document.activeElement);
+    focusable[(at + step + focusable.length) % focusable.length].focus();
+  }
+  if (hit("confirm"))
+    (focusable.includes(document.activeElement)
+      ? document.activeElement
+      : focusable[0]
+    ).click();
+  if (hit("back") && MODALS.includes(mode)) action("back");
+  if (hit("pause") && mode === "paused") action("play");
+}
+// Menu shortcuts from the Mac menu bar (⌘N, ⌘E, ⌘,).
+window.nativeMenu = (what) => {
+  if (mode === "playing") action("pause");
+  if (what === "newworld") action("newworld");
+  else if (what === "settings") action("settings");
+  else if (what === "export" && world) action("export");
+};
+// A keyboard on an iPad hides the touch buttons; touching the screen brings them back.
+window.addEventListener("keydown", () =>
+  document.documentElement.classList.add("keyboard"),
+);
+window.addEventListener(
+  "touchstart",
+  () => {
+    document.documentElement.classList.remove("keyboard", "gamepad");
+    pointerKind = "touch";
+  },
+  { passive: true },
+);
 app.addEventListener("pointerdown", (e) => {
   const control = e.target.closest("[data-key]");
   if (!control || mode !== "playing") return;
@@ -3168,7 +3257,9 @@ function updateWeather(dt, inGame) {
 function pick() {
   // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
   ray.setFromCamera(
-    firstPerson && pointerKind !== "touch" ? center : pointer,
+    (firstPerson && pointerKind !== "touch") || pointerKind === "pad"
+      ? center
+      : pointer,
     camera,
   );
   const hits = ray.intersectObjects(meshes, false);
@@ -3439,7 +3530,9 @@ scene.add(bobber);
 function castLine() {
   const waterHit = new THREE.Raycaster();
   waterHit.setFromCamera(
-    firstPerson && pointerKind !== "touch" ? center : pointer,
+    (firstPerson && pointerKind !== "touch") || pointerKind === "pad"
+      ? center
+      : pointer,
     camera,
   );
   const hit = waterHit.intersectObject(water)[0];
@@ -3851,6 +3944,7 @@ function frame(now) {
   const dt = Math.max(0, Math.min((now - last) / 1000, 0.04));
   last = now;
   elapsed += dt;
+  pollGamepad(dt);
   if (mode === "playing") scenery = "game";
   if (mode === "menu" || mode === "splash") scenery = "menu";
   if (mode === "playing" && world.options.cycle === "normal") {
@@ -4772,6 +4866,38 @@ if (new URLSearchParams(location.search).has("test"))
       "chests in ruins and cabins hold treasure",
       chestAt(treasureKey).slots.some(Boolean),
     );
+    // A game controller drives the same actions.
+    const padStart = player.clone();
+    window.nativeGamepad({ ly: -1 });
+    for (let i = 0; i < 40; i++) frame(last + 16);
+    check(
+      "the left stick walks",
+      player.distanceTo(padStart) > 1 &&
+        document.documentElement.classList.contains("gamepad"),
+    );
+    window.nativeGamepad({ y: true });
+    frame(last + 16);
+    check("Y opens the backpack", mode === "inventory");
+    window.nativeGamepad({ b: true });
+    frame(last + 16);
+    check("B goes back", mode === "playing");
+    window.nativeGamepad({ start: true });
+    frame(last + 16);
+    window.nativeGamepad({ down: true });
+    frame(last + 16);
+    const focused = document.activeElement?.textContent;
+    window.nativeGamepad({});
+    frame(last + 16);
+    check(
+      "the d-pad moves between menu buttons",
+      mode === "paused" && focused && focused !== t("continue"),
+    );
+    window.nativeGamepad({ start: true });
+    frame(last + 16);
+    check("start goes back to the game", mode === "playing");
+    window.nativeGamepad(null);
+    frame(last + 16);
+    document.documentElement.classList.remove("gamepad");
     // The new terrain: a seeded medium island, drawn chunk by chunk.
     action("pause");
     action("worlds");

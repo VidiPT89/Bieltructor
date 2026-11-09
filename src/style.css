@@ -1408,3 +1408,112 @@ kbd {
   height: 100%;
   background: linear-gradient(90deg, #f5ad49, #ff6a3d);
 }
+/* With a game controller or a keyboard on iPad, the touch buttons step aside. */
+.gamepad .touch-controls,
+.keyboard .touch-controls {
+  display: none !important;
+}
+.gamepad .crosshair {
+  display: block;
+}
+/* iPhone in portrait: compact HUD, controls above the hotbar and hearts. */
+@media (max-width: 520px) {
+  .hud-top {
+    left: 10px;
+    right: 10px;
+    top: 10px;
+  }
+  .quest {
+    top: 84px;
+    left: 10px;
+    width: min(240px, 62vw);
+    padding: 10px 12px;
+  }
+  .quest p {
+    display: none;
+  }
+  .hotbar-wrap {
+    bottom: 8px;
+    width: calc(100% - 16px);
+  }
+  .hotbar {
+    justify-content: center;
+    gap: 3px;
+    padding: 5px;
+  }
+  .hotbar .slot,
+  [data-platform="ios"] .hotbar .slot {
+    width: 36px;
+    height: 42px;
+    min-width: 0;
+    min-height: 0;
+    padding: 2px;
+    flex: 0 0 auto;
+  }
+  .hotbar .slot i {
+    width: 20px;
+    height: 20px;
+    margin-top: 9px;
+  }
+  .hotbar .slot .item-icon {
+    font-size: 19px;
+    margin-top: 9px;
+  }
+  .vitals {
+    gap: 4px 8px;
+    margin-bottom: 6px;
+  }
+  .vitals span {
+    padding: 3px 6px;
+  }
+  .vitals i {
+    font-size: 12px;
+  }
+  [data-platform="ios"] .touch-controls {
+    bottom: 150px;
+    left: 10px;
+    right: 10px;
+  }
+  [data-platform="ios"] .touch-controls button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 10px;
+    font-size: 13px;
+  }
+  .panel {
+    padding: 22px 16px;
+  }
+  .inv-grid {
+    gap: 3px;
+  }
+}
+/* iPhone in landscape: no room for the challenge card; controls at the sides. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .quest,
+  .material-label,
+  .hint {
+    display: none;
+  }
+  .hud-top {
+    top: 8px;
+  }
+  .hotbar-wrap {
+    bottom: 6px;
+  }
+  .hotbar .slot,
+  [data-platform="ios"] .hotbar .slot {
+    width: 40px;
+    height: 42px;
+    min-width: 0;
+    min-height: 0;
+    padding: 3px;
+  }
+  .vitals {
+    margin-bottom: 4px;
+  }
+  [data-platform="ios"] .touch-controls {
+    bottom: 76px;
+    left: 14px;
+    right: 14px;
+  }
+}
