@@ -1,13 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readPad, pressedNow, fromStandardGamepad } from "../src/gamepad.js";
+import {
+  readPad,
+  pressedNow,
+  fromStandardGamepad,
+} from "../src/input/gamepad.js";
 
 test("the left stick walks and runs, with a small dead zone", () => {
   assert.deepEqual([...readPad({ lx: 0.1, ly: -0.1 }).held], []);
-  assert.deepEqual([...readPad({ ly: -0.6 }).held], ["KeyW"]);
+  assert.deepEqual([...readPad({ ly: -0.6 }).held], ["forward"]);
   assert.deepEqual([...readPad({ lx: -0.99, ly: 0 }).held].sort(), [
-    "KeyA",
-    "ShiftLeft",
+    "left",
+    "run",
   ]);
 });
 
@@ -23,7 +27,7 @@ test("buttons map to the same actions as keys and touch", () => {
     rb: true,
     rx: 0.5,
   });
-  assert(p.held.has("Space") && p.held.has("Break") && p.held.has("KeyC"));
+  assert(p.held.has("jump") && p.held.has("break") && p.held.has("down"));
   assert(p.place && p.attack && p.backpack && p.pause && p.next);
   assert.deepEqual(p.look, [0.5, 0]);
 });
@@ -40,5 +44,5 @@ test("one press fires once, and browser gamepads are understood", () => {
   };
   const s = fromStandardGamepad(g);
   assert(s.a && s.rt === 1 && s.ly === -1);
-  assert(readPad(s).held.has("KeyW"));
+  assert(readPad(s).held.has("forward"));
 });

@@ -155,7 +155,8 @@ export const strings = {
       crystal_hoe: "Enxada de cristal",
     },
     toolTired: "Atenção: {item} quase a gastar-se. Vai à bancada fazer mais!",
-    toolBroke: "Ups! {item} gastou-se de tanto trabalhar. Vai à bancada fazer mais!",
+    toolBroke:
+      "Ups! {item} gastou-se de tanto trabalhar. Vai à bancada fazer mais!",
     gotWater: "Encheste o balde de água!",
     pouredWater: "Splash! Despejaste a água.",
     noWater: "Aponta para água para encher o balde.",
@@ -563,8 +564,10 @@ export const strings = {
       iron_hoe: "Iron hoe",
       crystal_hoe: "Crystal hoe",
     },
-    toolTired: "Heads up: {item} is nearly worn out. Make another at the bench!",
-    toolBroke: "Oops! {item} wore out from all that work. Make another at the bench!",
+    toolTired:
+      "Heads up: {item} is nearly worn out. Make another at the bench!",
+    toolBroke:
+      "Oops! {item} wore out from all that work. Make another at the bench!",
     gotWater: "You filled the bucket with water!",
     pouredWater: "Splash! You poured the water.",
     noWater: "Aim at water to fill the bucket.",

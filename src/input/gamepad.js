@@ -1,5 +1,5 @@
 // Game controllers (PlayStation, Xbox, MFi): turns a controller's state into
-// the same actions the keyboard and the touch buttons use.
+// the same actions the keyboard and the touch buttons use (input/actions.js).
 const DEADZONE = 0.22;
 
 // state: { lx, ly, rx, ry, lt, rt, a, b, x, y, lb, rb, start, up, down, left, right }
@@ -9,14 +9,14 @@ export function readPad(state = {}) {
   const lx = v(state.lx),
     ly = v(state.ly);
   const held = new Set();
-  if (ly < 0) held.add("KeyW");
-  if (ly > 0) held.add("KeyS");
-  if (lx < 0) held.add("KeyA");
-  if (lx > 0) held.add("KeyD");
-  if (Math.hypot(lx, ly) > 0.92) held.add("ShiftLeft");
-  if (state.a) held.add("Space");
-  if ((state.rt ?? 0) > 0.4) held.add("Break");
-  if (state.b) held.add("KeyC");
+  if (ly < 0) held.add("forward");
+  if (ly > 0) held.add("backward");
+  if (lx < 0) held.add("left");
+  if (lx > 0) held.add("right");
+  if (Math.hypot(lx, ly) > 0.92) held.add("run");
+  if (state.a) held.add("jump");
+  if ((state.rt ?? 0) > 0.4) held.add("break");
+  if (state.b) held.add("down");
   return {
     held,
     look: [v(state.rx), v(state.ry)],

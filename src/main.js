@@ -1,4 +1,5 @@
-import { TouchInput } from "./touch-input.js";
+import { TouchInput } from "./input/touch-input.js";
+import { isHeld, actionsForKey } from "./input/actions.js";
 import * as THREE from "three";
 import {
   generate,
@@ -50,20 +51,18 @@ import {
   SIGN,
   POT,
   OPENS,
-  WOOL_COLORS,
   WATER,
   FLOW_BASE,
   isWater,
   COPPER_ORE,
   COPPER_BLOCK,
   BEE_NEST,
-  woolBlock,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
 import { flowWater, around } from "./water.js";
-import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
-import { plan as syncPlan, deviceKind } from "./sync.js";
+import { readPad, pressedNow, fromStandardGamepad } from "./input/gamepad.js";
+import { deviceKind } from "./sync.js";
 import {
   SMELT,
   FUEL,
@@ -139,6 +138,16 @@ import {
 import { Music, audioContext, pauseAudio } from "./music.js";
 import "./style.css";
 import { strings } from "./strings.js";
+import { installSmokeTests } from "./dev/smoke-tests.js";
+import { safeStorage, snapshotWorld, createCloud } from "./persistence.js";
+import {
+  escapeHtml,
+  field,
+  parentField,
+  wearBar,
+  credits,
+  logo,
+} from "./ui/html.js";
 const $ = (s) => document.querySelector(s),
   app = $("#app");
 let settings = {
@@ -233,21 +242,7 @@ const tips = strings[settings.lang].tips,
 const music = new Music();
 music.volume = settings.volume.music;
 // Worlds live in the browser storage of the app; see src/worlds.js.
-const storage = {
-  getItem: (k) => {
-    try {
-      return localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  setItem: (k, v) => localStorage.setItem(k, v),
-  removeItem: (k) => {
-    try {
-      localStorage.removeItem(k);
-    } catch {}
-  },
-};
+const storage = safeStorage;
 const store = createStore(storage);
 try {
   progress = createProgress(JSON.parse(storage.getItem("biel-stickers")));
@@ -289,9 +284,6 @@ const colors = [
   // Water (still, then flowing), copper ore, copper block, bee nest.
   0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0xb87350, 0xd8834f, 0xe0b54a,
 ];
-const credits = () =>
-  `<div class="credits">Developed by <strong>David Arsénio Martins</strong><div><a href="https://ividi.dev/" target="_blank" rel="noopener">ividi.dev ↗︎</a><span>·</span><a href="https://github.com/VidiPT89/" target="_blank" rel="noopener">GitHub ↗︎</a></div></div>`;
-const logo = `<img class="brand-icon" src="logo.webp" alt=""><span>BIEL<span class="brand-accent">TRUCTOR</span></span>`;
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.classList.toggle("big-text", settings.bigText);
@@ -314,33 +306,10 @@ const icon = (id) =>
     ? `<i class="swatch" style="--block:#${colors[ITEMS[id].block].toString(16).padStart(6, "0")}"></i>`
     : `<span class="item-icon">${ITEMS[id].icon}</span>`;
 function slotButton(slot, i, attrs, active, label = "") {
-  return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}${slot?.wear && !creative() ? `<i class="wear" style="--left:${Math.round(100 - (100 * slot.wear) / toolUses(slot.id))}%"></i>` : ""}</button>`;
+  return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}${creative() ? "" : wearBar(slot?.wear, toolUses(slot?.id))}</button>`;
 }
-const escapeHtml = (text) =>
-  String(text).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
 const modeLabel = (w) =>
   `${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.options.difficulty)}`;
-// One <select> for a world option. Booleans are stored as "true"/"false".
-function field(id, label, value, choices) {
-  return `<label>${label}<select id="opt-${id}" data-option="${id}">${choices
-    .map(
-      ([v, l]) =>
-        `<option value="${v}" ${String(value) === String(v) ? "selected" : ""}>${l}</option>`,
-    )
-    .join("")}</select></label>`;
-}
-function parentField(id, label, value, choices) {
-  return field(id, label, value, choices).replace(
-    'data-option="',
-    'data-parent="',
-  );
-}
 function worldFields(o, withMode) {
   const yesNo = [
     [true, t("yes")],
@@ -416,9 +385,9 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying || riding ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
-  if (mode === "conflict" && conflicts[0]) {
-    const c = conflicts[0],
+      )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="forward" aria-label="${t("forward")}">↑</button><button data-key="left" aria-label="${t("left")}">←</button><button data-key="backward" aria-label="${t("backward")}">↓</button><button data-key="right" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="run">${t("run")}</button><button data-key="break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="jump">${t("jump")}</button>${flying || riding ? `<button data-key="down">${t("descend")}</button>` : ""}</div></div>`;
+  if (mode === "conflict" && cloud.conflicts[0]) {
+    const c = cloud.conflicts[0],
       when = (d) =>
         new Date(d).toLocaleString(settings.lang === "pt" ? "pt-PT" : "en-GB", {
           dateStyle: "short",
@@ -522,7 +491,7 @@ function render() {
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloudStatus === "missing" ? t("icloudMissing") : cloudStatus ? t("icloudSynced", { time: cloudStatus }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloud.status === "missing" ? t("icloudMissing") : cloud.status ? t("icloudSynced", { time: cloud.status }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
@@ -552,7 +521,7 @@ function render() {
           prop === "cloud" || prop === "bigText" || prop === "minimap"
             ? e.target.value === "on"
             : e.target.value;
-        if (prop === "cloud" && settings.cloud) syncNow();
+        if (prop === "cloud" && settings.cloud) cloud.sync();
         theme();
         applyQuality();
         render();
@@ -770,130 +739,30 @@ const thisDevice = deviceKind(
   navigator.maxTouchPoints > 0,
   Math.min(screen.width, screen.height) < 500 ? 390 : 1024,
 );
-let cloudSeq = 0,
-  cloudStatus = "",
-  conflicts = [],
-  cloudTimer;
-const cloudWaiting = new Map();
-window.cloudReply = (req, value) => {
-  cloudWaiting.get(req)?.(value);
-  cloudWaiting.delete(req);
-};
-// Asks the native app; resolves with null if there is no answer.
-let cloudCall = (action, extra = {}) =>
-  new Promise((resolve) => {
-    if (!cloudBridge) return resolve(null);
-    const req = ++cloudSeq;
-    cloudWaiting.set(req, resolve);
-    cloudBridge.postMessage({ req, action, ...extra });
-    setTimeout(() => {
-      if (cloudWaiting.delete(req)) resolve(null);
-    }, 8000);
-  });
-const syncedMarks = () => {
-  try {
-    return JSON.parse(storage.getItem("biel-synced") || "{}");
-  } catch {
-    return {};
-  }
-};
-const markSynced = (id, updatedAt) => {
-  const marks = syncedMarks();
-  marks[id] = updatedAt;
-  try {
-    storage.setItem("biel-synced", JSON.stringify(marks));
-  } catch {}
-};
-function scheduleCloudUpload() {
-  if (!settings.cloud || !cloudBridge || !world) return;
-  clearTimeout(cloudTimer);
-  // Automatic saves use the same conflict checks as manual synchronization.
-  cloudTimer = setTimeout(() => {
-    syncNow();
-  }, 4000);
-}
-let syncInFlight = null;
-function syncNow() {
-  if (!settings.cloud) return Promise.resolve();
-  if (syncInFlight) return syncInFlight;
-  syncInFlight = performSync()
-    .catch(() => {
-      cloudStatus = "missing";
-    })
-    .finally(() => {
-      syncInFlight = null;
-    });
-  return syncInFlight;
-}
-
-async function performSync() {
-  if (!settings.cloud) return;
-  const status = await cloudCall("status");
-  if (!status?.available) {
-    cloudStatus = "missing";
-    if (mode === "settings") render();
-    return;
-  }
-  // Never interpret a failed or incomplete cloud listing as an empty cloud.
-  const listing = await cloudCall("list");
-  if (!Array.isArray(listing) || !settings.cloud) return;
-  // Keep the live game untouched; pausing saves and schedules another attempt.
-  if (mode === "playing") return;
-  const remotes = listing
-    .map((text) => {
-      try {
-        const raw = JSON.parse(text);
-        const w = validateWorld(raw, { id: raw.id });
-        return w && { ...w, device: raw.device ?? "" };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-  const locals = store
-    .list()
-    .map((w) => store.load(w.id))
-    .filter(Boolean);
-  const marks = syncedMarks();
-  conflicts = [];
-  for (const step of syncPlan(locals, remotes, marks)) {
-    if (step.action === "upload") {
-      const res = await cloudCall("save", {
-        worldId: step.id,
-        json: JSON.stringify(step.local),
-      });
-      if (res?.ok) markSynced(step.id, step.local.updatedAt);
-    } else if (step.action === "download") {
-      if (store.list().length >= MAX_WORLDS && !step.local) continue;
-      store.save(step.remote);
-      markSynced(step.id, step.remote.updatedAt);
-      if (world?.id === step.id && mode !== "playing") loadWorld(step.remote);
-    } else if (step.action === "conflict") conflicts.push(step);
-  }
-  cloudStatus = new Date().toLocaleTimeString(
-    settings.lang === "pt" ? "pt-PT" : "en-GB",
-    { timeStyle: "short" },
-  );
-  if (conflicts.length && mode !== "playing") mode = "conflict";
-  render();
-}
-// The player chooses which version of a world to keep; nothing is lost silently.
-async function resolveConflict(keepHere) {
-  const c = conflicts.shift();
-  if (keepHere) {
-    const res = await cloudCall("save", {
-      worldId: c.id,
-      json: JSON.stringify(c.local),
-    });
-    if (res?.ok) markSynced(c.id, c.local.updatedAt);
-  } else {
-    store.save(c.remote);
-    markSynced(c.id, c.remote.updatedAt);
-    if (world?.id === c.id) loadWorld(c.remote);
-  }
-  mode = conflicts.length ? "conflict" : "menu";
-  render();
-}
+const cloud = createCloud({
+  bridge: cloudBridge,
+  storage,
+  store,
+  hooks: {
+    enabled: () => settings.cloud,
+    busy: () => mode === "playing",
+    currentId: () => world?.id,
+    load: (w) => loadWorld(w),
+    lang: () => settings.lang,
+    onMissing: () => {
+      if (mode === "settings") render();
+    },
+    onSynced: () => {
+      if (cloud.conflicts.length && mode !== "playing") mode = "conflict";
+      render();
+    },
+    onResolved: () => {
+      mode = cloud.conflicts.length ? "conflict" : "menu";
+      render();
+    },
+  },
+});
+window.cloudReply = cloud.reply;
 const MODALS = [
   "settings",
   "help",
@@ -968,7 +837,7 @@ function action(a, arg) {
     if (Number($("#parents-answer")?.value) === gate?.answer) mode = "parents";
     else toast(t("wrongAnswer"));
   } else if (a === "keephere" || a === "keepthere") {
-    resolveConflict(a === "keephere");
+    cloud.resolve(a === "keephere");
     return;
   } else if (a === "restdone") {
     playSeconds = 0;
@@ -998,7 +867,7 @@ function action(a, arg) {
     }
   } else if (["settings", "help", "worlds", "worldsettings"].includes(a)) {
     if (a === "worlds" && world) save();
-    if (a === "worlds") syncNow();
+    if (a === "worlds") cloud.sync();
     open(a);
   } else if (a === "newworld") {
     draft = newDraft();
@@ -1037,7 +906,7 @@ function action(a, arg) {
     else {
       confirmDelete = null;
       store.remove(arg);
-      if (settings.cloud) cloudCall("delete", { worldId: arg });
+      if (settings.cloud) cloud.call("delete", { worldId: arg });
       if (world?.id === arg) {
         world = null;
         started = false;
@@ -1097,39 +966,24 @@ const blocks = generate(),
 const placed = () => [...edits.values()].filter((v) => v !== null).length;
 // The current world, ready to be stored or exported.
 function saveData() {
-  world.edits = [...edits].map(([k, v]) => [...k.split(",").map(Number), v]);
-  world.player = {
-    x: player.x,
-    y: player.y,
-    z: player.z,
-    yaw,
-    pitch,
-    firstPerson,
-    health: Math.max(1, vitals.health),
+  return snapshotWorld(world, {
+    edits,
+    player,
+    view: { yaw, pitch, firstPerson },
+    health: vitals.health,
     food: vitals.food,
-  };
-  world.time = timeOfDay;
-  world.inventory = inventory.toJSON();
-  world.device = thisDevice;
-  world.creatures = animals.map(
-    ({ mesh, timer, walking, bite, ...data }) => data,
-  );
-  world.monsters = monsters.map(({ type, x, y, z, hp, small }) => ({
-    type,
-    x,
-    y,
-    z,
-    hp,
-    small,
-  }));
-  world.updatedAt = Date.now();
-  return world;
+    time: timeOfDay,
+    inventory,
+    device: thisDevice,
+    animals,
+    monsters,
+  });
 }
 function save() {
   if (!world) return true;
   try {
     store.save(saveData());
-    scheduleCloudUpload();
+    cloud.schedule();
     return true;
   } catch {
     toast(t("saveError"));
@@ -2343,8 +2197,23 @@ let target = null,
   breaking = { key: null, time: 0 },
   breakCooldown = 0;
 const keys = new Set();
-const pressed = (code) =>
-  keys.has(code) || touchInput.has(code) || padHeld.has(code);
+// Whether an action (see input/actions.js) is held on any input.
+const pressed = (name) =>
+  isHeld(name, { keys, touch: touchInput, pad: padHeld });
+// Actions that happen once per press, from the keyboard, touch or a controller.
+function trigger(name) {
+  if (name === "jump") jumpTapped();
+  else if (name === "down" && riding) dismount();
+  else if (name === "place") edit(true);
+  else if (name === "attack") attack();
+  else if (name === "backpack") action("inventory");
+  else if (name === "pause") action("pause");
+  else if (name === "view") togglePerspective();
+  else if (name === "next" || name === "previous") {
+    selected = (selected + (name === "next" ? 1 : 8)) % 9;
+    render();
+  }
+}
 // Game controllers: the native apps send the state; browsers use the Gamepad API.
 let nativePad = null,
   padActions = null,
@@ -2381,16 +2250,17 @@ function pollGamepad(dt) {
   if (mode === "playing") {
     yaw -= now.look[0] * 2.6 * dt;
     pitch = Math.max(-0.25, Math.min(1.15, pitch + now.look[1] * 2 * dt));
-    if (hit("confirm")) jumpTapped();
-    if (hit("place")) edit(true);
-    if (hit("attack")) attack();
-    if (hit("backpack")) action("inventory");
-    if (hit("pause")) action("pause");
-    if (hit("next") || hit("previous")) {
-      selected = (selected + (hit("next") ? 1 : 8)) % 9;
-      render();
-    }
-    if (hit("back") && riding) dismount();
+    if (hit("confirm")) trigger("jump");
+    if (hit("back")) trigger("down");
+    for (const name of [
+      "place",
+      "attack",
+      "backpack",
+      "pause",
+      "next",
+      "previous",
+    ])
+      if (hit(name)) trigger(name);
     return;
   }
   // Menus: up and down move between buttons, A presses, B goes back.
@@ -2437,8 +2307,8 @@ app.addEventListener("pointerdown", (e) => {
   if (!control || mode !== "playing") return;
   e.preventDefault();
   touchInput.press(e.pointerId, control.dataset.key);
-  if (control.dataset.key === "Space") jumpTapped();
-  if (control.dataset.key === "KeyC" && riding) dismount();
+  if (["jump", "down"].includes(control.dataset.key))
+    trigger(control.dataset.key);
   app.setPointerCapture(e.pointerId);
 });
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
@@ -2736,14 +2606,10 @@ function updateAnimals(dt) {
       m.position.set(a.x, a.y - 0.01, a.z);
       m.rotation.y = a.yaw;
       const gallop =
-        pressed("KeyW") ||
-        pressed("KeyA") ||
-        pressed("KeyS") ||
-        pressed("KeyD") ||
-        pressed("ArrowUp") ||
-        pressed("ArrowDown") ||
-        pressed("ArrowLeft") ||
-        pressed("ArrowRight");
+        pressed("forward") ||
+        pressed("left") ||
+        pressed("backward") ||
+        pressed("right");
       const swingRide = gallop ? Math.sin(elapsed * 14) * 0.7 : 0;
       m.userData.legs.forEach(
         (l, i) => (l.rotation.x = i % 2 ? swingRide : -swingRide),
@@ -3473,7 +3339,7 @@ function pick() {
 // Holding Break (button, touch or mouse) chips away at the targeted block.
 function updateBreaking(dt) {
   breakCooldown -= dt;
-  const holding = pressed("Break") || mouseBreak;
+  const holding = pressed("break") || mouseBreak;
   if (!holding || !target) {
     breaking = { key: null, time: 0 };
     outline.material.color.set(0xfff3b6);
@@ -4251,15 +4117,11 @@ window.addEventListener("keydown", (e) => {
     )
       e.preventDefault();
     keys.add(e.code);
-    if (e.code === "Space" && !e.repeat) jumpTapped();
     if (/^[1-9]$/.test(e.key)) {
       selected = +e.key - 1;
       render();
     }
-    if (e.code === "KeyE" && !e.repeat) action("inventory");
-    if (e.code === "KeyF" && !e.repeat) attack();
-    if (e.code === "KeyC" && !e.repeat && riding) dismount();
-    if (e.code === "KeyV" && !e.repeat) togglePerspective();
+    if (!e.repeat) for (const name of actionsForKey(e.code)) trigger(name);
   }
   if (e.code === "Escape" && !e.repeat) {
     if (mode === "playing") action("pause");
@@ -4313,15 +4175,11 @@ function frame(now) {
   }
   if (mode === "playing") {
     biel.scale.setScalar(1);
-    let dx =
-        Number(pressed("KeyD") || pressed("ArrowRight")) -
-        Number(pressed("KeyA") || pressed("ArrowLeft")),
-      dz =
-        Number(pressed("KeyW") || pressed("ArrowUp")) -
-        Number(pressed("KeyS") || pressed("ArrowDown"));
+    let dx = Number(pressed("right")) - Number(pressed("left")),
+      dz = Number(pressed("forward")) - Number(pressed("backward"));
     const len = Math.hypot(dx, dz) || 1,
       speed =
-        (pressed("ShiftLeft") || pressed("ShiftRight") ? 6 : 3.8) *
+        (pressed("run") ? 6 : 3.8) *
         (riding ? 2 : 1) *
         (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1);
     dx /= len;
@@ -4349,16 +4207,15 @@ function frame(now) {
         ) === LADDER,
     );
     if (flying) {
-      velocity = (pressed("Space") ? 6 : 0) - (pressed("KeyC") ? 6 : 0);
+      velocity = (pressed("jump") ? 6 : 0) - (pressed("down") ? 6 : 0);
     } else if (onLadder) {
-      velocity =
-        pressed("Space") || pressed("KeyW") || pressed("ArrowUp") ? 3 : -1.2;
+      velocity = pressed("jump") || pressed("forward") ? 3 : -1.2;
     } else if (swimming) {
-      velocity = pressed("Space")
+      velocity = pressed("jump")
         ? Math.min(velocity + 30 * dt, 3)
         : Math.max(velocity - 6 * dt, -1.5);
     } else {
-      if (pressed("Space") && grounded) {
+      if (pressed("jump") && grounded) {
         velocity = riding ? 8.5 : 7;
         grounded = false;
       }
@@ -4419,7 +4276,7 @@ function frame(now) {
       } else peakY = Math.max(peakY ?? player.y, player.y);
       const underwater = inWater(blocks, player.x, player.y + 1.6, player.z),
         moving = dx || dz,
-        running = pressed("ShiftLeft") || pressed("ShiftRight");
+        running = pressed("run");
       const before = vitals.health;
       tick(vitals, dt, {
         rules: rules(),
@@ -4540,7 +4397,7 @@ function frame(now) {
 }
 // The saved world loads once every part of the scene exists.
 if (world) loadWorld(world);
-setTimeout(syncNow, 1500);
+setTimeout(() => cloud.sync(), 1500);
 render();
 // Performance numbers, shown with F3 or a triple tap with two fingers.
 const statsEl = document.createElement("div");
@@ -4630,1285 +4487,402 @@ window.importNativeWorld = (json) => {
     toast(t("invalid"));
   }
 };
-if (new URLSearchParams(location.search).has("test"))
-  window.runSmokeTests = async () => {
-    const checks = [];
-    const hold = (id) => {
-      inventory.slots[0] = { id, count: 1 };
-      selected = 0;
-    };
-    const check = (name, ok) => {
-      checks.push({ name, ok: !!ok });
-      if (!ok) throw Error(name);
-    };
-    // The intro may still be showing on a slower device.
-    leaveSplash();
-    check("menu loaded", mode === "menu");
-    frame(performance.now());
-    check("terrain rendered", renderer.info.render.triangles > 1000);
-    action("settings");
-    $("#language").value = "en";
-    $("#language").dispatchEvent(new Event("change"));
-    check("English settings", app.textContent.includes("Appearance"));
-    $("#appearance").value = "light";
-    $("#appearance").dispatchEvent(new Event("change"));
-    check("light theme", document.documentElement.dataset.theme === "light");
-    $("#language").value = "pt";
-    $("#language").dispatchEvent(new Event("change"));
-    $("#appearance").value = "dark";
-    $("#appearance").dispatchEvent(new Event("change"));
-    action("back");
-    action("play");
-    check("first play opens the new world screen", mode === "newworld");
-    draft.mode = "creative";
-    draft.options = normalizeOptions({ difficulty: "peaceful" });
-    // The older checks were written for the classic valley.
-    if (draft.seed === "") draft.size = "classic";
-    action("create");
-    check(
-      "creative world created",
-      world?.mode === "creative" &&
-        mode === "playing" &&
-        store.list().length === 1,
-    );
-    for (let i = 0; i < 30; i++) frame(last + 16);
-    check("spawn above ground", !collides(blocks, player));
-    const before = player.clone();
-    keys.add("KeyW");
-    for (let i = 0; i < 25; i++) frame(last + 16);
-    keys.delete("KeyW");
-    check("movement", player.distanceTo(before) > 0.3);
-    for (let i = 0; i < 80; i++) frame(last + 16);
-    const jumpStart = player.y;
-    keys.add("Space");
-    for (let i = 0; i < 12; i++) frame(last + 16);
-    keys.delete("Space");
-    check("jump", player.y > jumpStart + 0.2);
-    for (let i = 0; i < 65; i++) frame(last + 16);
-    const x = 2,
-      z = 2,
-      y = height(x, z);
-    target = { p: [x, y, z], normal: new THREE.Vector3(0, 1, 0) };
-    hold("brick");
-    edit(true);
-    check("place block", blocks.get(key(x, y + 1, z)) === 6);
-    target = { p: [x, y + 1, z], normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    check("break block", !blocks.has(key(x, y + 1, z)));
-    check("quest counts standing blocks", placed() === 0);
-    // Glass keeps the block behind it visible; doors are two tall and open with Build.
-    const gx = -3,
-      gz = 3,
-      gy = height(gx, gz);
-    target = { p: [gx, gy, gz], normal: new THREE.Vector3(0, 1, 0) };
-    hold("glass");
-    edit(true);
-    check(
-      "glass shows the block below",
-      blocks.get(key(gx, gy + 1, gz)) === GLASS && isRendered(gx, gy, gz),
-    );
-    target = {
-      p: [gx + 1, height(gx + 1, gz), gz],
-      normal: new THREE.Vector3(0, 1, 0),
-    };
-    hold("door");
-    edit(true);
-    const doorY = height(gx + 1, gz) + 1;
-    check(
-      "door is two blocks tall",
-      blocks.get(key(gx + 1, doorY, gz)) === DOOR &&
-        blocks.get(key(gx + 1, doorY + 1, gz)) === DOOR,
-    );
-    target = { p: [gx + 1, doorY + 1, gz], normal: new THREE.Vector3(1, 0, 0) };
-    edit(true);
-    check(
-      "door opens and can be walked through",
-      blocks.get(key(gx + 1, doorY, gz)) === DOOR_OPEN &&
-        !collides(blocks, { x: gx + 1, y: doorY - 0.49, z: gz }),
-    );
-    target = { p: [gx + 1, doorY, gz], normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    check(
-      "breaking a door removes all of it",
-      !blocks.has(key(gx + 1, doorY + 1, gz)),
-    );
-    target = { p: [gx, gy + 1, gz], normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    const night = applySky(0.75);
-    check(
-      "night sky with glowing amber",
-      night.night && scene.background.r < 0.15 && amber.emissiveIntensity > 1,
-    );
-    check(
-      "day sky",
-      applySky(NOON).daylight === 1 && amber.emissiveIntensity === 0,
-    );
-    music.start();
-    check("music starts", music.enabled);
-    music.stop();
-    // Swimming: drop Biel into a dug hole under the water and paddle up.
-    let hole = null;
-    for (let i = -SIZE + 2; i < SIZE - 2 && !hole; i++)
-      for (let j = -SIZE + 2; j < SIZE - 2 && !hole; j++)
-        if (height(i, j) === 1) hole = [i, j];
-    const holeKey = key(hole[0], 1, hole[1]),
-      holeType = blocks.get(holeKey);
-    blocks.delete(holeKey);
-    player.set(hole[0], 0.51, hole[1]);
-    velocity = 0;
-    keys.add("Space");
-    for (let i = 0; i < 40; i++) frame(last + 16);
-    keys.delete("Space");
-    check("swim up", player.y > 1);
-    blocks.set(holeKey, holeType);
-    spawn();
-    toast("smoke");
-    render();
-    check(
-      "toast survives HUD render",
-      toastEl.isConnected && toastEl.classList.contains("show"),
-    );
-    togglePerspective();
-    check(
-      "first person crosshair",
-      document.documentElement.classList.contains("first-person"),
-    );
-    togglePerspective();
-    check("save", save());
-    check("save round trip", store.load(world.id).edits.length > 0);
-    touchInput.press(101, "KeyW");
-    touchInput.press(102, "Space");
-    check("multitouch movement and jump", pressed("KeyW") && pressed("Space"));
-    render();
-    check(
-      "held controls survive inventory render",
-      pressed("KeyW") && pressed("Space"),
-    );
-    touchInput.release(102);
-    check("independent finger release", pressed("KeyW") && !pressed("Space"));
-    action("pause");
-    check("touch controls clear on pause", !touchInput.has("KeyW"));
-    check("pause menu", mode === "paused");
-    action("play");
-    check("resume", mode === "playing");
-    // A second world, then delete it from the list in two steps.
-    const firstId = world.id;
-    action("pause");
-    action("worlds");
-    action("newworld");
-    draft.options = normalizeOptions({ difficulty: "normal" });
-    // The older checks were written for the classic valley.
-    if (draft.seed === "") draft.size = "classic";
-    action("create");
-    check(
-      "adventure world on normal",
-      world.mode === "adventure" && world.options.monsters,
-    );
-    check("adventure starts with apples", inventory.count("apple") === 3);
-    target = { p: [2, height(2, 2), 2], normal: new THREE.Vector3(0, 1, 0) };
-    touchInput.press(201, "Break");
-    updateBreaking(0.1);
-    check(
-      "breaking takes time in adventure",
-      blocks.has(key(2, height(2, 2), 2)),
-    );
-    for (let i = 0; i < 12; i++) {
-      target = { p: [2, height(2, 2), 2], normal: new THREE.Vector3(0, 1, 0) };
-      updateBreaking(0.1);
-    }
-    touchInput.release(201);
-    check("holding Break collects dirt", inventory.count("dirt") === 1);
-    inventory.add("wood", 1);
-    action("craft", "planks");
-    check("craft planks from wood", inventory.count("planks") === 4);
-    inventory.add("planks", 2);
-    const doorRecipe = RECIPES.find((r) => r.id === "door");
-    check(
-      "door needs a workbench",
-      !canCraft(inventory, doorRecipe, nearBench()),
-    );
-    blocks.set(
-      key(Math.round(player.x) + 2, Math.round(player.y), Math.round(player.z)),
-      BENCH,
-    );
-    check(
-      "workbench nearby unlocks the door",
-      canCraft(inventory, doorRecipe, nearBench()),
-    );
-    action("inventory");
-    check(
-      "backpack screen lists recipes",
-      app.querySelectorAll(".recipe").length === RECIPES.length,
-    );
-    action("back");
-    // Survival on Normal: damage, food, falls, beds, falling asleep.
-    hurt(vitals, 4, rules());
-    check("normal difficulty hurts", vitals.health === 16);
-    vitals.food = 10;
-    hold("apple");
-    edit(true);
-    check("eating an apple", vitals.food === 14 && heldId() === null);
-    vitals.hurtCooldown = 0;
-    const healthBeforeFall = vitals.health;
-    player.y += 9;
-    velocity = 0;
-    for (let i = 0; i < 90; i++) frame(last + 16);
-    check("a long fall hurts", vitals.health < healthBeforeFall && grounded);
-    const bedPos = [
-      Math.round(player.x) + 1,
-      Math.round(player.y),
-      Math.round(player.z) + 1,
-    ];
-    blocks.set(key(...bedPos), BED);
-    timeOfDay = 0.75;
-    target = { p: bedPos, normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    check(
-      "sleeping at night skips to morning",
-      timeOfDay < 0.1 &&
-        world.day === 2 &&
-        world.spawnPoint.join() === bedPos.join(),
-    );
-    inventory.add("stone", 5);
-    const awayFromHome = [player.x + 4, player.y, player.z];
-    player.set(...awayFromHome);
-    while (collides(blocks, player)) player.y++;
-    awayFromHome[1] = player.y;
-    vitals.health = 0;
-    frame(last + 16);
-    check(
-      "falling asleep leaves the backpack behind on normal",
-      mode === "asleep" &&
-        world.backpacks.length === 1 &&
-        !inventory.count("stone"),
-    );
-    action("wake");
-    check(
-      "waking up at the bed",
-      mode === "playing" &&
-        vitals.health === 20 &&
-        Math.abs(player.x - bedPos[0]) < 0.5,
-    );
-    player.set(...awayFromHome);
-    frame(last + 16);
-    check(
-      "walking to the backpack gets everything back",
-      inventory.count("stone") === 5 && world.backpacks.length === 0,
-    );
-    // Animals: products, waiting time and a dog that becomes a friend.
-    check(
-      "animals in the new world",
-      animals.length === 19 && animalGroup.children.length === 19,
-    );
-    const cow = animals.find((x) => x.type === "cow"),
-      dog = animals.find((x) => x.type === "dog");
-    interactWith(cow);
-    check("the cow gives milk", inventory.count("milk") === 1);
-    interactWith(cow);
-    check("the cow needs a rest", inventory.count("milk") === 1);
-    interactWith(animals.find((x) => x.type === "sheep"));
-    check("shearing gives wool", inventory.count("wool") === 2);
-    hold("apple");
-    interactWith(dog);
-    check("the dog wants a treat", !dog.tamed);
-    inventory.add("treat", 1);
-    hold("treat");
-    interactWith(dog);
-    check("a treat makes a friend", dog.tamed && mode === "namedog");
-    $("#dog-name").value = "Faísca";
-    action("namedone");
-    check("the dog gets a name", dog.name === "Faísca" && mode === "playing");
-    dog.x = player.x + 10;
-    dog.z = player.z;
-    for (let i = 0; i < 150; i++) frame(last + 16);
-    check(
-      "the dog follows Biel",
-      Math.hypot(dog.x - player.x, dog.z - player.z) < 4,
-    );
-    save();
-    check(
-      "animals are saved",
-      store.load(world.id).creatures.find((x) => x.type === "dog").name ===
-        "Faísca",
-    );
-    // More animals: babies, a shy rabbit, a cat friend and a horse to ride.
-    const [cowA, cowB] = animals.filter((x) => x.type === "cow");
-    cowB.x = cowA.x + 1;
-    cowB.z = cowA.z;
-    for (const c of [cowA, cowB]) {
-      inventory.add("wheat", 1);
-      hold("wheat");
-      interactWith(c);
-    }
-    const herdBefore = animals.length;
-    breedClock = 0;
-    frame(last + 16);
-    const calf = animals.find((x) => x.baby && x.type === "cow");
-    check(
-      "two happy cows have a calf",
-      animals.length === herdBefore + 1 && calf,
-    );
-    world.age = calf.grownAt + 1;
-    frame(last + 16);
-    check("the calf grows up", !calf.baby);
-    const bunny = animals.find((x) => x.type === "rabbit");
-    bunny.x = player.x + 1.5;
-    bunny.z = player.z;
-    bunny.y = surfaceY(bunny.x, bunny.z, player.y + 2);
-    frame(last + 16);
-    for (let i = 0; i < 30; i++) frame(last + 16);
-    check(
-      "the rabbit hops away",
-      Math.hypot(bunny.x - player.x, bunny.z - player.z) > 2,
-    );
-    const kitty = animals.find((x) => x.type === "cat");
-    inventory.add("fish", 1);
-    hold("fish");
-    interactWith(kitty);
-    check("fish makes the cat a friend", kitty.tamed && mode === "namedog");
-    action("namedone");
-    const pony = animals.find((x) => x.type === "horse");
-    inventory.add("apple", 30);
-    hold("apple");
-    inventory.slots[0].count = 30;
-    for (let i = 0; i < 30 && !pony.tamed; i++) interactWith(pony);
-    check("apples make the horse a friend", pony.tamed);
-    action("namedone");
-    interactWith(pony);
-    check("riding the horse", riding === pony);
-    // Compare identical unobstructed paths, not two random slopes or trees.
-    player.set(0, MAX_Y + 2, 0);
-    flying = true;
-    velocity = 0;
-    yaw = 0;
-    const rideStart = player.clone();
-    keys.add("KeyW");
-    for (let i = 0; i < 30; i++) frame(last + 16);
-    keys.delete("KeyW");
-    const rideDistance = player.distanceTo(rideStart);
-    dismount();
-    player.copy(rideStart);
-    const walkStart = player.clone();
-    keys.add("KeyW");
-    for (let i = 0; i < 30; i++) frame(last + 16);
-    keys.delete("KeyW");
-    check(
-      "the horse is faster than walking",
-      rideDistance > player.distanceTo(walkStart) * 1.3 && riding === null,
-    );
-    flying = false;
-    // Monsters on Normal at night: appear, hurt, get chased off, vanish at dawn.
-    dog.sitting = true;
-    spawn();
-    for (let i = 0; i < 20; i++) frame(last + 16);
-    timeOfDay = 0.75;
-    let spawned = null;
-    for (let i = 0; i < 6 && !spawned; i++) spawned = trySpawnMonster();
-    check(
-      "monsters appear at night on normal",
-      spawned && monsters.length >= 1,
-    );
-    for (const m of [...monsters]) removeMonster(m, false);
-    const sleepyOne = addMonster("sleepy", {
-      x: player.x + 0.9,
-      y: player.y,
-      z: player.z,
-    });
-    vitals.hurtCooldown = 0;
-    vitals.health = 20;
-    for (let i = 0; i < 100; i++) frame(last + 16);
-    check(
-      "a sleepwalker bumps into Biel",
-      vitals.health < 20 && vitals.health > 0,
-    );
-    check(
-      "you cannot sleep with a monster nearby",
-      (() => {
-        const day = world.day;
-        sleepIn(bedPos);
-        return world.day === day;
-      })(),
-    );
-    hold("stone_sword");
-    targetMonster = sleepyOne;
-    attackCooldown = 0;
-    attack();
-    attackCooldown = 0;
-    targetMonster = sleepyOne;
-    attack();
-    check(
-      "the sword sends it off in sparkles",
-      !monsters.includes(sleepyOne) && inventory.count("stick") >= 2,
-    );
-    const bigJelly = addMonster("jelly", {
-      x: player.x + 1,
-      y: player.y,
-      z: player.z,
-    });
-    bigJelly.hp = 1;
-    targetMonster = bigJelly;
-    attackCooldown = 0;
-    attack();
-    check(
-      "a jelly splits in two",
-      monsters.filter((m) => m.small).length === 2,
-    );
-    const archerOne = addMonster("archer", {
-      x: player.x + 7,
-      y: player.y,
-      z: player.z,
-    });
-    archerOne.cooldown = 0;
-    frame(last + 16);
-    check("the archer shoots suction-cup arrows", arrows.length >= 1);
-    const monstersBefore = monsters.length;
-    save();
-    loadWorld(store.load(world.id));
-    check(
-      "monsters are saved with the world",
-      monstersBefore > 0 && monsters.length === monstersBefore,
-    );
-    blocks.set(
-      key(
-        Math.round(player.x),
-        Math.round(player.y) + 1,
-        Math.round(player.z) + 3,
-      ),
-      TORCH,
-    );
-    rebuild();
-    check("torches are light sources", lightBlocks.length > 0);
-    timeOfDay = 0.3;
-    for (let i = 0; i < 240; i++) frame(last + 16);
-    check("monsters fizzle away at sunrise", monsters.length === 0);
-    // The newer monsters: a climbing spider, Puffy and the cave ghost.
-    world.options = normalizeOptions({
-      ...world.options,
-      difficulty: "hard",
-      monsters: true,
-    });
-    timeOfDay = 0.75;
-    const px0 = Math.round(player.x),
-      pz0 = Math.round(player.z),
-      floor0 = Math.round(player.y - 0.51);
-    setBlock([px0 + 2, floor0 + 1, pz0], 2);
-    setBlock([px0 + 2, floor0 + 2, pz0], 2);
-    rebuildAt([px0 + 2, floor0 + 1, pz0]);
-    const climber = addMonster("spider", { x: px0 + 3.6, y: player.y, z: pz0 });
-    let highest = climber.y;
-    for (let i = 0; i < 120; i++) {
-      frame(last + 16);
-      highest = Math.max(highest, climber.y);
-    }
-    check("the woolly spider climbs walls", highest > player.y + 1.5);
-    removeMonster(climber, false);
-    for (const m of [...monsters]) removeMonster(m, false);
-    const built = [px0 - 1, floor0 + 1, pz0 - 1];
-    setBlock(built, 6);
-    const cloud = addMonster("puff", { x: px0 - 1.4, y: player.y, z: pz0 - 1 });
-    cloud.fuse = 0;
-    vitals.hurtCooldown = 0;
-    vitals.health = 20;
-    const editsBefore = [...edits.values()].filter((v) => v === null).length;
-    frame(last + 16);
-    check(
-      "Puffy goes PUF: knocks natural blocks but never Biel's builds",
-      !monsters.includes(cloud) &&
-        blocks.get(key(...built)) === 6 &&
-        [...edits.values()].filter((v) => v === null).length > editsBefore &&
-        vitals.health < 20,
-    );
-    const roofX = Math.round(player.x),
-      roofZ = Math.round(player.z),
-      roofY = Math.round(player.y);
-    // A wide stone roof makes a real cave: dark well inside, even by day.
-    const roofCells = [];
-    for (let x = -20; x <= 20; x++)
-      for (let z = -20; z <= 20; z++) {
-        const cell = [roofX + x, roofY + 4, roofZ + z];
-        if (
-          Math.abs(cell[0]) > SIZE ||
-          Math.abs(cell[2]) > SIZE ||
-          blocks.has(key(...cell))
-        )
-          continue;
-        setBlock(cell, 2);
-        roofCells.push(cell);
-      }
-    rebuildAt(...roofCells);
-    timeOfDay = 0.3;
-    let caveMonster = null;
-    for (let i = 0; i < 30 && !caveMonster; i++)
-      caveMonster = trySpawnMonster();
-    check(
-      "on Hard, caves have monsters even by day",
-      underground() && caveMonster?.cave,
-    );
-    for (const m of [...monsters]) removeMonster(m, false);
-    const spook = addMonster("ghost", { x: px0 + 6, y: player.y + 1, z: pz0 });
-    spook.cave = true;
-    const ghostStart = Math.hypot(spook.x - player.x, spook.z - player.z);
-    for (let i = 0; i < 60; i++) frame(last + 16);
-    check(
-      "the mist ghost floats through rock",
-      Math.hypot(spook.x - player.x, spook.z - player.z) < ghostStart - 0.8,
-    );
-    for (const m of [...monsters]) removeMonster(m, false);
-    for (const cell of roofCells) {
-      blocks.delete(key(...cell));
-      edits.set(key(...cell), null);
-    }
-    rebuildAt(...roofCells);
-    world.options = normalizeOptions({
-      ...world.options,
-      difficulty: "normal",
-    });
-    world.options = normalizeOptions({ ...world.options, monsters: false });
-    timeOfDay = 0.75;
-    for (let i = 0; i < 6; i++) trySpawnMonster();
-    check("no monsters when switched off", monsters.length === 0);
-    timeOfDay = 0.3;
-    const secondId = world.id;
-    action("pause");
-    action("worlds");
-    action("deleteworld", secondId);
-    check("delete asks for confirmation", store.list().length === 2);
-    action("deleteworld", secondId);
-    check("world deleted", store.list().length === 1 && world === null);
-    action("openworld", firstId);
-    check("first world reopened", world?.id === firstId && edits.size > 0);
-    // Tutorial, sticker book and the parents' corner.
-    action("pause");
-    action("worlds");
-    action("newworld");
-    check("new worlds offer the tutorial", draft.tutorial === true);
-    // The older checks were written for the classic valley.
-    if (draft.seed === "") draft.size = "classic";
-    action("create");
-    check(
-      "the tutorial starts in a new adventure world",
-      world.tutorial?.step === 0 && app.querySelector(".quest.tutorial"),
-    );
-    tutorialEvent("walk", 5);
-    check("walking moves the tutorial on", world.tutorial.step === 1);
-    action("skiptutorial");
-    check(
-      "the tutorial can be skipped",
-      world.tutorial === null && !app.querySelector(".quest.tutorial"),
-    );
-    check(
-      "placing blocks counts for the shelter sticker",
-      (progress.counters.place ?? 0) >= 1,
-    );
-    inventory.add("planks", 4);
-    action("craft", "bench");
-    check("a workbench earns a sticker", !!progress.done.bench);
-    check("the dog sticker from earlier", !!progress.done.dog);
-    action("stickers");
-    check(
-      "the sticker book shows twelve stickers",
-      app.querySelectorAll(".sticker").length === 12 &&
-        app.querySelectorAll(".sticker.done").length >= 2,
-    );
-    action("back");
-    action("pause");
-    action("settings");
-    action("parentsgate");
-    $("#parents-answer").value = "1";
-    action("parentscheck");
-    check(
-      "a wrong answer keeps the parents' corner closed",
-      mode === "parentsgate",
-    );
-    $("#parents-answer").value = String(gate.answer);
-    action("parentscheck");
-    check("the right answer opens the parents' corner", mode === "parents");
-    settings.parents = normalizeParents({
-      ...settings.parents,
-      noMonsters: true,
-      maxDifficulty: "easy",
-      reminder: 30,
-    });
-    world.options = normalizeOptions({ ...world.options, difficulty: "hard" });
-    applyParentLimits();
-    check(
-      "parents can switch monsters off and cap the difficulty",
-      !monstersAllowed() && world.options.difficulty === "easy",
-    );
-    mode = "playing";
-    playSeconds = 30 * 60 - 0.001;
-    frame(last + 16);
-    check("the break reminder appears", mode === "rest");
-    action("restdone");
-    check("and play goes on", mode === "playing" && playSeconds === 0);
-    settings.parents = normalizeParents({});
-    // Farming: till, plant, grow, harvest, bake; and a little fishing.
-    const fx = Math.round(player.x) + 2,
-      fz = Math.round(player.z),
-      fy = topAt(fx, fz);
-    setBlock([fx, fy, fz], 1);
-    hold("wooden_hoe");
-    target = { p: [fx, fy, fz], normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    check("the hoe makes farmland", blocks.get(key(fx, fy, fz)) === FARMLAND);
-    hold("wheat_seeds");
-    edit(true);
-    check(
-      "seeds are planted",
-      cropInfo(blocks.get(key(fx, fy + 1, fz)))?.stage === 0,
-    );
-    rebuild();
-    for (
-      let i = 0;
-      i < 200 && cropInfo(blocks.get(key(fx, fy + 1, fz))).stage < 3;
-      i++
-    )
-      growCrops(30);
-    check(
-      "wheat grows ripe",
-      cropInfo(blocks.get(key(fx, fy + 1, fz))).stage === 3,
-    );
-    const wheatBefore = inventory.count("wheat");
-    target = { p: [fx, fy + 1, fz], normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    check(
-      "harvesting wheat earns the farmer sticker",
-      inventory.count("wheat") > wheatBefore && !!progress.done.wheat,
-    );
-    inventory.add("wheat", 3);
-    action("craft", "bread");
-    check("bread from wheat", inventory.count("bread") >= 1);
-    hold("fishing_rod");
-    fishing = { until: elapsed - 1, from: player.clone() };
-    const fishBefore = inventory.count("fish");
-    updateFishing();
-    check("fishing catches a fish", inventory.count("fish") === fishBefore + 1);
-    // Weather: rain comes in gently, waters the farm and greys the sky.
-    world.weather = { state: "rain", until: world.age + 999 };
-    timeOfDay = 0.3;
-    for (let i = 0; i < 320; i++) frame(last + 16);
-    check(
-      "rain falls and waters the farm",
-      rain.visible && raining() && darkLevel > 0.3,
-    );
-    check(
-      "the clock shows the rain",
-      app.querySelector(".clock").textContent.includes("🌧"),
-    );
-    world.options = normalizeOptions({ ...world.options, weather: false });
-    for (let i = 0; i < 320; i++) frame(last + 16);
-    check("no weather when switched off", !rain.visible && !raining());
-    // Chests, the furnace, iron tools and treasure.
-    const cx0 = Math.round(player.x) + 2,
-      cz0 = Math.round(player.z) - 2,
-      cy0 = topAt(cx0, cz0);
-    inventory.add("chest", 1);
-    hold("chest");
-    target = { p: [cx0, cy0, cz0], normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    const chestKey = key(cx0, cy0 + 1, cz0);
-    check(
-      "a chest is placed empty",
-      blocks.get(chestKey) === CHEST && world.chests[chestKey].length === 0,
-    );
-    target = { p: [cx0, cy0 + 1, cz0], normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    check("using a chest opens it", mode === "chest");
-    inventory.add("dirt", 5);
-    moveStack(
-      "bag",
-      inventory.slots.findIndex((x) => x?.id === "dirt"),
-    );
-    check(
-      "things move into the chest",
-      chestAt(chestKey).count("dirt") >= 5 && !inventory.count("dirt"),
-    );
-    action("back");
-    const fx0 = cx0 + 1;
-    inventory.add("furnace", 1);
-    hold("furnace");
-    target = {
-      p: [fx0, topAt(fx0, cz0), cz0],
-      normal: new THREE.Vector3(0, 1, 0),
-    };
-    edit(true);
-    const furnaceKey = key(fx0, topAt(fx0, cz0), cz0);
-    target = {
-      p: furnaceKey.split(",").map(Number),
-      normal: new THREE.Vector3(0, 1, 0),
-    };
-    edit(true);
-    check("using a furnace opens it", mode === "furnace");
-    inventory.add("iron_ore", 3);
-    inventory.add("coal", 1);
-    moveStack(
-      "bag",
-      inventory.slots.findIndex((x) => x?.id === "iron_ore"),
-    );
-    moveStack(
-      "bag",
-      inventory.slots.findIndex((x) => x?.id === "coal"),
-    );
-    for (let i = 0; i < 40; i++) updateFurnaces(0.5);
-    moveStack("output", 0);
-    check("the furnace melts iron bars", inventory.count("iron_ingot") === 3);
-    action("back");
-    setBlock(
-      [Math.round(player.x) - 2, Math.round(player.y), Math.round(player.z)],
-      BENCH,
-    );
-    inventory.add("stick", 2);
-    action("craft", "iron_pickaxe");
-    check(
-      "an iron pickaxe earns its sticker",
-      inventory.count("iron_pickaxe") === 1 && !!progress.done.ironPickaxe,
-    );
-    const oreAt = [Math.round(player.x) + 3, 1, Math.round(player.z) + 3];
-    setBlock(oreAt, IRON_ORE);
-    hold("iron_pickaxe");
-    target = { p: oreAt, normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    check(
-      "iron ore needs a pickaxe and counts for the ore hunter",
-      inventory.count("iron_ore") >= 1 &&
-        (progress.counters["got:iron"] ?? 0) >= 1,
-    );
-    const treasureKey = key(5, 30, 5);
-    delete world.chests[treasureKey];
-    check(
-      "chests in ruins and cabins hold treasure",
-      chestAt(treasureKey).slots.some(Boolean),
-    );
-    // Building shapes: ladders, fences, gates, trapdoors, signs, dyed wool.
-    const bx0 = Math.round(player.x),
-      bz0 = Math.round(player.z),
-      by0 = Math.round(player.y);
-    for (let y = by0; y <= by0 + 3; y++) setBlock([bx0, y, bz0], LADDER);
-    rebuildAt([bx0, by0, bz0]);
-    player.set(bx0, by0 - 0.49 + 0.01, bz0);
-    velocity = 0;
-    const ladderStart = player.y;
-    keys.add("Space");
-    for (let i = 0; i < 40; i++) frame(last + 16);
-    keys.delete("Space");
-    check("ladders can be climbed", player.y > ladderStart + 1.2);
-    for (let y = by0; y <= by0 + 3; y++) {
-      blocks.delete(key(bx0, y, bz0));
-      edits.set(key(bx0, y, bz0), null);
-    }
-    rebuildAt([bx0, by0, bz0]);
-    spawn();
-    for (let i = 0; i < 20; i++) frame(last + 16);
-    const gx0 = Math.round(player.x) + 2,
-      gz0 = Math.round(player.z),
-      gy0 = topAt(gx0, gz0) + 1;
-    setBlock([gx0, gy0, gz0], FENCE);
-    check(
-      "fences block the way",
-      collides(blocks, { x: gx0, y: gy0 - 0.49, z: gz0 }),
-    );
-    setBlock([gx0, gy0, gz0], GATE);
-    target = { p: [gx0, gy0, gz0], normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    check(
-      "gates open",
-      blocks.get(key(gx0, gy0, gz0)) === GATE_OPEN &&
-        !collides(blocks, { x: gx0, y: gy0 - 0.49, z: gz0 }),
-    );
-    setBlock([gx0, gy0, gz0], TRAPDOOR);
-    edit(true);
-    check("trapdoors open", blocks.get(key(gx0, gy0, gz0)) === TRAPDOOR_OPEN);
-    blocks.delete(key(gx0, gy0, gz0));
-    inventory.add("sign", 1);
-    hold("sign");
-    target = { p: [gx0, gy0 - 1, gz0], normal: new THREE.Vector3(0, 1, 0) };
-    edit(true);
-    await new Promise((r) => setTimeout(r, 0));
-    check("placing a sign asks for its text", mode === "signtext");
-    $("#sign-text").value = "Casa do Biel";
-    action("signdone");
-    check(
-      "the sign shows its text",
-      world.signs[key(gx0, gy0, gz0)] === "Casa do Biel" &&
-        signGroup.children.length >= 1,
-    );
-    const ewe = animals.find((x) => x.type === "sheep");
-    ewe.readyAt = 0;
-    inventory.add("blue_dye", 1);
-    hold("blue_dye");
-    interactWith(ewe);
-    hold("apple");
-    interactWith(ewe);
-    check(
-      "a blue sheep gives blue wool",
-      ewe.color === "blue" && inventory.count("wool_blue") === 2,
-    );
-    hold("wool_blue");
-    target = {
-      p: [gx0 + 1, topAt(gx0 + 1, gz0), gz0],
-      normal: new THREE.Vector3(0, 1, 0),
-    };
-    edit(true);
-    check(
-      "coloured wool is built",
-      blocks.get(key(gx0 + 1, topAt(gx0 + 1, gz0), gz0)) === woolBlock("blue"),
-    );
-    // Block light: open sky, a dark closed room, a torch, and darkness again.
-    const lx0 = Math.round(player.x) - 6,
-      lz0 = Math.round(player.z) - 6,
-      ly0 = topAt(lx0, lz0) + 1;
-    check("open sky is fully lit", light.level(lx0, ly0 + 6, lz0) === 15);
-    const roomCells = [];
-    for (let x = -2; x <= 2; x++)
-      for (let z = -2; z <= 2; z++)
-        for (let y = 0; y <= 4; y++)
-          if (Math.abs(x) === 2 || Math.abs(z) === 2 || y === 0 || y === 4) {
-            setBlock([lx0 + x, ly0 + y, lz0 + z], 2);
-            roomCells.push([lx0 + x, ly0 + y, lz0 + z]);
-          } else {
-            blocks.delete(key(lx0 + x, ly0 + y, lz0 + z));
-          }
-    rebuildAt(...roomCells);
-    check("a closed room is dark", light.level(lx0, ly0 + 2, lz0) <= 1);
-    setBlock([lx0, ly0 + 1, lz0], TORCH);
-    rebuildAt([lx0, ly0 + 1, lz0]);
-    check("a torch lights the room", light.level(lx0 + 1, ly0 + 2, lz0) >= 12);
-    const floorMesh = [...chunks.values()]
-      .flatMap((c) => c.meshes)
-      .find((mm) =>
-        mm.userData.cells.some(
-          ([a, b, c]) => a === lx0 + 1 && b === ly0 && c === lz0,
-        ),
-      );
-    const at = floorMesh.userData.cells.findIndex(
-      ([a, b, c]) => a === lx0 + 1 && b === ly0 && c === lz0,
-    );
-    check(
-      "faces are painted with their light",
-      floorMesh.instanceColor && floorMesh.userData.glow[at] >= 12,
-    );
-    blocks.delete(key(lx0, ly0 + 1, lz0));
-    edits.set(key(lx0, ly0 + 1, lz0), null);
-    rebuildAt([lx0, ly0 + 1, lz0]);
-    check(
-      "without the torch the room is dark again",
-      light.level(lx0 + 1, ly0 + 2, lz0) <= 1,
-    );
-    for (const [x, y, z] of roomCells) {
-      blocks.delete(key(x, y, z));
-      edits.set(key(x, y, z), null);
-    }
-    rebuildAt(...roomCells);
-    // Tools, wear, buckets and flowing water, honey and shears.
-    const wx0 = Math.round(player.x) + 4,
-      wz0 = Math.round(player.z) - 3,
-      wy0 = topAt(wx0, wz0);
-    setBlock([wx0, wy0 + 1, wz0], 4);
-    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
-    hold("stone_axe");
-    check(
-      "an axe chops wood faster",
-      breakTime(4, heldId()) < breakTime(4, null),
-    );
-    const savedOptions = world.options;
-    world.options = { ...world.options, difficulty: "easy" };
-    edit(false);
-    check(
-      "tools do not wear out on Easy",
-      !inventory.slots[0].wear && inventory.count("wood") >= 1,
-    );
-    world.options = { ...world.options, difficulty: "normal" };
-    setBlock([wx0, wy0 + 1, wz0], 4);
-    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
-    edit(false);
-    check("tools wear out on Normal", inventory.slots[0].wear === 1);
-    render();
-    check("the bar shows the wear", !!app.querySelector(".hotbar .wear"));
-    inventory.slots[0].wear = toolUses("stone_axe") - 1;
-    wearHeld();
-    check(
-      "a worn-out tool goes away with a kind message",
-      inventory.slots[0] === null && toastEl.textContent.includes("bancada"),
-    );
-    world.options = savedOptions;
-    check("the wood was chopped", !blocks.has(key(wx0, wy0 + 1, wz0)));
-    // A water bucket poured on the ground flows and fills the bucket again.
-    inventory.slots[0] = { id: "water_bucket", count: 1 };
-    selected = 0;
-    target = { p: [wx0, wy0, wz0], normal: new THREE.Vector3(0, 1, 0) };
-    targetAnimal = targetMonster = null;
-    edit(true);
-    const wellAt = [wx0, wy0 + 1, wz0];
-    check(
-      "a water bucket pours water",
-      blocks.get(key(...wellAt)) === WATER && heldId() === "bucket",
-    );
-    for (let i = 0; i < 12; i++) updateWater(0.4);
-    const wet = [...blocks.entries()].filter(
-      ([k, v]) => isWater(v) && v !== WATER && k.split(",")[1] <= wy0 + 1,
-    ).length;
-    check("the water flows around", wet >= 4);
-    check("Biel swims in water blocks", inWater(blocks, wx0, wy0 + 1, wz0));
-    pick();
-    targetWater = wellAt;
-    targetAnimal = targetMonster = null;
-    edit(true);
-    check(
-      "an empty bucket scoops the water back",
-      heldId() === "water_bucket" && !blocks.has(key(...wellAt)),
-    );
-    for (let i = 0; i < 80 && waterDirty.size; i++) updateWater(0.4);
-    check(
-      "the water dries up without its source",
-      ![...blocks.values()].some((v) => isWater(v)),
-    );
-    // Honey from a bee nest, with a bottle.
-    setBlock([wx0, wy0 + 1, wz0], BEE_NEST);
-    inventory.slots[0] = { id: "bottle", count: 2 };
-    target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
-    targetAnimal = targetMonster = null;
-    edit(true);
-    targetAnimal = targetMonster = null;
-    edit(true);
-    check(
-      "a bottle collects honey, then the bees need a rest",
-      inventory.count("honey") === 1 && inventory.count("bottle") === 1,
-    );
-    blocks.delete(key(wx0, wy0 + 1, wz0));
-    edits.set(key(wx0, wy0 + 1, wz0), null);
-    rebuildAt([wx0, wy0 + 1, wz0]);
-    const shorn = animals.find((x) => x.type === "sheep");
-    shorn.readyAt = 0;
-    shorn.color = "";
-    const woolBefore = inventory.count("wool");
-    hold("shears");
-    interactWith(shorn);
-    check("shears give more wool", inventory.count("wool") === woolBefore + 3);
-    // A game controller drives the same actions.
-    const padStart = player.clone();
-    window.nativeGamepad({ ly: -1 });
-    for (let i = 0; i < 40; i++) frame(last + 16);
-    check(
-      "the left stick walks",
-      player.distanceTo(padStart) > 1 &&
-        document.documentElement.classList.contains("gamepad"),
-    );
-    window.nativeGamepad({ y: true });
-    frame(last + 16);
-    check("Y opens the backpack", mode === "inventory");
-    window.nativeGamepad({ b: true });
-    frame(last + 16);
-    check("B goes back", mode === "playing");
-    window.nativeGamepad({ start: true });
-    frame(last + 16);
-    window.nativeGamepad({ down: true });
-    frame(last + 16);
-    const focused = document.activeElement?.textContent;
-    window.nativeGamepad({});
-    frame(last + 16);
-    check(
-      "the d-pad moves between menu buttons",
-      mode === "paused" && focused && focused !== t("continue"),
-    );
-    window.nativeGamepad({ start: true });
-    frame(last + 16);
-    check("start goes back to the game", mode === "playing");
-    window.nativeGamepad(null);
-    frame(last + 16);
-    document.documentElement.classList.remove("gamepad");
-    // The new terrain: a seeded medium island, drawn chunk by chunk.
-    action("pause");
-    action("worlds");
-    for (const w of store.list().slice(2)) store.remove(w.id);
-    action("newworld");
-    draft.size = "medium";
-    draft.seed = "4242";
-    draft.mode = "creative";
-    const t0 = performance.now();
-    // The older checks were written for the classic valley.
-    if (draft.seed === "") draft.size = "classic";
-    action("create");
-    const loadMs = performance.now() - t0;
-    check(
-      "a medium island with a seed",
-      world.seed === 4242 &&
-        SIZE === 48 &&
-        WATER_LEVEL > 10 &&
-        chunks.size > 30,
-    );
-    check("a medium island loads quickly", loadMs < 4000);
-    check(
-      "Biel starts on dry land",
-      height(Math.round(player.x), Math.round(player.z)) > WATER_LEVEL &&
-        !collides(blocks, player),
-    );
-    const biomesHere = new Set();
-    for (let x = -46; x <= 46; x += 3)
-      for (let z = -46; z <= 46; z += 3) biomesHere.add(biomeAt(x, z));
-    check("the island has several biomes", biomesHere.size >= 3);
-    const typesHere = new Set(blocks.values());
-    check(
-      "new islands have copper, lakes and bee nests",
-      world.gen === 2 &&
-        typesHere.has(COPPER_ORE) &&
-        typesHere.has(WATER) &&
-        typesHere.has(BEE_NEST),
-    );
-    const nest = nestBlocks[0];
-    player.set(nest[0] + 2, nest[1], nest[2]);
-    world.options = { ...world.options, animals: true };
-    timeOfDay = 0.3;
-    rainLevel = 0;
-    frame(last + 16);
-    check(
-      "bees buzz around their nest",
-      swarm.children.some(
-        (b) =>
-          b.visible &&
-          Math.hypot(b.position.x - nest[0], b.position.z - nest[2]) < 4,
-      ),
-    );
-    spawn();
-    const ex = Math.round(player.x) + 2,
-      ez = Math.round(player.z),
-      ey = topAt(ex, ez) + 1;
-    const otherChunk = [...chunks.entries()].find(
-      ([id]) =>
-        id !== chunkKey(Math.floor(ex / CHUNK), Math.floor(ez / CHUNK)) &&
-        Math.abs(Number(id.split(",")[0]) - Math.floor(ex / CHUNK)) > 1,
-    );
-    const untouched = otherChunk[1].meshes[0];
-    setBlock([ex, ey, ez], 6);
-    rebuildAt([ex, ey, ez]);
-    check(
-      "an edit only redraws its own chunk",
-      isRendered(ex, ey, ez) && otherChunk[1].meshes[0] === untouched,
-    );
-    save();
-    action("pause");
-    action("worlds");
-    const classic = store
-      .list()
-      .map((w) => store.load(w.id))
-      .find((w) => w.seed === null);
-    action("openworld", classic.id);
-    check(
-      "classic worlds keep the original valley",
-      SIZE === 28 && WATER_LEVEL === 2.2 && world.seed === null,
-    );
-    // Settings and helpers added in the final review.
-    if (!world) loadWorld(store.load(store.list()[0].id));
-    mode = "playing";
-    render();
-    minimapClock = 0;
-    frame(last + 16);
-    const mini = app.querySelector(".minimap");
-    const px = mini?.getContext("2d").getImageData(66, 66, 1, 1).data;
-    check("the minimap is drawn", mini && px[3] === 255);
-    action("pause");
-    action("map");
-    check(
-      "the big map opens from the pause menu",
-      mode === "map" && $(".big-map"),
-    );
-    action("back");
-    action("settings");
-    const fxSlider = app.querySelector('[data-volume="fx"]');
-    fxSlider.value = "30";
-    fxSlider.dispatchEvent(new Event("input"));
-    check(
-      "effects volume slider",
-      settings.volume.fx === 0.3 && settings.sound,
-    );
-    $("#bigtext").value = "on";
-    $("#bigtext").dispatchEvent(new Event("change"));
-    check(
-      "large text",
-      document.documentElement.classList.contains("big-text"),
-    );
-    $("#bigtext").value = "off";
-    $("#bigtext").dispatchEvent(new Event("change"));
-    action("back");
-    action("play");
-    toggleStats();
-    statsClock = 1;
-    frame(last + 16);
-    check(
-      "the performance overlay shows numbers",
-      /fps/.test(statsEl.textContent),
-    );
-    toggleStats();
-    world.options = normalizeOptions({
-      ...world.options,
-      monsters: true,
-      difficulty: "normal",
-    });
-    // The target stands where Biel aims, with nothing in between.
-    for (const other of [...monsters]) removeMonster(other, false);
-    inventory = new Inventory();
-    hold("bow");
-    inventory.add("arrows", 2);
-    firstPerson = true;
-    pointerKind = "mouse";
-    yaw = 0;
-    pitch = 0.05;
-    frame(last + 16);
-    const aimDir = new THREE.Vector3();
-    camera.getWorldDirection(aimDir);
-    for (let d = 0.5; d <= 4; d += 0.25) {
-      const c = camera.position.clone().addScaledVector(aimDir, d);
-      for (const dy of [-1, 0]) {
-        const k = key(Math.round(c.x), Math.round(c.y) + dy, Math.round(c.z));
-        if (blocks.has(k)) {
-          blocks.delete(k);
-          edits.set(k, null);
-        }
-      }
-    }
-    const aimAt = camera.position.clone().addScaledVector(aimDir, 3);
-    const target0 = addMonster("sleepy", {
-      x: aimAt.x,
-      y: aimAt.y - 0.8,
-      z: aimAt.z,
-    });
-    target0.hp = 3;
-    target0.cooldown = 99;
-    edit(true);
-    for (let i = 0; i < 40; i++) frame(last + 16);
-    check(
-      "the bow shoots arrows at monsters",
-      !monsters.includes(target0) && inventory.count("arrows") === 1,
-    );
-    firstPerson = false;
-    vitals.health = 6;
-    hold("golden_apple");
-    edit(true);
-    check("a golden apple heals", vitals.health === 16);
-    inventory.add("bone", 1);
-    const treatsBefore = inventory.count("treat");
-    action("craft", "treat_bone");
-    check(
-      "bones make dog treats",
-      inventory.count("treat") === treatsBefore + 3,
-    );
-    check(
-      "there are tips for the intro",
-      strings.pt.tips.length >= 5 &&
-        strings.en.tips.length === strings.pt.tips.length,
-    );
-
-    const beforePeacefulLoad = saveData();
-    const peacefulImport = validateWorld({
-      ...beforePeacefulLoad,
-      options: {
-        ...beforePeacefulLoad.options,
-        difficulty: "peaceful",
-        monsters: true,
-      },
-      monsters: [{ type: "sleepy", x: 0, y: 3, z: 0, hp: 4 }],
-    });
-    loadWorld(peacefulImport);
-    check(
-      "loading a peaceful save never restores a saved monster",
-      monsters.length === 0,
-    );
-    loadWorld(beforePeacefulLoad);
-
-    // A full backpack must not discard the previous furnace ingredient.
-    const savedInventory = inventory;
-    inventory = new Inventory();
-    for (let i = 0; i < 36; i++)
-      inventory.slots[i] = { id: "stone", count: 64 };
-    inventory.slots[0] = { id: "potato", count: 4 };
-    const swapFurnaceKey = "0,1,0";
-    container = { type: FURNACE, key: swapFurnaceKey };
-    world.furnaces[swapFurnaceKey] = {
-      ...emptyFurnace(),
-      input: ["iron_ore", 7],
-      progress: 0.8,
-    };
-    moveStack("bag", 0);
-    check(
-      "swapping furnace ingredients keeps items in a full backpack",
-      inventory.slots[0].id === "iron_ore" &&
-        inventory.slots[0].count === 7 &&
-        world.furnaces[swapFurnaceKey].input[0] === "potato" &&
-        world.furnaces[swapFurnaceKey].progress === 0,
-    );
-    delete world.furnaces[swapFurnaceKey];
-    inventory = savedInventory;
-    container = null;
-
-    // iCloud sync, with a pretend iCloud (the test app has no iCloud capability).
-    const realCloud = cloudCall;
-    check(
-      "without iCloud the switch explains why",
-      await (async () => {
-        settings.cloud = true;
-        await syncNow();
-        return cloudStatus === "missing" || !cloudBridge;
-      })(),
-    );
-    const fakeCloud = new Map();
-    cloudCall = async (action, extra = {}) => {
-      if (action === "status") return { available: true };
-      if (action === "list") return [...fakeCloud.values()];
-      if (action === "save")
-        return fakeCloud.set(extra.worldId, extra.json) && { ok: true };
-      if (action === "delete") return { ok: fakeCloud.delete(extra.worldId) };
-      return null;
-    };
-    for (const w of store.list().slice(3)) store.remove(w.id);
-    mode = "menu";
-    await syncNow();
-    check("worlds go up to iCloud", fakeCloud.size === store.list().length);
-    const fromIpad = newWorld({
-      id: "fromipad",
-      name: "Do iPad",
-      mode: "creative",
-      options: {},
-    });
-    fromIpad.device = "iPad";
-    fakeCloud.set(fromIpad.id, JSON.stringify(fromIpad));
-    await syncNow();
-    check(
-      "a world made on the iPad comes down",
-      store.load("fromipad")?.name === "Do iPad",
-    );
-    const changedHere = store.load("fromipad");
-    changedHere.updatedAt += 1000;
-    store.save(changedHere);
-    const changedThere = JSON.parse(fakeCloud.get("fromipad"));
-    changedThere.updatedAt += 2000;
-    changedThere.name = "Do iPad (mudado)";
-    fakeCloud.set("fromipad", JSON.stringify(changedThere));
-    await syncNow();
-    check(
-      "changes on both devices ask which to keep",
-      mode === "conflict" &&
-        conflicts.length === 1 &&
-        app.textContent.includes("Do iPad"),
-    );
-    await resolveConflict(false);
-    check(
-      "keeping the other device's version",
-      store.load("fromipad").name === "Do iPad (mudado)" && mode === "menu",
-    );
-    let unexpectedUploads = 0;
-    cloudCall = async (action) => {
-      if (action === "save") unexpectedUploads++;
-      return action === "status" ? { available: true } : null;
-    };
-    await syncNow();
-    check(
-      "an unavailable cloud listing never uploads local worlds",
-      unexpectedUploads === 0,
-    );
-    cloudCall = realCloud;
-    settings.cloud = false;
-    if (!world) loadWorld(store.load(store.list()[0].id));
-
-    action("home");
-    frame(last + 16);
-    return { ok: true, checks, triangles: renderer.info.render.triangles };
-  };
+// The in-game checks live in dev/smoke-tests.js; they see the game through these.
+installSmokeTests({
+  get $() {
+    return $;
+  },
+  get action() {
+    return action;
+  },
+  get addMonster() {
+    return addMonster;
+  },
+  get amber() {
+    return amber;
+  },
+  get animalGroup() {
+    return animalGroup;
+  },
+  get animals() {
+    return animals;
+  },
+  get app() {
+    return app;
+  },
+  get applyParentLimits() {
+    return applyParentLimits;
+  },
+  get applySky() {
+    return applySky;
+  },
+  get arrows() {
+    return arrows;
+  },
+  get attack() {
+    return attack;
+  },
+  get attackCooldown() {
+    return attackCooldown;
+  },
+  set attackCooldown(v) {
+    attackCooldown = v;
+  },
+  get blocks() {
+    return blocks;
+  },
+  get breedClock() {
+    return breedClock;
+  },
+  set breedClock(v) {
+    breedClock = v;
+  },
+  get camera() {
+    return camera;
+  },
+  get chestAt() {
+    return chestAt;
+  },
+  get CHUNK() {
+    return CHUNK;
+  },
+  get chunkKey() {
+    return chunkKey;
+  },
+  get chunks() {
+    return chunks;
+  },
+  get cloud() {
+    return cloud;
+  },
+  get cloudBridge() {
+    return cloudBridge;
+  },
+  get container() {
+    return container;
+  },
+  set container(v) {
+    container = v;
+  },
+  get darkLevel() {
+    return darkLevel;
+  },
+  get dismount() {
+    return dismount;
+  },
+  get draft() {
+    return draft;
+  },
+  get edit() {
+    return edit;
+  },
+  get edits() {
+    return edits;
+  },
+  get elapsed() {
+    return elapsed;
+  },
+  get firstPerson() {
+    return firstPerson;
+  },
+  set firstPerson(v) {
+    firstPerson = v;
+  },
+  get fishing() {
+    return fishing;
+  },
+  set fishing(v) {
+    fishing = v;
+  },
+  get flying() {
+    return flying;
+  },
+  set flying(v) {
+    flying = v;
+  },
+  get frame() {
+    return frame;
+  },
+  get gate() {
+    return gate;
+  },
+  get grounded() {
+    return grounded;
+  },
+  get growCrops() {
+    return growCrops;
+  },
+  get heldId() {
+    return heldId;
+  },
+  get interactWith() {
+    return interactWith;
+  },
+  get inventory() {
+    return inventory;
+  },
+  set inventory(v) {
+    inventory = v;
+  },
+  get isRendered() {
+    return isRendered;
+  },
+  get keys() {
+    return keys;
+  },
+  get last() {
+    return last;
+  },
+  get leaveSplash() {
+    return leaveSplash;
+  },
+  get light() {
+    return light;
+  },
+  get lightBlocks() {
+    return lightBlocks;
+  },
+  get loadWorld() {
+    return loadWorld;
+  },
+  get minimapClock() {
+    return minimapClock;
+  },
+  set minimapClock(v) {
+    minimapClock = v;
+  },
+  get mode() {
+    return mode;
+  },
+  set mode(v) {
+    mode = v;
+  },
+  get monsters() {
+    return monsters;
+  },
+  get monstersAllowed() {
+    return monstersAllowed;
+  },
+  get moveStack() {
+    return moveStack;
+  },
+  get music() {
+    return music;
+  },
+  get nearBench() {
+    return nearBench;
+  },
+  get nestBlocks() {
+    return nestBlocks;
+  },
+  get pick() {
+    return pick;
+  },
+  get pitch() {
+    return pitch;
+  },
+  set pitch(v) {
+    pitch = v;
+  },
+  get placed() {
+    return placed;
+  },
+  get player() {
+    return player;
+  },
+  get playSeconds() {
+    return playSeconds;
+  },
+  set playSeconds(v) {
+    playSeconds = v;
+  },
+  get pointerKind() {
+    return pointerKind;
+  },
+  set pointerKind(v) {
+    pointerKind = v;
+  },
+  get pressed() {
+    return pressed;
+  },
+  get progress() {
+    return progress;
+  },
+  get rain() {
+    return rain;
+  },
+  get raining() {
+    return raining;
+  },
+  get rainLevel() {
+    return rainLevel;
+  },
+  set rainLevel(v) {
+    rainLevel = v;
+  },
+  get rebuild() {
+    return rebuild;
+  },
+  get rebuildAt() {
+    return rebuildAt;
+  },
+  get removeMonster() {
+    return removeMonster;
+  },
+  get render() {
+    return render;
+  },
+  get renderer() {
+    return renderer;
+  },
+  get riding() {
+    return riding;
+  },
+  get rules() {
+    return rules;
+  },
+  get save() {
+    return save;
+  },
+  get saveData() {
+    return saveData;
+  },
+  get scene() {
+    return scene;
+  },
+  get selected() {
+    return selected;
+  },
+  set selected(v) {
+    selected = v;
+  },
+  get setBlock() {
+    return setBlock;
+  },
+  get settings() {
+    return settings;
+  },
+  get signGroup() {
+    return signGroup;
+  },
+  get sleepIn() {
+    return sleepIn;
+  },
+  get spawn() {
+    return spawn;
+  },
+  get statsClock() {
+    return statsClock;
+  },
+  set statsClock(v) {
+    statsClock = v;
+  },
+  get statsEl() {
+    return statsEl;
+  },
+  get store() {
+    return store;
+  },
+  get surfaceY() {
+    return surfaceY;
+  },
+  get swarm() {
+    return swarm;
+  },
+  get t() {
+    return t;
+  },
+  get target() {
+    return target;
+  },
+  set target(v) {
+    target = v;
+  },
+  get targetAnimal() {
+    return targetAnimal;
+  },
+  set targetAnimal(v) {
+    targetAnimal = v;
+  },
+  get targetMonster() {
+    return targetMonster;
+  },
+  set targetMonster(v) {
+    targetMonster = v;
+  },
+  get targetWater() {
+    return targetWater;
+  },
+  set targetWater(v) {
+    targetWater = v;
+  },
+  get timeOfDay() {
+    return timeOfDay;
+  },
+  set timeOfDay(v) {
+    timeOfDay = v;
+  },
+  get toast() {
+    return toast;
+  },
+  get toastEl() {
+    return toastEl;
+  },
+  get togglePerspective() {
+    return togglePerspective;
+  },
+  get toggleStats() {
+    return toggleStats;
+  },
+  get topAt() {
+    return topAt;
+  },
+  get touchInput() {
+    return touchInput;
+  },
+  get trySpawnMonster() {
+    return trySpawnMonster;
+  },
+  get tutorialEvent() {
+    return tutorialEvent;
+  },
+  get underground() {
+    return underground;
+  },
+  get updateBreaking() {
+    return updateBreaking;
+  },
+  get updateFishing() {
+    return updateFishing;
+  },
+  get updateFurnaces() {
+    return updateFurnaces;
+  },
+  get updateWater() {
+    return updateWater;
+  },
+  get velocity() {
+    return velocity;
+  },
+  set velocity(v) {
+    velocity = v;
+  },
+  get vitals() {
+    return vitals;
+  },
+  get waterDirty() {
+    return waterDirty;
+  },
+  get wearHeld() {
+    return wearHeld;
+  },
+  get world() {
+    return world;
+  },
+  get yaw() {
+    return yaw;
+  },
+  set yaw(v) {
+    yaw = v;
+  },
+});

@@ -1,22 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TouchInput } from "../src/touch-input.js";
+import { TouchInput } from "../src/input/touch-input.js";
 test("movement and jump can be held by different fingers", () => {
   const input = new TouchInput();
-  input.press(1, "KeyW");
-  input.press(2, "Space");
-  assert(input.has("KeyW"));
-  assert(input.has("Space"));
+  input.press(1, "forward");
+  input.press(2, "jump");
+  assert(input.has("forward"));
+  assert(input.has("jump"));
   input.release(2);
-  assert(input.has("KeyW"));
-  assert(!input.has("Space"));
+  assert(input.has("forward"));
+  assert(!input.has("jump"));
 });
 test("release preserves another finger holding the same control", () => {
   const input = new TouchInput();
-  input.press(1, "KeyW");
-  input.press(2, "KeyW");
+  input.press(1, "forward");
+  input.press(2, "forward");
   input.release(1);
-  assert(input.has("KeyW"));
+  assert(input.has("forward"));
   input.clear();
-  assert(!input.has("KeyW"));
+  assert(!input.has("forward"));
 });
