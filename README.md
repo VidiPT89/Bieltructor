@@ -38,19 +38,22 @@
 - ✅ Backpack with a 9-slot hotbar and 27 more slots, chests with 27 slots, and a visual recipe book (ingredients turn green when you have them)
 - ✅ A small farm: till soil with a hoe, grow wheat, carrots and potatoes (faster near water or in the rain), bake bread; a fishing rod to catch fish
 - ✅ Ruins and cabins on the islands, each with a treasure chest
+- ✅ A bow with arrows, and a golden apple that heals
 
 **Life on the island**
 - ✅ Original animated voxel character, Biel
 - ✅ Hearts, food and air in Adventure; damage, hunger and falls follow the difficulty, and falling asleep is gentle
 - ✅ Beds become home and sleeping skips the night
 - ✅ Friendly chickens, cows, sheep, pigs and rabbits; a dog, a cat and a horse that become friends (and the horse can be ridden); babies when two animals are fed; birds in the sky
-- ✅ Silly night monsters (the Sleepy sleepwalker, the bouncy Jelly, the Bony archer) that never appear on Peaceful and vanish in sparkles at sunrise; torches and lanterns keep them away
+- ✅ Silly night monsters (the Sleepy sleepwalker, the bouncy Jelly, the Bony archer, the woolly Spider that climbs walls, Puffy who goes PUF and the mist Ghost of the caves) that never appear on Peaceful and vanish in sparkles at sunrise; torches and lanterns keep them away, and Puffy never breaks anything Biel built
 - ✅ Day and night, sunsets, stars, rain, snow in the cold biome and gentle thunderstorms (Normal and Hard only)
 
 **Helping young players**
 - ✅ Optional guided tutorial in new Adventure worlds
 - ✅ Twelve challenges with stickers in a sticker book shared by every world
 - ✅ A parents' corner behind a simple question: break reminder, highest difficulty allowed and monsters always off
+- ✅ A minimap with a compass to home, and a map of the whole island in the pause menu
+- ✅ Large text option, tips on the intro screen and separate volumes for music, effects and ambience
 
 **Everywhere**
 - ✅ Mac, iPad and iPhone with the same menus, rules and saves; layouts for iPhone in portrait and landscape
@@ -133,6 +136,8 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 | Backpack and recipes | E | 🎒 | Y |
 | Get off the horse | C | Down | B |
 | Pause / menus | Escape | Ⅱ | Menu, then the d-pad, A and B |
+| Shoot the bow | Right-click with the bow | Build with the bow | Left trigger with the bow |
+| Performance numbers | F3 | Triple tap with two fingers | |
 | New world · Export · Settings | ⌘N · ⌘E · ⌘, | | |
 
 The bottom layer is protected. Use **Return to spawn** in the pause menu if you get lost. A simple guide in Portuguese for Biel and for parents lives in [`docs/GAMEPLAY.pt.md`](docs/GAMEPLAY.pt.md).
@@ -159,11 +164,11 @@ npm run build:ios
 # In Xcode: pick an iPad or iPhone simulator, then Product > Test.
 ```
 
-The unit suite (59 tests) covers terrain and seeds, biomes, caves and ores, collisions, saved worlds and their migration, difficulty rules, stacking, recipes, smelting and treasure, health and hunger, animals, babies, taming and riding, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, controller mapping, iCloud sync decisions and the music generator. The integrated smoke suite (120 checks, shared by the Mac and iOS apps) plays through worlds, building, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, a game controller and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad, iPhone 17e and iPhone 17 Pro Max. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
+The unit suite (63 tests) covers terrain and seeds, biomes, caves and ores, collisions, saved worlds and their migration, difficulty rules, stacking, recipes, smelting and treasure, health and hunger, animals, babies, taming and riding, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, controller mapping, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (133 checks, shared by the Mac and iOS apps) plays through worlds, building, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, a game controller, the minimap and map, volumes, the bow and arrows, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad, iPhone 17e and iPhone 17 Pro Max. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`.
 
 ## Current scope
 
-Bieltructor is a single-player game. Not included: multiplayer, an endless world (islands go up to 129 × 129), lava, bees and honey, block-by-block lighting (torches use a few real lights near Biel) and tool wear. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
+Bieltructor is a single-player game. Not included on purpose: multiplayer, an endless world (islands go up to 129 × 129), lava, bees and honey, block-by-block lighting (torches use a few real lights near Biel), tool wear, a shield, more building shapes (ladders, fences, gates, trapdoors, signs) and coloured wool. The Mac build runs its integrated tests on Apple Silicon and the iOS build is tested on iPad and iPhone simulators. Intel Macs, physical devices, real controllers, real iCloud sync between devices and the signed release scripts still need to be tried with a real Apple Developer account.
 
 ## 📄 License
 

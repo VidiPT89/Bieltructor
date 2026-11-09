@@ -101,8 +101,15 @@ Só aparecem na **Aventura**, **à noite**, em sítios **escuros**, e nunca no P
 - **Sonolento:** anda de pijama verde, a dormir, e dá encontrões.
 - **Gelatina saltitona:** salta e divide-se em duas pequenas.
 - **Ossudo arqueiro** (a partir do Médio): dispara setas de ventosa.
+- **Aranha de lã** (a partir do Médio): sobe paredes. Deixa lã.
+- **Fumarento** (só no Difícil): incha e faz "PUF!", empurra o Biel e deita abaixo alguns blocos naturais. Nunca estraga o que tu construíste.
+- **Fantasma da névoa** (só no Difícil): flutua pelas grutas e atravessa a pedra. No Difícil as grutas têm monstros mesmo de dia.
 
-Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**. Ao nascer do sol desfazem-se em faíscas.
+Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Ao nascer do sol desfazem-se em faíscas.
+
+## Mapa e bússola
+
+No canto há um **minimapa**: a seta laranja és tu e a 🏠 é a tua casa. Se a casa estiver longe, fica na borda do minimapa a apontar o caminho. Na **Pausa › Mapa** vês a ilha toda. O minimapa pode desligar-se nas Definições.
 
 ## Tutorial e caderneta
 
@@ -118,3 +125,4 @@ Funcionam comandos de PlayStation, Xbox e MFi no Mac, no iPad e no iPhone. Maní
 - Em **Definições › Pais** (protegido por uma conta escrita por extenso) podem ligar um **lembrete de pausa** (30, 45 ou 60 minutos), escolher a **dificuldade máxima** e desligar sempre os **monstros**.
 - Os mundos ficam guardados **neste dispositivo**. Com **Guardar no iCloud** ligado nas Definições, ficam iguais no Mac, no iPad e no iPhone com a mesma conta; se um mundo mudar em dois dispositivos, o jogo pergunta qual manter. Também se pode usar **Exportar mundo** e **Importar mundo**.
 - Para um jogo calmo: escolham **Pacífico**, ou desliguem os **Monstros** em qualquer dificuldade.
+- Nas Definições há volumes separados para **música**, **efeitos** e **ambiente**, e a opção **Texto grande**.
