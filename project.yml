@@ -3,11 +3,12 @@ options:
   bundleIdPrefix: dev.ividi
   deploymentTarget:
     iOS: '16.0'
+    macOS: '13.0'
 settings:
   base:
     SWIFT_VERSION: '5.0'
-    MARKETING_VERSION: '1.0.0'
-    CURRENT_PROJECT_VERSION: '1'
+    MARKETING_VERSION: '2.0.0'
+    CURRENT_PROJECT_VERSION: '2'
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
@@ -34,6 +35,28 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_ENTITLEMENTS: ios/Bieltructor.entitlements
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.kids-games
+  # The Mac app for Developer ID signing and notarization (scripts/release-macos.sh).
+  # scripts/build-macos.sh still builds a quick local copy without Xcode.
+  Bieltructor-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: macos/Bieltructor.swift
+      - path: macos/AppIcon.icns
+        buildPhase: resources
+      - path: shared
+      - path: build/ios/Web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Bieltructor
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ividi.bieltructor
+        INFOPLIST_FILE: macos/Info.plist
+        CODE_SIGN_ENTITLEMENTS: macos/Bieltructor.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
   Bieltructor-iOSUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -45,6 +68,10 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.ividi.bieltructor.uitests
 schemes:
+  Bieltructor-macOS:
+    build:
+      targets:
+        Bieltructor-macOS: all
   Bieltructor-iOS:
     build:
       targets:

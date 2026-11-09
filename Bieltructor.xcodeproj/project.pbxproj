@@ -8,11 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		02E085A4B6FD734441A393B6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BDA93582D5C22927B504D334 /* Assets.xcassets */; };
+		2DFA1EAE85CA6930B85D60E1 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 839CF7CA6C4871CBD845EAFA /* AppIcon.icns */; };
+		38EF9F74C159520FA967ADC6 /* Bieltructor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22A5718A02B15EF375760CAE /* Bieltructor.swift */; };
 		4227B7129B151E5BA3B75E01 /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 6A7D324CBE685D82C4EA1E4F /* Web */; };
+		65280B68DB6D61727B9A57DC /* GamepadBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */; };
+		8304AFA66E2AFFA7EC1E80DF /* Web in Resources */ = {isa = PBXBuildFile; fileRef = 6A7D324CBE685D82C4EA1E4F /* Web */; };
+		A6792B4742888DECC8F935B5 /* CloudBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A84E7BE2F556EF3BA56638C /* CloudBridge.swift */; };
+		ACFEFF298689ECAF70F9AF4B /* CloudBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A84E7BE2F556EF3BA56638C /* CloudBridge.swift */; };
 		AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C2D41A078BE649D974AEBB /* LocalAssets.swift */; };
 		B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B277819F6D18035498A1E7 /* BieltructorApp.swift */; };
 		BA62B8AF10A1844C825D7A20 /* BieltructorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204580D7B0917563B3352488 /* BieltructorUITests.swift */; };
 		BD94F63236F1AD6414012651 /* GamepadBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */; };
+		D7645F7B92F738FFD0019A11 /* LocalAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C2D41A078BE649D974AEBB /* LocalAssets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,7 +34,12 @@
 
 /* Begin PBXFileReference section */
 		204580D7B0917563B3352488 /* BieltructorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BieltructorUITests.swift; sourceTree = "<group>"; };
+		22A5718A02B15EF375760CAE /* Bieltructor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bieltructor.swift; sourceTree = "<group>"; };
+		2A84E7BE2F556EF3BA56638C /* CloudBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBridge.swift; sourceTree = "<group>"; };
+		49D01CFC931AD7A7025E2E8A /* Bieltructor-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Bieltructor-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A7D324CBE685D82C4EA1E4F /* Web */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Web; path = build/ios/Web; sourceTree = SOURCE_ROOT; };
+		7725C853ACD172BB884EF24D /* Bieltructor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Bieltructor.entitlements; sourceTree = "<group>"; };
+		839CF7CA6C4871CBD845EAFA /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Bieltructor-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6C2D41A078BE649D974AEBB /* LocalAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAssets.swift; sourceTree = "<group>"; };
 		BDA93582D5C22927B504D334 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -40,6 +52,7 @@
 		1FC5B17A92F1D40CDD5036C5 /* shared */ = {
 			isa = PBXGroup;
 			children = (
+				2A84E7BE2F556EF3BA56638C /* CloudBridge.swift */,
 				C3D7E351F2FD06494B7EF9E1 /* GamepadBridge.swift */,
 				B6C2D41A078BE649D974AEBB /* LocalAssets.swift */,
 			);
@@ -60,14 +73,25 @@
 			children = (
 				EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */,
 				9533D8832A61598B1C9639CF /* Bieltructor-iOSUITests.xctest */,
+				49D01CFC931AD7A7025E2E8A /* Bieltructor-macOS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C057C64DF53A938561B4FF39 /* macos */ = {
+			isa = PBXGroup;
+			children = (
+				839CF7CA6C4871CBD845EAFA /* AppIcon.icns */,
+				22A5718A02B15EF375760CAE /* Bieltructor.swift */,
+			);
+			path = macos;
 			sourceTree = "<group>";
 		};
 		C201761C33170C797A38167E /* ios */ = {
 			isa = PBXGroup;
 			children = (
 				BDA93582D5C22927B504D334 /* Assets.xcassets */,
+				7725C853ACD172BB884EF24D /* Bieltructor.entitlements */,
 				E3B277819F6D18035498A1E7 /* BieltructorApp.swift */,
 			);
 			path = ios;
@@ -78,6 +102,7 @@
 			children = (
 				6A7D324CBE685D82C4EA1E4F /* Web */,
 				C201761C33170C797A38167E /* ios */,
+				C057C64DF53A938561B4FF39 /* macos */,
 				1FC5B17A92F1D40CDD5036C5 /* shared */,
 				2BBCA4A4B930D188307308CF /* Tests */,
 				5C9BB26AEA4DDE24B20996C2 /* Products */,
@@ -123,6 +148,24 @@
 			productReference = EEC4F769305B61FA28A61B2A /* Bieltructor-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		740892A6969B2B8C08DC9A66 /* Bieltructor-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B0BD4BCDFCDDF13B37920F2 /* Build configuration list for PBXNativeTarget "Bieltructor-macOS" */;
+			buildPhases = (
+				ECB8EDB03AA87B72CE4FFFA8 /* Sources */,
+				DAB58D809F3476423CC07355 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Bieltructor-macOS";
+			packageProductDependencies = (
+			);
+			productName = "Bieltructor-macOS";
+			productReference = 49D01CFC931AD7A7025E2E8A /* Bieltructor-macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -137,6 +180,9 @@
 						TestTargetID = 12AE9CE0E60200D012F38F58;
 					};
 					12AE9CE0E60200D012F38F58 = {
+						ProvisioningStyle = Automatic;
+					};
+					740892A6969B2B8C08DC9A66 = {
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -156,6 +202,7 @@
 			projectRoot = "";
 			targets = (
 				12AE9CE0E60200D012F38F58 /* Bieltructor-iOS */,
+				740892A6969B2B8C08DC9A66 /* Bieltructor-macOS */,
 				0BF339BE6F7222CC60DE5230 /* Bieltructor-iOSUITests */,
 			);
 		};
@@ -171,6 +218,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DAB58D809F3476423CC07355 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2DFA1EAE85CA6930B85D60E1 /* AppIcon.icns in Resources */,
+				8304AFA66E2AFFA7EC1E80DF /* Web in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -179,6 +235,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0E7029E0B8F85A150BE01C5 /* BieltructorApp.swift in Sources */,
+				A6792B4742888DECC8F935B5 /* CloudBridge.swift in Sources */,
 				BD94F63236F1AD6414012651 /* GamepadBridge.swift in Sources */,
 				AEE564A363F443E37C71FB9A /* LocalAssets.swift in Sources */,
 			);
@@ -189,6 +246,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				BA62B8AF10A1844C825D7A20 /* BieltructorUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECB8EDB03AA87B72CE4FFFA8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				38EF9F74C159520FA967ADC6 /* Bieltructor.swift in Sources */,
+				ACFEFF298689ECAF70F9AF4B /* CloudBridge.swift in Sources */,
+				65280B68DB6D61727B9A57DC /* GamepadBridge.swift in Sources */,
+				D7645F7B92F738FFD0019A11 /* LocalAssets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,7 +306,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -252,14 +320,32 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 2.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		4B8EDD838A5814DFCF21D931 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = macos/Bieltructor.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = macos/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor;
+				PRODUCT_NAME = Bieltructor;
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
@@ -298,7 +384,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -318,12 +404,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 2.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -368,9 +454,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ios/Bieltructor.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Bieltructor;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.kids-games";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -387,13 +475,33 @@
 			};
 			name = Debug;
 		};
+		BBCC1029A76FEE1B2244144E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = macos/Bieltructor.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = macos/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ividi.bieltructor;
+				PRODUCT_NAME = Bieltructor;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		D229D939A60ACBE92956579E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ios/Bieltructor.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Bieltructor;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.kids-games";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -413,6 +521,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0B0BD4BCDFCDDF13B37920F2 /* Build configuration list for PBXNativeTarget "Bieltructor-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBCC1029A76FEE1B2244144E /* Debug */,
+				4B8EDD838A5814DFCF21D931 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		47DEC45399EB2C178E2C8210 /* Build configuration list for PBXProject "Bieltructor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

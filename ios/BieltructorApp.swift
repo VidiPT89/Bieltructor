@@ -22,6 +22,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
 {
   private var web: WKWebView!
   private var gamepads: GamepadBridge?
+  private var power: PowerWatcher?
+  private let cloud = CloudBridge()
   private let assets = LocalAssets()
   private let smoke = ProcessInfo.processInfo.arguments.contains("--smoke-test")
   private let status = UILabel()
@@ -35,6 +37,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let config = WKWebViewConfiguration()
     config.setURLSchemeHandler(assets, forURLScheme: "bieltructor")
     config.userContentController.add(self, name: "files")
+    config.userContentController.add(cloud, name: "cloud")
     config.allowsInlineMediaPlayback = true
     if smoke { config.websiteDataStore = .nonPersistent() }
     config.userContentController.addUserScript(
@@ -61,6 +64,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
       self, selector: #selector(pauseGame), name: UIApplication.willResignActiveNotification,
       object: nil)
     gamepads = GamepadBridge(web: web)
+    cloud.web = web
+    power = PowerWatcher(web: web)
     web.load(
       URLRequest(url: URL(string: "bieltructor://app/index.html" + (smoke ? "?test=1" : ""))!))
   }
@@ -152,6 +157,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
 
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    power?.send()
     guard smoke else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.runSmoke() }
   }

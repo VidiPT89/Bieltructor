@@ -47,6 +47,7 @@ import {
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
+import { plan as syncPlan, deviceKind } from "./sync.js";
 import {
   SMELT,
   FUEL,
@@ -280,6 +281,18 @@ const strings = {
     weather: "Clima",
     worldSize: "Tamanho do mundo",
     chestHint: "Toca num objeto para o passar entre o baú e a mochila.",
+    icloud: "Guardar no iCloud",
+    icloudOn:
+      "Os mundos ficam iguais no Mac, no iPad e no iPhone com a mesma conta.",
+    icloudOff: "Desligado: os mundos ficam só neste dispositivo.",
+    icloudMissing:
+      "iCloud não disponível: inicia sessão no iCloud nas Definições do sistema.",
+    icloudSynced: "Sincronizado às {time}.",
+    conflictTitle: "Este mundo mudou em dois sítios",
+    conflictText:
+      "“{name}” foi alterado neste {here} ({hereDate}) e no {there} ({thereDate}). Qual queres manter?",
+    keepHere: "Manter o deste {device}",
+    keepThere: "Manter o do {device}",
     furnaceHint:
       "Toca num minério ou comida para o pôr a cozinhar, e em carvão, madeira, tábuas ou paus para dar lume.",
     toCook: "Para cozinhar",
@@ -610,6 +623,18 @@ const strings = {
     weather: "Weather",
     worldSize: "World size",
     chestHint: "Tap something to move it between the chest and your backpack.",
+    icloud: "Save to iCloud",
+    icloudOn:
+      "Worlds stay the same on Mac, iPad and iPhone with the same account.",
+    icloudOff: "Off: worlds stay on this device only.",
+    icloudMissing:
+      "iCloud is not available: sign in to iCloud in the system Settings.",
+    icloudSynced: "Synced at {time}.",
+    conflictTitle: "This world changed in two places",
+    conflictText:
+      "“{name}” was changed on this {here} ({hereDate}) and on the {there} ({thereDate}). Which one do you want to keep?",
+    keepHere: "Keep this {device}’s",
+    keepThere: "Keep the {device}’s",
     furnaceHint:
       "Tap an ore or some food to cook it, and coal, wood, planks or sticks to light the fire.",
     toCook: "To cook",
@@ -795,12 +820,19 @@ let settings = {
   music: true,
   quality: "high",
 };
+let firstRun = true;
 try {
-  Object.assign(
-    settings,
-    JSON.parse(localStorage.getItem("biel-settings") || "{}"),
-  );
+  const stored = JSON.parse(localStorage.getItem("biel-settings") || "{}");
+  firstRun = !stored.quality;
+  Object.assign(settings, stored);
 } catch {}
+// First run: phones and smaller machines start on the light quality.
+if (firstRun) {
+  const phone = Math.min(screen.width, screen.height) < 500;
+  settings.quality =
+    phone || (navigator.hardwareConcurrency ?? 8) <= 4 ? "low" : "high";
+}
+settings.cloud = settings.cloud === true;
 if (!strings[settings.lang]) settings.lang = "pt";
 settings.parents = normalizeParents(settings.parents);
 const itemName = (id) =>
@@ -1012,7 +1044,7 @@ function render() {
   if (mode === "splash")
     content = `<div class="splash-inner"><img class="splash-logo" src="logo.webp" alt="Bieltructor"><p>${t("loading")}<span class="dots">…</span></p></div>${credits()}`;
   if (mode === "menu")
-    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v1.0 · ${t("made")}</span></footer>`;
+    content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v2.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
     content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div><div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="hotbar">${inventory.slots
       .slice(0, 9)
@@ -1028,6 +1060,15 @@ function render() {
       .join(
         "",
       )}</div><div class="hint">${t(creative() ? "hint" : "hintAdventure")}</div></div><div class="touch-controls"><div class="dpad"><button data-key="KeyW" aria-label="${t("forward")}">↑</button><button data-key="KeyA" aria-label="${t("left")}">←</button><button data-key="KeyS" aria-label="${t("backward")}">↓</button><button data-key="KeyD" aria-label="${t("right")}">→</button></div><div class="touch-actions"><button data-key="ShiftLeft">${t("run")}</button><button data-key="Break">${t("break")}</button>${button("place", t("place"))}${creative() ? "" : button("attack", t("attack"), "attack-btn hidden")}<button data-key="Space">${t("jump")}</button>${flying || riding ? `<button data-key="KeyC">${t("descend")}</button>` : ""}</div></div>`;
+  if (mode === "conflict" && conflicts[0]) {
+    const c = conflicts[0],
+      when = (d) =>
+        new Date(d).toLocaleString(settings.lang === "pt" ? "pt-PT" : "en-GB", {
+          dateStyle: "short",
+          timeStyle: "short",
+        });
+    content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("conflictTitle")}"><span class="eyebrow">☁︎ iCloud</span><h2>${t("conflictTitle")}</h2><p class="help-copy">${t("conflictText", { name: escapeHtml(c.local.name), here: thisDevice, hereDate: when(c.local.updatedAt), there: escapeHtml(c.remote.device || "?"), thereDate: when(c.remote.updatedAt) })}</p>${button("keephere", t("keepHere", { device: thisDevice }), "primary wide")}${button("keepthere", t("keepThere", { device: escapeHtml(c.remote.device || "?") }), "wide")}</section></div>`;
+  }
   if (mode === "rest")
     content = `<div class="modal-backdrop"><section class="panel" role="dialog" aria-modal="true" aria-label="${t("restTitle")}"><span class="eyebrow">👪 ${t("parents")}</span><h2>${t("restTitle")}</h2><p class="help-copy">${t("restText", { n: settings.parents.reminder })}</p>${button("restdone", t("continue"), "primary wide")}</section></div>`;
   if (mode === "namedog")
@@ -1120,7 +1161,7 @@ function render() {
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
-      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
+      inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><label>${t("sound")}<select id="sound"><option value="on" ${settings.sound ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.sound ? "selected" : ""}>${t("off")}</option></select></label><label>${t("music")}<select id="music"><option value="on" ${settings.music ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.music ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloudStatus === "missing" ? t("icloudMissing") : cloudStatus ? t("icloudSynced", { time: cloudStatus }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
     content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
   app.innerHTML = content;
@@ -1143,13 +1184,15 @@ function render() {
       ["sound", "sound"],
       ["music", "music"],
       ["quality", "quality"],
+      ["cloud", "cloud"],
     ])
       $("#" + id).onchange = (e) => {
         settings[prop] =
-          prop === "sound" || prop === "music"
+          prop === "sound" || prop === "music" || prop === "cloud"
             ? e.target.value === "on"
             : e.target.value;
         if (prop === "music") settings.music ? music.start() : music.stop();
+        if (prop === "cloud" && settings.cloud) syncNow();
         theme();
         applyQuality();
         render();
@@ -1347,6 +1390,124 @@ function updateQuestBox() {
       (b) => (b.onclick = () => action(b.dataset.action, b.dataset.arg)),
     );
 }
+// iCloud sync (native apps only). Each world is a file in iCloud Drive.
+const cloudBridge = window.webkit?.messageHandlers?.cloud;
+const thisDevice = deviceKind(
+  navigator.platform,
+  navigator.maxTouchPoints > 0,
+  Math.min(screen.width, screen.height) < 500 ? 390 : 1024,
+);
+let cloudSeq = 0,
+  cloudStatus = "",
+  conflicts = [],
+  cloudTimer;
+const cloudWaiting = new Map();
+window.cloudReply = (req, value) => {
+  cloudWaiting.get(req)?.(value);
+  cloudWaiting.delete(req);
+};
+// Asks the native app; resolves with null if there is no answer.
+let cloudCall = (action, extra = {}) =>
+  new Promise((resolve) => {
+    if (!cloudBridge) return resolve(null);
+    const req = ++cloudSeq;
+    cloudWaiting.set(req, resolve);
+    cloudBridge.postMessage({ req, action, ...extra });
+    setTimeout(() => {
+      if (cloudWaiting.delete(req)) resolve(null);
+    }, 8000);
+  });
+const syncedMarks = () => {
+  try {
+    return JSON.parse(storage.getItem("biel-synced") || "{}");
+  } catch {
+    return {};
+  }
+};
+const markSynced = (id, updatedAt) => {
+  const marks = syncedMarks();
+  marks[id] = updatedAt;
+  try {
+    storage.setItem("biel-synced", JSON.stringify(marks));
+  } catch {}
+};
+function scheduleCloudUpload() {
+  if (!settings.cloud || !cloudBridge || !world) return;
+  clearTimeout(cloudTimer);
+  const id = world.id;
+  cloudTimer = setTimeout(async () => {
+    const saved = store.load(id);
+    if (!saved) return;
+    const res = await cloudCall("save", {
+      worldId: id,
+      json: JSON.stringify(saved),
+    });
+    if (res?.ok) markSynced(id, saved.updatedAt);
+  }, 4000);
+}
+async function syncNow() {
+  if (!settings.cloud) return;
+  const status = await cloudCall("status");
+  if (!status?.available) {
+    cloudStatus = "missing";
+    if (mode === "settings") render();
+    return;
+  }
+  const remotes = ((await cloudCall("list")) ?? [])
+    .map((text) => {
+      try {
+        const raw = JSON.parse(text);
+        const w = validateWorld(raw, { id: raw.id });
+        return w && { ...w, device: raw.device ?? "" };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  const locals = store
+    .list()
+    .map((w) => store.load(w.id))
+    .filter(Boolean);
+  const marks = syncedMarks();
+  conflicts = [];
+  for (const step of syncPlan(locals, remotes, marks)) {
+    if (step.action === "upload") {
+      const res = await cloudCall("save", {
+        worldId: step.id,
+        json: JSON.stringify(step.local),
+      });
+      if (res?.ok) markSynced(step.id, step.local.updatedAt);
+    } else if (step.action === "download") {
+      if (store.list().length >= MAX_WORLDS && !step.local) continue;
+      store.save(step.remote);
+      markSynced(step.id, step.remote.updatedAt);
+      if (world?.id === step.id && mode !== "playing") loadWorld(step.remote);
+    } else if (step.action === "conflict") conflicts.push(step);
+  }
+  cloudStatus = new Date().toLocaleTimeString(
+    settings.lang === "pt" ? "pt-PT" : "en-GB",
+    { timeStyle: "short" },
+  );
+  if (conflicts.length && mode !== "playing") mode = "conflict";
+  render();
+}
+// The player chooses which version of a world to keep; nothing is lost silently.
+async function resolveConflict(keepHere) {
+  const c = conflicts.shift();
+  if (keepHere) {
+    const res = await cloudCall("save", {
+      worldId: c.id,
+      json: JSON.stringify(c.local),
+    });
+    if (res?.ok) markSynced(c.id, c.local.updatedAt);
+  } else {
+    store.save(c.remote);
+    markSynced(c.id, c.remote.updatedAt);
+    if (world?.id === c.id) loadWorld(c.remote);
+  }
+  mode = conflicts.length ? "conflict" : "menu";
+  render();
+}
 const MODALS = [
   "settings",
   "help",
@@ -1407,6 +1568,9 @@ function action(a, arg) {
   } else if (a === "parentscheck") {
     if (Number($("#parents-answer")?.value) === gate?.answer) mode = "parents";
     else toast(t("wrongAnswer"));
+  } else if (a === "keephere" || a === "keepthere") {
+    resolveConflict(a === "keephere");
+    return;
   } else if (a === "restdone") {
     playSeconds = 0;
     mode = "playing";
@@ -1435,6 +1599,7 @@ function action(a, arg) {
     }
   } else if (["settings", "help", "worlds", "worldsettings"].includes(a)) {
     if (a === "worlds" && world) save();
+    if (a === "worlds") syncNow();
     open(a);
   } else if (a === "newworld") {
     draft = newDraft();
@@ -1473,6 +1638,7 @@ function action(a, arg) {
     else {
       confirmDelete = null;
       store.remove(arg);
+      if (settings.cloud) cloudCall("delete", { worldId: arg });
       if (world?.id === arg) {
         world = null;
         started = false;
@@ -1545,6 +1711,7 @@ function saveData() {
   };
   world.time = timeOfDay;
   world.inventory = inventory.toJSON();
+  world.device = thisDevice;
   world.creatures = animals.map(
     ({ mesh, timer, walking, bite, ...data }) => data,
   );
@@ -1563,6 +1730,7 @@ function save() {
   if (!world) return true;
   try {
     store.save(saveData());
+    scheduleCloudUpload();
     return true;
   } catch {
     toast(t("saveError"));
@@ -2697,7 +2865,8 @@ function breedAnimals(dt) {
   breedClock -= dt;
   if (breedClock > 0) return;
   breedClock = 1;
-  const limit = settings.quality === "high" ? 30 : 14;
+  // Every world starts with 19 animals, so even "light" leaves room for babies.
+  const limit = settings.quality === "high" ? 40 : 28;
   for (const [a, b] of findCouples(animals, world.age)) {
     if (animals.length >= limit) break;
     const baby = makeBaby(a, b, world.age);
@@ -4164,9 +4333,17 @@ function frame(now) {
 }
 // The saved world loads once every part of the scene exists.
 if (world) loadWorld(world);
+setTimeout(syncNow, 1500);
 render();
+// Low Power Mode: draw at about 30 frames per second.
+let lowPower = false,
+  lastDrawn = 0;
+window.nativePowerSaving = (on) => (lowPower = !!on);
 function animate(now) {
-  frame(now);
+  if (!lowPower || now - lastDrawn > 30) {
+    lastDrawn = now;
+    frame(now);
+  }
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
@@ -4956,6 +5133,64 @@ if (new URLSearchParams(location.search).has("test"))
       "classic worlds keep the original valley",
       SIZE === 28 && WATER_LEVEL === 2.2 && world.seed === null,
     );
+    // iCloud sync, with a pretend iCloud (the test app has no iCloud capability).
+    const realCloud = cloudCall;
+    check(
+      "without iCloud the switch explains why",
+      await (async () => {
+        settings.cloud = true;
+        await syncNow();
+        return cloudStatus === "missing" || !cloudBridge;
+      })(),
+    );
+    const fakeCloud = new Map();
+    cloudCall = async (action, extra = {}) => {
+      if (action === "status") return { available: true };
+      if (action === "list") return [...fakeCloud.values()];
+      if (action === "save")
+        return fakeCloud.set(extra.worldId, extra.json) && { ok: true };
+      if (action === "delete") return { ok: fakeCloud.delete(extra.worldId) };
+      return null;
+    };
+    for (const w of store.list().slice(3)) store.remove(w.id);
+    mode = "menu";
+    await syncNow();
+    check("worlds go up to iCloud", fakeCloud.size === store.list().length);
+    const fromIpad = newWorld({
+      id: "fromipad",
+      name: "Do iPad",
+      mode: "creative",
+      options: {},
+    });
+    fromIpad.device = "iPad";
+    fakeCloud.set(fromIpad.id, JSON.stringify(fromIpad));
+    await syncNow();
+    check(
+      "a world made on the iPad comes down",
+      store.load("fromipad")?.name === "Do iPad",
+    );
+    const changedHere = store.load("fromipad");
+    changedHere.updatedAt += 1000;
+    store.save(changedHere);
+    const changedThere = JSON.parse(fakeCloud.get("fromipad"));
+    changedThere.updatedAt += 2000;
+    changedThere.name = "Do iPad (mudado)";
+    fakeCloud.set("fromipad", JSON.stringify(changedThere));
+    await syncNow();
+    check(
+      "changes on both devices ask which to keep",
+      mode === "conflict" &&
+        conflicts.length === 1 &&
+        app.textContent.includes("Do iPad"),
+    );
+    await resolveConflict(false);
+    check(
+      "keeping the other device's version",
+      store.load("fromipad").name === "Do iPad (mudado)" && mode === "menu",
+    );
+    cloudCall = realCloud;
+    settings.cloud = false;
+    if (!world) loadWorld(store.load(store.list()[0].id));
 
     action("home");
     frame(last + 16);

@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   var window: NSWindow!
   var web: WKWebView!
   var gamepads: GamepadBridge?
+  var power: PowerWatcher?
+  let cloud = CloudBridge()
   let assets = LocalAssets()
   let smoke = CommandLine.arguments.contains("--smoke-test")
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -49,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     let config = WKWebViewConfiguration()
     config.setURLSchemeHandler(assets, forURLScheme: "bieltructor")
     config.userContentController.add(self, name: "files")
+    config.userContentController.add(cloud, name: "cloud")
     if smoke {
       // Test runs use a throwaway data store and report JavaScript errors to /tmp.
       config.websiteDataStore = .nonPersistent()
@@ -72,6 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     window.backgroundColor = NSColor(red: 0.08, green: 0.1, blue: 0.1, alpha: 1)
     window.contentView = web
     gamepads = GamepadBridge(web: web)
+    cloud.web = web
+    power = PowerWatcher(web: web)
     window.center()
     window.setFrameAutosaveName("BieltructorWindow")
     window.makeKeyAndOrderFront(nil)
@@ -85,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   @objc func menuSettings() { web.evaluateJavaScript("window.nativeMenu?.('settings')") }
   @objc func showAbout() {
     NSApp.orderFrontStandardAboutPanel(options: [
-      .applicationName: "Bieltructor", .applicationVersion: "1.0.0",
+      .applicationName: "Bieltructor", .applicationVersion: "2.0.0",
       .credits: NSAttributedString(
         string:
           "Developed by David Arsénio Martins\nhttps://ividi.dev/\nhttps://github.com/VidiPT89/"),
@@ -166,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     alert.beginSheetModal(for: window)
   }
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    power?.send()
     guard smoke else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 4) { self.runSmoke() }
   }

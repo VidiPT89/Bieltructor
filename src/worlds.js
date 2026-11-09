@@ -177,6 +177,7 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
   if (raw.weather && typeof raw.weather === "object")
     world.weather = raw.weather;
   world.animalsSpawned = raw.animalsSpawned === true;
+  if (typeof raw.device === "string") world.device = raw.device.slice(0, 20);
   if (Number.isInteger(raw.tutorial?.step) && raw.tutorial.step >= 0)
     world.tutorial = {
       step: raw.tutorial.step,
