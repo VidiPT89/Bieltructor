@@ -346,6 +346,9 @@ export function installSmokeTests(g) {
       const cow = g.animals.find((x) => x.type === "cow"),
         dog = g.animals.find((x) => x.type === "dog");
       g.interactWith(cow);
+      check("the cow needs a bucket for milk", !g.inventory.count("milk"));
+      hold("bucket");
+      g.interactWith(cow);
       check("the cow gives milk", g.inventory.count("milk") === 1);
       g.interactWith(cow);
       check("the cow needs a rest", g.inventory.count("milk") === 1);
@@ -1195,13 +1198,41 @@ export function installSmokeTests(g) {
       window.nativeGamepad(null);
       g.frame(g.last + 16);
       document.documentElement.classList.remove("gamepad");
-      // The new terrain: a seeded medium island, drawn chunk by chunk.
+      // The pause menu exports; the world list duplicates a world.
       g.action("pause");
+      check(
+        "the pause menu can export the world",
+        !!g.app.querySelector('[data-action="export"]'),
+      );
       g.action("worlds");
       for (const w of g.store.list().slice(2)) g.store.remove(w.id);
+      const worldsBefore = g.store.list().length,
+        original = g.store.load(g.world.id);
+      g.action("duplicateworld", g.world.id);
+      const copied = g.store
+        .list()
+        .find((w) => w.id !== original.id && w.name.startsWith(original.name));
+      check(
+        "a world can be duplicated with everything in it",
+        g.store.list().length === worldsBefore + 1 &&
+          copied &&
+          g.store.load(copied.id).edits.length === original.edits.length,
+      );
+      if (copied) g.store.remove(copied.id);
+      // The new terrain: a seeded medium island, drawn chunk by chunk.
       g.action("newworld");
       g.draft.size = "medium";
       g.draft.seed = "4242";
+      g.render();
+      const previewPixels = g
+        .$("#world-preview")
+        ?.getContext("2d")
+        .getImageData(0, 0, 128, 128).data;
+      let landPixels = 0;
+      for (let i = 0; previewPixels && i < previewPixels.length; i += 4)
+        if (previewPixels[i + 1] > 150 && previewPixels[i + 2] < 120)
+          landPixels++;
+      check("the new world screen shows the island", landPixels > 200);
       g.draft.mode = "creative";
       const t0 = performance.now();
       // The older checks were written for the classic valley.

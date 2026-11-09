@@ -15,8 +15,8 @@ export const createVitals = (health = MAX_HEALTH, food = MAX_FOOD) => ({
   hurtCooldown: 0,
 });
 
-// Falling more than three blocks hurts a little, one half per extra block.
-export const fallDamage = (blocks) => Math.max(0, Math.floor(blocks - 3));
+// Falling more than four blocks hurts a little, one half per extra block.
+export const fallDamage = (blocks) => Math.max(0, Math.floor(blocks - 4));
 
 // Applies damage scaled by difficulty. Returns the damage actually taken.
 export function hurt(v, amount, rules, { ignoreCooldown = false } = {}) {

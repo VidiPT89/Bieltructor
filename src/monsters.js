@@ -16,8 +16,10 @@ export const MONSTERS = {
     speed: 1.3,
     damage: 2,
     from: "normal",
-    drop: ["wool", 2],
+    drop: ["string", 2],
     climbs: true,
+    // Woolly spiders only bother Biel at night; by day they just wander.
+    nightOnly: true,
   },
   // Puffy: a grey cloud that goes "PUF", pushing Biel and knocking over a few
   // natural blocks (never anything Biel built).
@@ -26,7 +28,7 @@ export const MONSTERS = {
     speed: 0.9,
     damage: 3,
     from: "hard",
-    drop: ["coal", 2],
+    drop: ["smoke_dust", 2],
     puff: true,
   },
   // Mist ghost: floats through caves and walls.
@@ -106,6 +108,8 @@ export function spawnSpot({
 }
 
 export const weaponDamage = (heldId) => ITEMS[heldId]?.damage ?? 1;
+// Whether a monster attacks right now (spiders wait for the night).
+export const attacksNow = (type, night) => night || !MONSTERS[type].nightOnly;
 
 // The longer the bow is drawn (up to one second), the faster and harder the
 // arrow flies. A shot without a measured draw counts as a medium one.

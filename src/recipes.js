@@ -92,6 +92,20 @@ export const RECIPES = [
   },
   { id: "treat_bone", out: ["treat", 3], needs: { bone: 1 } },
   { id: "bow", out: ["bow", 1], needs: { stick: 3, wool: 2 }, bench: true },
+  // Monster rewards are ingredients too: spider string and Puffy's dust.
+  {
+    id: "bow_string",
+    out: ["bow", 1],
+    needs: { stick: 3, string: 2 },
+    bench: true,
+  },
+  {
+    id: "fishing_rod_string",
+    out: ["fishing_rod", 1],
+    needs: { stick: 3, string: 1 },
+    bench: true,
+  },
+  { id: "black_dye_dust", out: ["black_dye", 2], needs: { smoke_dust: 1 } },
   {
     id: "shield",
     out: ["shield", 1],
@@ -99,6 +113,12 @@ export const RECIPES = [
     bench: true,
   },
   { id: "arrows", out: ["arrows", 4], needs: { stick: 1, stone: 1 } },
+  // A chicken's feathers make more arrows at once.
+  {
+    id: "arrows_feather",
+    out: ["arrows", 8],
+    needs: { stick: 1, stone: 1, feather: 1 },
+  },
   { id: "ladder", out: ["ladder", 3], needs: { stick: 7 }, bench: true },
   {
     id: "fence",

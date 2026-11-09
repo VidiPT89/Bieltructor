@@ -4,7 +4,7 @@ Um guia simples para o Biel e para os pais.
 
 ## Os mundos
 
-Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
+Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo, **duplicas** um (botão ⧉, para experimentar sem estragar o original) ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Ao criar um mundo vês logo um pequeno mapa da ilha que vai sair. O nome muda-se em Definições do mundo, e **Exportar** está também no menu de pausa. No Mac, a pausa tem ainda **Sair**. Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
 
 Ao criar um mundo escolhes:
 
@@ -42,7 +42,7 @@ Quase tudo se pode mudar mais tarde em **Pausa › Definições do mundo**.
 
 ## Vida, comida e ar
 
-- **Corações:** o Biel perde vida com quedas grandes, debaixo de água sem ar e com monstros.
+- **Corações:** o Biel perde vida com quedas de mais de 4 blocos, debaixo de água sem ar e com monstros.
 - **Comida:** come uma maçã, um ovo, leite ou bolo. Escolhe a comida na barra e usa **Construir** (ou o botão direito).
 - **Ar:** debaixo de água aparecem bolhas. Sobe antes de acabarem!
 - Se a vida chegar ao fim, **o Biel adormece** e volta a casa. Nas dificuldades mais altas, a mochila fica no sítio onde ele adormeceu: vai buscá-la!
@@ -102,8 +102,8 @@ Com uma **cana de pesca**, usa-a virado para a água e espera um bocadinho para 
 
 | Animal | O que dá ou faz | Comida preferida |
 |---|---|---|
-| Galinha | ovos | sementes de trigo |
-| Vaca | leite | trigo |
+| Galinha | ovos, e às vezes uma pena (com penas fazes o dobro das setas) | sementes de trigo |
+| Vaca | leite, se tiveres um balde na mão | trigo |
 | Ovelha | lã (volta a crescer; com tesoura dá mais) | trigo |
 | Porco | festinhas | cenoura |
 | Coelho | foge se te aproximas | cenoura |
@@ -124,8 +124,8 @@ Só aparecem na **Aventura**, **à noite**, em sítios **escuros**, e nunca no P
 - **Sonolento:** anda de pijama verde, a dormir, e dá encontrões.
 - **Gelatina saltitona:** salta e divide-se em duas pequenas.
 - **Ossudo arqueiro** (a partir do Médio): dispara setas de ventosa.
-- **Aranha de lã** (a partir do Médio): sobe paredes. Deixa lã.
-- **Fumarento** (só no Difícil): incha e faz "PUF!", empurra o Biel e deita abaixo alguns blocos naturais. Nunca estraga o que tu construíste.
+- **Aranha de lã** (a partir do Médio): sobe paredes e só ataca à noite; de dia anda por aí sem chatear. Deixa **fio**, que serve para fazer arcos e canas de pesca.
+- **Fumarento** (só no Difícil): incha e faz "PUF!", empurra o Biel e deita abaixo alguns blocos naturais. Nunca estraga o que tu construíste. Deixa **pó de fumo**, que dá tinta preta.
 - **Fantasma da névoa** (só no Difícil): flutua pelas grutas e atravessa a pedra. No Difícil as grutas têm monstros mesmo de dia.
 
 Ouves um aviso quando um se aproxima. **Tochas e lanternas afastam-nos**: ilumina a tua casa! Ataca com um clique, com a tecla F ou com o botão **Atacar**, ou de longe com um **arco** (3 paus e 2 de lã; as setas fazem-se com um pau e uma pedra). Mantém carregado em Construir para esticar o arco (a barra amarela enche) e larga para disparar: quanto mais esticado, mais longe e com mais força vai a seta. Um **escudo** (6 tábuas e 1 barra de ferro, na bancada) em qualquer espaço da barra de baixo trava metade de cada golpe que vem da frente. Com o escudo na mão, mantém carregado em Construir para o **levantar** (a barra fica azul): assim trava o golpe todo. Ao nascer do sol desfazem-se em faíscas.

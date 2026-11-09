@@ -148,3 +148,18 @@ test("a bow drawn longer shoots faster and harder", async () => {
   assert.deepEqual(longer, full, "no more than a full draw");
   assert.equal(bowShot().damage, 3, "an unmeasured shot is a medium one");
 });
+
+test("woolly spiders only attack at night; their string and Puffy's dust are ingredients", async () => {
+  const { attacksNow, MONSTERS } = await import("../src/monsters.js");
+  const { RECIPES } = await import("../src/recipes.js");
+  assert.equal(attacksNow("spider", false), false);
+  assert.equal(attacksNow("spider", true), true);
+  assert.equal(attacksNow("sleepy", false), true);
+  for (const type of ["spider", "puff"]) {
+    const [drop] = MONSTERS[type].drop;
+    assert(
+      RECIPES.some((r) => Object.hasOwn(r.needs, drop)),
+      `${drop} is used in a recipe`,
+    );
+  }
+});

@@ -10,7 +10,15 @@ export const ANIMALS = {
     cooldown: 90,
     food: "wheat_seeds",
   },
-  cow: { speed: 0.9, product: "milk", count: 1, cooldown: 120, food: "wheat" },
+  // The cow gives milk into a bucket held in Biel's hand.
+  cow: {
+    speed: 0.9,
+    product: "milk",
+    count: 1,
+    cooldown: 120,
+    food: "wheat",
+    needs: "bucket",
+  },
   sheep: {
     speed: 0.9,
     product: "wool",
@@ -158,6 +166,7 @@ export function interact(animal, heldId, now, roll = 0) {
     return { result: "love", use: heldId };
   }
   if (!kind.product) return { result: "happy" };
+  if (kind.needs && heldId !== kind.needs) return { result: "needBucket" };
   if (now < animal.readyAt) return { result: "notReady" };
   animal.readyAt = now + kind.cooldown;
   const product =
@@ -167,6 +176,13 @@ export function interact(animal, heldId, now, roll = 0) {
   // Shears give a sheep's wool more neatly: one more each time.
   if (animal.type === "sheep" && heldId === "shears")
     return { result: "shorn", give: [product, kind.count + 1], wear: true };
+  // A chicken sometimes drops a feather with its egg.
+  if (animal.type === "chicken" && roll < 0.5)
+    return {
+      result: "gave",
+      give: [product, kind.count],
+      extra: ["feather", 1],
+    };
   return { result: "gave", give: [product, kind.count] };
 }
 

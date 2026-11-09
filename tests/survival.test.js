@@ -18,8 +18,8 @@ test("damage follows the difficulty and peaceful never hurts", () => {
   assert.equal(hurt(hard, 4, R.hard), 6);
   assert.equal(hurt(calm, 4, R.peaceful), 0);
   assert.equal(hurt(easy, 4, R.easy), 0, "a short invulnerability after a hit");
-  assert.equal(fallDamage(3), 0);
-  assert.equal(fallDamage(6), 3);
+  assert.equal(fallDamage(4), 0, "only above four blocks");
+  assert.equal(fallDamage(6), 2);
 });
 
 test("hunger drops over time, faster when running, and food heals", () => {

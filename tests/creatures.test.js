@@ -14,12 +14,19 @@ test("every new world starts with the same friendly animals on dry land", () => 
 
 test("animals give their product and need time before giving again", () => {
   const [cow] = initialAnimals().filter((x) => x.type === "cow");
-  assert.deepEqual(interact(cow, null, 10), {
+  assert.equal(
+    interact(cow, null, 10).result,
+    "needBucket",
+    "milk needs a bucket",
+  );
+  assert.deepEqual(interact(cow, "bucket", 10), {
     result: "gave",
     give: ["milk", 1],
   });
-  assert.equal(interact(cow, null, 50).result, "notReady");
-  assert.equal(interact(cow, null, 131).result, "gave");
+  assert.equal(interact(cow, "bucket", 50).result, "notReady");
+  assert.equal(interact(cow, "bucket", 131).result, "gave");
+  const [hen] = initialAnimals().filter((x) => x.type === "chicken");
+  assert.deepEqual(interact(hen, null, 0, 0.2).extra, ["feather", 1]);
   const [sheep] = initialAnimals().filter((x) => x.type === "sheep");
   assert.deepEqual(interact(sheep, null, 0).give, ["wool", 2]);
 });

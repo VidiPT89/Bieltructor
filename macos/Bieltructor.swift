@@ -137,6 +137,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     guard message.frameInfo.isMainFrame, message.frameInfo.request.url?.scheme == "bieltructor",
       let body = message.body as? [String: Any], let action = body["action"] as? String
     else { return }
+    if action == "quit" {
+      NSApp.terminate(nil)
+      return
+    }
     if action == "export", let json = body["json"] as? String {
       let panel = NSSavePanel()
       panel.nameFieldStringValue = "Bieltructor-world.json"

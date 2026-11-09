@@ -75,6 +75,8 @@ import {
   bedBlock,
   isBed,
   COBBLESTONE,
+  SIZES,
+  makeTerrain,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
 import { LightMap, brightness } from "./lighting.js";
@@ -133,6 +135,7 @@ import {
   spawnSpot,
   strike,
   weaponDamage,
+  attacksNow,
   bowShot,
   validateMonsters,
 } from "./monsters.js";
@@ -335,6 +338,10 @@ document.body.append(toastEl);
 function button(action, label, cls = "", arg = "", extra = "") {
   return `<button data-action="${action}" ${arg ? `data-arg="${arg}"` : ""} ${["view", "pause"].includes(action) ? `aria-label="${t(action)}"` : action === "inventory" ? `aria-label="${t("backpack")}"` : ""} ${extra} class="${cls}">${label}</button>`;
 }
+// The Mac app (not the iPad or iPhone app, nor a browser) can quit itself.
+const isMacApp = () =>
+  !!window.webkit?.messageHandlers?.files &&
+  document.documentElement.dataset.platform !== "ios";
 // The game buttons show a word, or a picture with "Icons instead of words".
 const ICONS = {
   run: "🏃",
@@ -377,6 +384,9 @@ function worldFields(o, withMode) {
           ["large", t("large")],
         ]) +
         `<label>${t("seed")}<input id="world-seed" inputmode="numeric" maxlength="9" value="${escapeHtml(draft.seed)}"></label><p class="field-hint">${t("seedHint")}</p>` +
+        (draft.size === "classic"
+          ? ""
+          : `<figure class="world-preview"><canvas id="world-preview" width="128" height="128" aria-label="${t("preview")}"></canvas><figcaption>${t("preview")}</figcaption></figure>`) +
         (draft.mode === "adventure"
           ? field("tutorial", t("tutorialOption"), draft.tutorial, [
               [true, t("yes")],
@@ -461,7 +471,7 @@ function render() {
           ? list
               .map(
                 (w) =>
-                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
+                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}${list.length < MAX_WORLDS ? button("duplicateworld", "⧉", "copy", w.id, `aria-label="${t("duplicate")}" title="${t("duplicate")}"`) : ""}${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
               )
               .join("")
           : `<p class="help-copy">${t("noWorlds")}</p>`
@@ -536,7 +546,7 @@ function render() {
     if (mode === "worldsettings")
       inner = `<span class="eyebrow">${modeLabel(world)}</span><h2>${t("worldSettings")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(world.name)}"></label>${worldFields(world.options, false)}<p class="field-hint">${t("fixedOptions")}</p>${button("back", t("back"), "primary wide")}`;
     if (mode === "paused")
-      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("map", "🗺️ " + t("map"), "wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}`;
+      inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("pause")}</h2>${button("play", t("continue"), "primary wide")}${button("map", "🗺️ " + t("map"), "wide")}${button("worldsettings", t("worldSettings"), "wide")}${button("stickers", "📒 " + t("stickers"), "wide")}${button("settings", t("settings"), "wide")}${button("help", t("help"), "wide")}${button("export", t("export"), "wide")}${button("spawn", t("reset"), "wide")}${button("home", t("home"), "quiet wide")}${isMacApp() ? button("quit", t("quit"), "quiet wide") : ""}`;
     if (mode === "help")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
@@ -665,7 +675,11 @@ function render() {
   );
   const seedInput = $("#world-seed");
   if (seedInput)
-    seedInput.oninput = () => (draft.seed = seedInput.value.replace(/\D/g, ""));
+    seedInput.oninput = () => {
+      draft.seed = seedInput.value.replace(/\D/g, "");
+      drawPreview();
+    };
+  drawPreview();
   const nameInput = $("#world-name");
   if (nameInput)
     nameInput.oninput = () => {
@@ -692,10 +706,45 @@ function newDraft() {
     tutorial: true,
     size: "medium",
     seed: "",
+    // The island shown in the preview when no seed is typed in.
+    previewSeed: 1 + Math.floor(Math.random() * 999999),
     options: normalizeOptions({
       difficulty: clampDifficulty("easy", settings.parents.maxDifficulty),
     }),
   };
+}
+// A small map of the island the new world will have: sea, beaches and
+// each biome in its colour, from the same seed and size.
+const PREVIEW_COLOURS = {
+  beach: "#e9cf8b",
+  plains: "#7cbf4e",
+  forest: "#3f8a3f",
+  desert: "#e0b05a",
+  snow: "#eef3f6",
+  swamp: "#5c7a4a",
+};
+function drawPreview() {
+  const canvas = $("#world-preview");
+  if (!canvas || mode !== "newworld") return;
+  const size = SIZES[draft.size],
+    seed = Number.parseInt(draft.seed, 10) || draft.previewSeed,
+    land = makeTerrain(seed, size, 3),
+    ctx = canvas.getContext("2d"),
+    cell = canvas.width / (size * 2 + 1);
+  ctx.fillStyle = "#3f9fb4";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const step = Math.max(1, Math.round(size / 32));
+  for (let x = -size; x <= size; x += step)
+    for (let z = -size; z <= size; z += step) {
+      if (land.height(x, z) < land.water) continue;
+      ctx.fillStyle = PREVIEW_COLOURS[land.biome(x, z)] ?? "#7cbf4e";
+      ctx.fillRect(
+        (x + size) * cell,
+        (z + size) * cell,
+        cell * step + 0.5,
+        cell * step + 0.5,
+      );
+    }
 }
 function applyParentLimits() {
   const capped = clampDifficulty(
@@ -941,8 +990,7 @@ function action(a, arg) {
       size: classic ? null : draft.size,
       seed: classic
         ? null
-        : Number.parseInt(draft.seed, 10) ||
-          1 + Math.floor(Math.random() * 999999),
+        : Number.parseInt(draft.seed, 10) || draft.previewSeed,
     });
     if (created.mode === "adventure" && draft.tutorial)
       created.tutorial = { step: 0, amount: 0 };
@@ -950,6 +998,29 @@ function action(a, arg) {
     loadWorld(created);
     mode = "playing";
     history.length = 0;
+  } else if (a === "quit") {
+    // Only the Mac app can quit; iPad and iPhone apps are closed by the system.
+    save();
+    window.webkit?.messageHandlers?.files?.postMessage({ action: "quit" });
+    return;
+  } else if (a === "duplicateworld") {
+    if (world?.id === arg) save();
+    const original = store.load(arg);
+    if (original && store.list().length < MAX_WORLDS) {
+      const copy = validateWorld(
+        {
+          ...JSON.parse(JSON.stringify(original)),
+          id: makeId(),
+          name: `${original.name.slice(0, 24)} (${t("copy")})`,
+        },
+        {},
+      );
+      copy.createdAt = copy.updatedAt = Date.now();
+      store.save(copy);
+      const picture = store.thumb(arg);
+      if (picture) store.saveThumb(copy.id, picture);
+      toast(t("duplicated", { name: copy.name }));
+    }
   } else if (a === "openworld") {
     if (world) save();
     const chosen = store.load(arg);
@@ -2643,7 +2714,8 @@ function interactWith(a) {
   if (res.use && !creative()) inventory.remove(res.use, 1);
   if (res.result === "gave") {
     if (!creative() && inventory.add(...res.give)) toast(t("full"));
-    else toast(t("gave_" + a.type));
+    else toast(t("gave_" + a.type) + (res.extra ? " " + t("gotFeather") : ""));
+    if (res.extra && !creative()) inventory.add(...res.extra);
     beepAt(620, 920);
   } else if (res.result === "tamed") {
     hearts(a);
@@ -2677,21 +2749,8 @@ function interactWith(a) {
 // Little pink hearts above a happy animal.
 const heartMaterial = new THREE.MeshBasicMaterial({ color: 0xff6b8a });
 function hearts(a) {
-  for (let i = 0; i < 6; i++) {
-    const m = new THREE.Mesh(cube, heartMaterial);
-    m.scale.setScalar(0.12);
-    m.position.set(a.x, a.y + 1.2, a.z);
-    scene.add(m);
-    particles.push({
-      m,
-      v: new THREE.Vector3(
-        (Math.random() - 0.5) * 1.5,
-        1.5 + Math.random(),
-        (Math.random() - 0.5) * 1.5,
-      ),
-      life: 1,
-    });
-  }
+  for (let i = 0; i < 6; i++)
+    particle(heartMaterial, 0.12, [a.x, a.y + 1.2, a.z], 1.5, 1.5, 1);
 }
 // Riding a friendly horse: Biel sits on top and goes faster.
 function mount(a) {
@@ -3101,21 +3160,8 @@ const sparkleMaterials = [0xffd25e, 0x8fd3f4, 0xf08cc0, 0x9fd36f].map(
   (color) => new THREE.MeshBasicMaterial({ color }),
 );
 function sparkle(p) {
-  for (let i = 0; i < 14; i++) {
-    const m = new THREE.Mesh(cube, sparkleMaterials[i % 4]);
-    m.scale.setScalar(0.1);
-    m.position.set(...p);
-    scene.add(m);
-    particles.push({
-      m,
-      v: new THREE.Vector3(
-        (Math.random() - 0.5) * 4,
-        Math.random() * 4,
-        (Math.random() - 0.5) * 4,
-      ),
-      life: 0.7,
-    });
-  }
+  for (let i = 0; i < 14; i++)
+    particle(sparkleMaterials[i % 4], 0.1, p, 4, 0, 0.7);
 }
 function hurtPlayer(amount, from) {
   if (creative()) return;
@@ -3366,6 +3412,9 @@ function updateMonsters(dt) {
         puffBoom(m);
         continue;
       }
+    } else if (!attacksNow(m.type, isNight())) {
+      // By day a spider keeps its distance and just wanders.
+      if (d < 3) dir += Math.PI;
     } else if (d < 1.15 && Math.abs(player.y - m.y) < 1.5) {
       speed = 0;
       if (m.cooldown <= 0) {
@@ -3754,23 +3803,29 @@ function beep(build) {
     osc.stop(audio.currentTime + 0.16);
   } catch {}
 }
-const particles = [];
+// Small flying cubes (crumbs, sparkles, hearts). Finished ones wait in a
+// pool and are used again, so breaking blocks does not keep making meshes.
+const particles = [],
+  particlePool = [];
+function particle(material, size, [x, y, z], spread, lift, life) {
+  const m = particlePool.pop() ?? new THREE.Mesh(cube);
+  m.material = material;
+  m.scale.setScalar(size);
+  m.position.set(x, y, z);
+  m.rotation.set(0, 0, 0);
+  scene.add(m);
+  particles.push({
+    m,
+    v: new THREE.Vector3(
+      (Math.random() - 0.5) * spread,
+      lift + Math.random() * (lift ? 1 : spread),
+      (Math.random() - 0.5) * spread,
+    ),
+    life,
+  });
+}
 function burst(p, type) {
-  for (let i = 0; i < 8; i++) {
-    const m = new THREE.Mesh(cube, materials[type]);
-    m.scale.setScalar(0.12);
-    m.position.set(...p);
-    scene.add(m);
-    particles.push({
-      m,
-      v: new THREE.Vector3(
-        (Math.random() - 0.5) * 3,
-        Math.random() * 3,
-        (Math.random() - 0.5) * 3,
-      ),
-      life: 0.6,
-    });
-  }
+  for (let i = 0; i < 8; i++) particle(materials[type], 0.12, p, 3, 0, 0.6);
 }
 const isDoor = (type) => type === DOOR || type === DOOR_OPEN;
 const heldId = () => inventory.slots[selected]?.id ?? null;
@@ -4958,6 +5013,7 @@ function frame(now) {
     if (p.life <= 0) {
       scene.remove(p.m);
       particles.splice(i, 1);
+      if (particlePool.length < 200) particlePool.push(p.m);
     }
   }
   renderer.render(scene, camera);
