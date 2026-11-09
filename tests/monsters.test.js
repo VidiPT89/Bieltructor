@@ -126,3 +126,15 @@ test("on Hard, caves have monsters even by day; never on easier levels", () => {
     }),
   );
 });
+
+test("monsters only appear where the light level is 7 or less", () => {
+  const player = { x: 0, z: 0 };
+  const dry = () => 4.51;
+  assert.equal(
+    spawnSpot({ rand: seeded(2), player, lightAt: () => 8, surface: dry }),
+    null,
+  );
+  assert(
+    spawnSpot({ rand: seeded(2), player, lightAt: () => 7, surface: dry }),
+  );
+});

@@ -78,7 +78,17 @@ export const litNear = (lights, x, z, y = null) =>
   );
 
 // Looks for a dark, dry spot a little away from Biel. Returns null if none.
-export function spawnSpot({ rand, player, lights, surface, tries = 16 }) {
+// `lightAt(x, y, z)` gives the light level there; monsters need 7 or less.
+// (A list of `lights` can be given instead, for simple cases.)
+export const DARK_ENOUGH = 7;
+export function spawnSpot({
+  rand,
+  player,
+  lights = [],
+  lightAt = null,
+  surface,
+  tries = 16,
+}) {
   for (let i = 0; i < tries; i++) {
     const angle = rand() * Math.PI * 2,
       dist = 12 + rand() * 10,
@@ -86,7 +96,10 @@ export function spawnSpot({ rand, player, lights, surface, tries = 16 }) {
       z = Math.round(player.z + Math.cos(angle) * dist);
     if (Math.abs(x) > SIZE - 1 || Math.abs(z) > SIZE - 1) continue;
     const y = surface(x, z);
-    if (y < WATER_LEVEL || litNear(lights, x, z, y)) continue;
+    const lit = lightAt
+      ? lightAt(x, Math.round(y + 0.49), z) > DARK_ENOUGH
+      : litNear(lights, x, z, y);
+    if (y < WATER_LEVEL || lit) continue;
     return { x, y, z };
   }
   return null;

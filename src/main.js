@@ -54,6 +54,7 @@ import {
   woolBlock,
 } from "./world.js";
 import { isWatered, growCrop } from "./farm.js";
+import { LightMap, brightness } from "./lighting.js";
 import { readPad, pressedNow, fromStandardGamepad } from "./gamepad.js";
 import { plan as syncPlan, deviceKind } from "./sync.js";
 import {
@@ -1791,6 +1792,7 @@ function buildChunk(cx, cz, cells) {
     mesh.receiveShadow = true;
     mesh.userData.type = type;
     mesh.userData.cells = group;
+    measureLight(mesh);
     mesh.computeBoundingSphere();
     terrain.add(mesh);
     meshList.push(mesh);
@@ -1840,9 +1842,89 @@ function rebuildChunk(cx, cz) {
       }
   buildChunk(cx, cz, cells);
 }
+// Block light for each instance: the brightest open cell next to it.
+let light = null,
+  paintedDay = -1;
+const lightColor = new THREE.Color();
+function measureLight(mesh) {
+  const cells = mesh.userData.cells,
+    sky = new Uint8Array(cells.length),
+    glow = new Uint8Array(cells.length);
+  if (light)
+    cells.forEach(([x, y, z], i) => {
+      for (const [dx, dy, dz] of [
+        [0, 1, 0],
+        [1, 0, 0],
+        [-1, 0, 0],
+        [0, 0, 1],
+        [0, 0, -1],
+        [0, -1, 0],
+        [0, 0, 0],
+      ]) {
+        const nx = x + dx,
+          ny = y + dy,
+          nz = z + dz;
+        if (
+          !light.inside(nx, ny, nz) ||
+          (dx | dy | dz && light.blocked(nx, ny, nz))
+        )
+          continue;
+        const j = light.index(nx, ny, nz);
+        sky[i] = Math.max(sky[i], light.sky[j]);
+        glow[i] = Math.max(glow[i], light.block[j]);
+      }
+    });
+  else sky.fill(15);
+  mesh.userData.sky = sky;
+  mesh.userData.glow = glow;
+  paintMesh(mesh, paintedDay < 0 ? 1 : paintedDay);
+}
+// Torch light is warm; sky light follows the time of day.
+function paintMesh(mesh, day) {
+  const { sky, glow } = mesh.userData;
+  for (let i = 0; i < sky.length; i++) {
+    const fromSky = sky[i] * day,
+      level = Math.max(glow[i], fromSky),
+      b = brightness(level);
+    if (glow[i] > fromSky) lightColor.setRGB(b, b * 0.93, b * 0.8);
+    else lightColor.setRGB(b, b, b);
+    mesh.setColorAt(i, lightColor);
+  }
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+// Repaints everything when the sky gets noticeably lighter or darker.
+function paintAll(day) {
+  if (Math.abs(day - paintedDay) < 0.03) return;
+  paintedDay = day;
+  for (const chunk of chunks.values())
+    for (const m of chunk.meshes) paintMesh(m, day);
+}
 // Redraws the chunks around the given blocks (neighbours too, at the borders).
+// Light is recomputed 15 blocks around, and nearby chunks are repainted.
 function rebuildAt(...points) {
   const todo = new Set();
+  if (light) {
+    const xs = points.map((p) => p[0]),
+      zs = points.map((p) => p[2]);
+    const box = [
+      Math.min(...xs) - 15,
+      Math.max(...xs) + 15,
+      Math.min(...zs) - 15,
+      Math.max(...zs) + 15,
+    ];
+    light.relight(...box);
+    for (const [id, chunk] of chunks) {
+      const [cx, cz] = id.split(",").map(Number);
+      if (
+        (cx + 1) * CHUNK - 1 < box[0] ||
+        cx * CHUNK > box[1] ||
+        (cz + 1) * CHUNK - 1 < box[2] ||
+        cz * CHUNK > box[3]
+      )
+        continue;
+      for (const m of chunk.meshes) measureLight(m);
+    }
+  }
   for (const [x, , z] of points) {
     const cx = Math.floor(x / CHUNK),
       cz = Math.floor(z / CHUNK),
@@ -2088,6 +2170,14 @@ function loadWorld(w) {
     if (type === null) blocks.delete(k);
     else blocks.set(k, type);
   }
+  light = new LightMap({
+    size: SIZE,
+    maxY: MAX_Y,
+    typeAt: (x, y, z) => blocks.get(key(x, y, z)),
+    opaque: (type) =>
+      type !== undefined && !seeThrough(type) && !passable(type),
+  });
+  light.relightAll();
   rebuild();
   // The menu needs dry ground for Biel and nothing tall between him and the camera.
   const clear = (x, z) =>
@@ -2633,7 +2723,11 @@ function caveSpot() {
     )
       continue;
     if (
-      lightBlocks.some(([lx, ly, lz]) => Math.hypot(lx - x, ly - y, lz - z) < 6)
+      light
+        ? light.level(x, y, z, isNight() ? 0 : 1) > 7
+        : lightBlocks.some(
+            ([lx, ly, lz]) => Math.hypot(lx - x, ly - y, lz - z) < 6,
+          )
     )
       continue;
     return { x, y: y - 0.49, z };
@@ -2657,6 +2751,9 @@ function trySpawnMonster() {
         rand: Math.random,
         player,
         lights: lightBlocks,
+        lightAt: light
+          ? (x, y, z) => light.level(x, y, z, state.night ? 0 : 1)
+          : null,
         surface: (x, z) => surfaceY(x, z, 40),
       });
   if (!spot) return null;
@@ -4128,6 +4225,7 @@ function frame(now) {
   const skyNow = applySky(scenery === "game" ? skyTime() : NOON + 0.03);
   cullChunks();
   updateTorchLights(dt, skyNow.daylight);
+  paintAll(0.5 + 0.5 * skyNow.daylight);
   updateBirds(dt, skyNow.daylight);
   updateWeather(dt, scenery === "game" && !!world);
   const clockEl = app.querySelector(".clock");
@@ -4729,7 +4827,21 @@ if (new URLSearchParams(location.search).has("test"))
     const roofX = Math.round(player.x),
       roofZ = Math.round(player.z),
       roofY = Math.round(player.y);
-    for (let y = roofY + 4; y <= roofY + 6; y++) setBlock([roofX, y, roofZ], 2);
+    // A wide stone roof makes a real cave: dark well inside, even by day.
+    const roofCells = [];
+    for (let x = -20; x <= 20; x++)
+      for (let z = -20; z <= 20; z++) {
+        const cell = [roofX + x, roofY + 4, roofZ + z];
+        if (
+          Math.abs(cell[0]) > SIZE ||
+          Math.abs(cell[2]) > SIZE ||
+          blocks.has(key(...cell))
+        )
+          continue;
+        setBlock(cell, 2);
+        roofCells.push(cell);
+      }
+    rebuildAt(...roofCells);
     timeOfDay = 0.3;
     let caveMonster = null;
     for (let i = 0; i < 30 && !caveMonster; i++)
@@ -4748,11 +4860,11 @@ if (new URLSearchParams(location.search).has("test"))
       Math.hypot(spook.x - player.x, spook.z - player.z) < ghostStart - 0.8,
     );
     for (const m of [...monsters]) removeMonster(m, false);
-    for (let y = roofY + 4; y <= roofY + 6; y++) {
-      blocks.delete(key(roofX, y, roofZ));
-      edits.set(key(roofX, y, roofZ), null);
+    for (const cell of roofCells) {
+      blocks.delete(key(...cell));
+      edits.set(key(...cell), null);
     }
-    rebuildAt([roofX, roofY + 4, roofZ]);
+    rebuildAt(...roofCells);
     world.options = normalizeOptions({
       ...world.options,
       difficulty: "normal",
@@ -5047,6 +5159,52 @@ if (new URLSearchParams(location.search).has("test"))
       "coloured wool is built",
       blocks.get(key(gx0 + 1, topAt(gx0 + 1, gz0), gz0)) === woolBlock("blue"),
     );
+    // Block light: open sky, a dark closed room, a torch, and darkness again.
+    const lx0 = Math.round(player.x) - 6,
+      lz0 = Math.round(player.z) - 6,
+      ly0 = topAt(lx0, lz0) + 1;
+    check("open sky is fully lit", light.level(lx0, ly0 + 6, lz0) === 15);
+    const roomCells = [];
+    for (let x = -2; x <= 2; x++)
+      for (let z = -2; z <= 2; z++)
+        for (let y = 0; y <= 4; y++)
+          if (Math.abs(x) === 2 || Math.abs(z) === 2 || y === 0 || y === 4) {
+            setBlock([lx0 + x, ly0 + y, lz0 + z], 2);
+            roomCells.push([lx0 + x, ly0 + y, lz0 + z]);
+          } else {
+            blocks.delete(key(lx0 + x, ly0 + y, lz0 + z));
+          }
+    rebuildAt(...roomCells);
+    check("a closed room is dark", light.level(lx0, ly0 + 2, lz0) <= 1);
+    setBlock([lx0, ly0 + 1, lz0], TORCH);
+    rebuildAt([lx0, ly0 + 1, lz0]);
+    check("a torch lights the room", light.level(lx0 + 1, ly0 + 2, lz0) >= 12);
+    const floorMesh = [...chunks.values()]
+      .flatMap((c) => c.meshes)
+      .find((mm) =>
+        mm.userData.cells.some(
+          ([a, b, c]) => a === lx0 + 1 && b === ly0 && c === lz0,
+        ),
+      );
+    const at = floorMesh.userData.cells.findIndex(
+      ([a, b, c]) => a === lx0 + 1 && b === ly0 && c === lz0,
+    );
+    check(
+      "faces are painted with their light",
+      floorMesh.instanceColor && floorMesh.userData.glow[at] >= 12,
+    );
+    blocks.delete(key(lx0, ly0 + 1, lz0));
+    edits.set(key(lx0, ly0 + 1, lz0), null);
+    rebuildAt([lx0, ly0 + 1, lz0]);
+    check(
+      "without the torch the room is dark again",
+      light.level(lx0 + 1, ly0 + 2, lz0) <= 1,
+    );
+    for (const [x, y, z] of roomCells) {
+      blocks.delete(key(x, y, z));
+      edits.set(key(x, y, z), null);
+    }
+    rebuildAt(...roomCells);
     // A game controller drives the same actions.
     const padStart = player.clone();
     window.nativeGamepad({ ly: -1 });
