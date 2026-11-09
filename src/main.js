@@ -769,7 +769,25 @@ function saveProgress() {
     storage.setItem("biel-stickers", JSON.stringify(progress));
   } catch {}
 }
+// Short, happy notes the first time Biel does something big (kept with the
+// sticker progress, so each one shows once on this device).
+const FIRSTS = {
+  "place:torch": "firstTorch",
+  "craft:bench": "firstBench",
+  "got:coal": "firstCoal",
+  "got:iron": "firstIron",
+  "craft:wooden_pickaxe": "firstPickaxe",
+  "got:crystal": "firstCrystal",
+  lava: "firstLava",
+};
 function emit(event, amount = 1) {
+  if (FIRSTS[event] && !creative()) {
+    if (!progress.firsts[event]) {
+      progress.firsts[event] = 1;
+      saveProgress();
+      toast(t(FIRSTS[event]));
+    }
+  }
   if (STICKER_EVENTS.has(event) || STICKER_EVENTS.has(event.split(":")[0])) {
     const fresh = record(progress, event, amount);
     saveProgress();
@@ -2669,6 +2687,13 @@ function setupAnimals() {
   animals = validateAnimals(world.creatures);
   if (!world.animalsSpawned && world.options.animals) {
     animals = initialAnimals(worldSeed());
+    // The cat starts near a ruin or cabin, if the island has one.
+    const cat = animals.find((a) => a.type === "cat"),
+      chest = [...blocks].find(([, type]) => type === CHEST);
+    if (cat && chest) {
+      const [x, , z] = chest[0].split(",").map(Number);
+      Object.assign(cat, { x: x + 3, z, y: height(x + 3, z) + 0.51 });
+    }
     world.animalsSpawned = true;
   }
   animalGroup.clear();
@@ -3908,7 +3933,8 @@ function animalVoice(a) {
   } catch {}
 }
 // Now and then a nearby animal moos, baas or clucks.
-let stepClock = 0,
+let autosaveClock = 60,
+  stepClock = 0,
   chatterClock = 6;
 function animalChatter(dt) {
   chatterClock -= dt;
@@ -4870,6 +4896,12 @@ function frame(now) {
         if (here !== "valley") emit("biome:" + here);
       }
     }
+    // A quiet save every minute keeps where Biel is, the time and the animals.
+    autosaveClock -= dt;
+    if (autosaveClock <= 0) {
+      autosaveClock = 60;
+      save();
+    }
     // Break reminder set by the parents.
     playSeconds += dt;
     if (reminderDue(playSeconds, settings.parents.reminder)) {
@@ -5118,6 +5150,12 @@ installSmokeTests({
   },
   get hurtPlayer() {
     return hurtPlayer;
+  },
+  get emit() {
+    return emit;
+  },
+  set autosaveClock(v) {
+    autosaveClock = v;
   },
   get drawStart() {
     return drawStart;

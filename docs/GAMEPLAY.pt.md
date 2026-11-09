@@ -136,7 +136,7 @@ No canto há um **minimapa**: a seta laranja és tu e a 🏠 é a tua casa. Se a
 
 ## Tutorial e caderneta
 
-Nos mundos novos de Aventura há um **tutorial guiado** com 9 passos pequenos (dá para saltar e voltar a começar em "Como jogar"). A **caderneta** tem 12 autocolantes para ganhar, iguais em todos os mundos: o próximo aparece sempre no canto do ecrã.
+Nos mundos novos de Aventura há um **tutorial guiado** com 9 passos pequenos (dá para saltar e voltar a começar em "Como jogar"). A **caderneta** tem 12 autocolantes para ganhar, iguais em todos os mundos: o próximo aparece sempre no canto do ecrã. Na primeira vez que fazes algo importante (a primeira tocha, a primeira bancada, o primeiro carvão ou ferro, a primeira picareta, o primeiro cristal ou a primeira lava) aparece uma mensagem a festejar.
 
 ## Comandos de jogo
 
@@ -146,6 +146,7 @@ Funcionam comandos de PlayStation, Xbox e MFi no Mac, no iPad e no iPhone. Maní
 
 - O jogo funciona **sem Internet**, sem contas, sem anúncios, sem compras e sem recolha de dados.
 - Em **Definições › Pais** (protegido por uma conta escrita por extenso) podem ligar um **lembrete de pausa** (30, 45 ou 60 minutos), escolher a **dificuldade máxima** e desligar sempre os **monstros**.
+- O jogo grava sozinho sempre que constróis, ao pôr em pausa, ao sair e também de minuto a minuto.
 - Os mundos ficam guardados **neste dispositivo**. Com **Guardar no iCloud** ligado nas Definições, ficam iguais no Mac, no iPad e no iPhone com a mesma conta; se um mundo mudar em dois dispositivos, o jogo pergunta qual manter. Também se pode usar **Exportar mundo** e **Importar mundo**.
 - Para um jogo calmo: escolham **Pacífico**, ou desliguem os **Monstros** em qualquer dificuldade.
 - Nas Definições há volumes separados para **música**, **efeitos** e **ambiente**, a opção **Texto grande** e a opção **Ícones em vez de texto**, que põe desenhos nos botões do jogo para quem ainda não lê.

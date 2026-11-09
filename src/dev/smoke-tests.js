@@ -55,6 +55,12 @@ export function installSmokeTests(g) {
         g.inventory.slots[0] = { id, count: 1 };
         g.selected = 0;
       };
+      // Build, aimed at the block in g.target: an animal or monster that
+      // wanders under the pointer must not take the press.
+      const build = () => {
+        g.targetAnimal = g.targetMonster = null;
+        g.edit(true);
+      };
       const check = (name, ok) => {
         checks.push({ name, ok: !!ok });
         if (!ok) throw Error(name);
@@ -108,7 +114,7 @@ export function installSmokeTests(g) {
         y = height(x, z);
       g.target = { p: [x, y, z], normal: new THREE.Vector3(0, 1, 0) };
       hold("brick");
-      g.edit(true);
+      build();
       check("place block", g.blocks.get(key(x, y + 1, z)) === 6);
       g.target = { p: [x, y + 1, z], normal: new THREE.Vector3(0, 1, 0) };
       g.edit(false);
@@ -120,7 +126,7 @@ export function installSmokeTests(g) {
         gy = height(gx, gz);
       g.target = { p: [gx, gy, gz], normal: new THREE.Vector3(0, 1, 0) };
       hold("glass");
-      g.edit(true);
+      build();
       check(
         "glass shows the block below",
         g.blocks.get(key(gx, gy + 1, gz)) === GLASS && g.isRendered(gx, gy, gz),
@@ -130,7 +136,7 @@ export function installSmokeTests(g) {
         normal: new THREE.Vector3(0, 1, 0),
       };
       hold("door");
-      g.edit(true);
+      build();
       const doorY = height(gx + 1, gz) + 1;
       check(
         "door is two blocks tall",
@@ -141,7 +147,7 @@ export function installSmokeTests(g) {
         p: [gx + 1, doorY + 1, gz],
         normal: new THREE.Vector3(1, 0, 0),
       };
-      g.edit(true);
+      build();
       check(
         "door opens and can be walked through",
         g.blocks.get(key(gx + 1, doorY, gz)) === DOOR_OPEN &&
@@ -285,7 +291,7 @@ export function installSmokeTests(g) {
       check("normal difficulty hurts", g.vitals.health === 16);
       g.vitals.food = 10;
       hold("apple");
-      g.edit(true);
+      build();
       check("eating an apple", g.vitals.food === 14 && g.heldId() === null);
       g.vitals.hurtCooldown = 0;
       const healthBeforeFall = g.vitals.health;
@@ -305,7 +311,7 @@ export function installSmokeTests(g) {
       g.blocks.set(key(...bedPos), bedBlock("blue"));
       g.timeOfDay = 0.75;
       g.target = { p: bedPos, normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      build();
       check(
         "sleeping at night skips to morning",
         g.timeOfDay < 0.1 &&
@@ -724,13 +730,13 @@ export function installSmokeTests(g) {
       g.setBlock([fx, fy, fz], 1);
       hold("wooden_hoe");
       g.target = { p: [fx, fy, fz], normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      build();
       check(
         "the hoe makes farmland",
         g.blocks.get(key(fx, fy, fz)) === FARMLAND,
       );
       hold("wheat_seeds");
-      g.edit(true);
+      build();
       check(
         "seeds are planted",
         cropInfo(g.blocks.get(key(fx, fy + 1, fz)))?.stage === 0,
@@ -789,7 +795,9 @@ export function installSmokeTests(g) {
       g.inventory.add("chest", 1);
       hold("chest");
       g.target = { p: [cx0, cy0, cz0], normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      // An animal walking past must not take the tap.
+      g.targetAnimal = g.targetMonster = null;
+      build();
       const chestKey = key(cx0, cy0 + 1, cz0);
       check(
         "a chest is placed empty",
@@ -797,7 +805,7 @@ export function installSmokeTests(g) {
           g.world.chests[chestKey].length === 0,
       );
       g.target = { p: [cx0, cy0 + 1, cz0], normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      build();
       check("using a chest opens it", g.mode === "chest");
       g.inventory.add("dirt", 5);
       g.moveStack(
@@ -816,13 +824,13 @@ export function installSmokeTests(g) {
         p: [fx0, g.topAt(fx0, cz0), cz0],
         normal: new THREE.Vector3(0, 1, 0),
       };
-      g.edit(true);
+      build();
       const furnaceKey = key(fx0, g.topAt(fx0, cz0), cz0);
       g.target = {
         p: furnaceKey.split(",").map(Number),
         normal: new THREE.Vector3(0, 1, 0),
       };
-      g.edit(true);
+      build();
       check("using a furnace opens it", g.mode === "furnace");
       g.inventory.add("iron_ore", 3);
       g.inventory.add("coal", 1);
@@ -902,14 +910,14 @@ export function installSmokeTests(g) {
       );
       g.setBlock([gx0, gy0, gz0], GATE);
       g.target = { p: [gx0, gy0, gz0], normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      build();
       check(
         "gates open",
         g.blocks.get(key(gx0, gy0, gz0)) === GATE_OPEN &&
           !collides(g.blocks, { x: gx0, y: gy0 - 0.49, z: gz0 }),
       );
       g.setBlock([gx0, gy0, gz0], TRAPDOOR);
-      g.edit(true);
+      build();
       check(
         "trapdoors open",
         g.blocks.get(key(gx0, gy0, gz0)) === TRAPDOOR_OPEN,
@@ -918,7 +926,7 @@ export function installSmokeTests(g) {
       g.inventory.add("sign", 1);
       hold("sign");
       g.target = { p: [gx0, gy0 - 1, gz0], normal: new THREE.Vector3(0, 1, 0) };
-      g.edit(true);
+      build();
       await new Promise((r) => setTimeout(r, 0));
       check("placing a sign asks for its text", g.mode === "signtext");
       g.$("#sign-text").value = "Casa do Biel";
@@ -944,7 +952,7 @@ export function installSmokeTests(g) {
         p: [gx0 + 1, g.topAt(gx0 + 1, gz0), gz0],
         normal: new THREE.Vector3(0, 1, 0),
       };
-      g.edit(true);
+      build();
       check(
         "coloured wool is built",
         g.blocks.get(key(gx0 + 1, g.topAt(gx0 + 1, gz0), gz0)) ===
@@ -1038,7 +1046,7 @@ export function installSmokeTests(g) {
       g.selected = 0;
       g.target = { p: [wx0, wy0, wz0], normal: new THREE.Vector3(0, 1, 0) };
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       const wellAt = [wx0, wy0 + 1, wz0];
       check(
         "a water bucket pours water",
@@ -1053,7 +1061,7 @@ export function installSmokeTests(g) {
       g.pick();
       g.targetWater = wellAt;
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       check(
         "an empty bucket scoops the water back",
         g.heldId() === "water_bucket" && !g.blocks.has(key(...wellAt)),
@@ -1072,14 +1080,14 @@ export function installSmokeTests(g) {
       g.selected = 0;
       g.targetLava = lavaAt;
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       check(
         "a bucket scoops lava",
         g.heldId() === "lava_bucket" && !g.blocks.has(key(...lavaAt)),
       );
       g.target = { p: [wx0, wy0, wz0], normal: new THREE.Vector3(0, 1, 0) };
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       check(
         "a lava bucket pours lava",
         g.blocks.get(key(...lavaAt)) === LAVA && g.heldId() === "bucket",
@@ -1132,7 +1140,7 @@ export function installSmokeTests(g) {
       hold("stick");
       g.target = { p: lavaAt, normal: new THREE.Vector3(0, 1, 0) };
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       check(
         "a campfire lights again when the rain stops",
         g.blocks.get(key(...lavaAt)) === CAMPFIRE,
@@ -1146,9 +1154,9 @@ export function installSmokeTests(g) {
       g.inventory.slots[0] = { id: "bottle", count: 2 };
       g.target = { p: [wx0, wy0 + 1, wz0], normal: new THREE.Vector3(0, 1, 0) };
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       g.targetAnimal = g.targetMonster = null;
-      g.edit(true);
+      build();
       check(
         "a bottle collects honey, then the bees need a rest",
         g.inventory.count("honey") === 1 && g.inventory.count("bottle") === 1,
@@ -1265,6 +1273,15 @@ export function installSmokeTests(g) {
           typesHere.has(BEE_NEST) &&
           typesHere.has(LAVA),
       );
+      const firstChest = [...g.blocks].find(([, type]) => type === CHEST),
+        islandCat = g.animals.find((a) => a.type === "cat");
+      if (firstChest && islandCat) {
+        const [cx, , cz] = firstChest[0].split(",").map(Number);
+        check(
+          "the cat starts near a ruin or cabin",
+          Math.hypot(islandCat.x - cx, islandCat.z - cz) < 6,
+        );
+      }
       const nest = g.nestBlocks[0];
       g.player.set(nest[0] + 2, nest[1], nest[2]);
       g.world.options = { ...g.world.options, animals: true };
@@ -1385,7 +1402,7 @@ export function installSmokeTests(g) {
       });
       target0.hp = 3;
       target0.cooldown = 99;
-      g.edit(true);
+      build();
       for (let i = 0; i < 40; i++) g.frame(g.last + 16);
       check(
         "the bow shoots arrows at monsters",
@@ -1406,6 +1423,22 @@ export function installSmokeTests(g) {
       check(
         "a shield stops half of a hit from the front",
         front > 0 && front < back && g.inventory.slots[4]?.wear === 1,
+      );
+      // A happy note the first time a torch goes up, once only.
+      delete g.progress.firsts["place:torch"];
+      g.emit("place:torch");
+      check(
+        "the first torch gets a happy note",
+        g.toastEl.textContent === g.t("firstTorch") &&
+          g.progress.firsts["place:torch"] === 1,
+      );
+      // A quiet save every minute keeps where Biel is.
+      g.player.x += 0.5;
+      g.autosaveClock = 0.001;
+      g.frame(g.last + 16);
+      check(
+        "the game saves by itself every minute",
+        Math.abs(g.store.load(g.world.id).player.x - g.player.x) < 0.3,
       );
       // Held up (Build held down), the shield stops the whole hit.
       g.selected = 4;
@@ -1476,7 +1509,7 @@ export function installSmokeTests(g) {
       g.firstPerson = false;
       g.vitals.health = 6;
       hold("golden_apple");
-      g.edit(true);
+      build();
       check("a golden apple heals", g.vitals.health === 16);
       g.inventory.add("bone", 1);
       const treatsBefore = g.inventory.count("treat");

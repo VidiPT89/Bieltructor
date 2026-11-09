@@ -16,12 +16,15 @@ export const CHALLENGES = [
 ];
 
 export function createProgress(raw) {
-  const p = { done: {}, counters: {}, seen: {} };
+  // `firsts`: the happy "first time" notes already shown.
+  const p = { done: {}, counters: {}, seen: {}, firsts: {} };
   if (raw && typeof raw === "object") {
     for (const c of CHALLENGES)
       if (Number.isFinite(raw.done?.[c.id])) p.done[c.id] = raw.done[c.id];
     for (const [k, v] of Object.entries(raw.counters ?? {}))
       if (Number.isFinite(v)) p.counters[k] = v;
+    for (const [k, v] of Object.entries(raw.firsts ?? {}))
+      if (v === 1) p.firsts[k] = 1;
     for (const [k, v] of Object.entries(raw.seen ?? {}))
       if (Array.isArray(v))
         p.seen[k] = v.filter((x) => typeof x === "string").slice(0, 20);

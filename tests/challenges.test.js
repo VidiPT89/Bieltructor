@@ -65,3 +65,9 @@ test("the tutorial goes step by step and only listens to the current step", () =
   assert(r.finished && r.state === null);
   assert.equal(advance(null, "walk").state, null);
 });
+
+test("the 'first time' notes are remembered, and junk is dropped", () => {
+  const p = createProgress({ firsts: { "place:torch": 1, odd: "x" } });
+  assert.deepEqual(p.firsts, { "place:torch": 1 });
+  assert.deepEqual(createProgress().firsts, {});
+});
