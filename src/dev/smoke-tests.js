@@ -379,7 +379,7 @@ export function installSmokeTests(g) {
           Math.abs(g.player.x - bedPos[0]) < 0.5,
       );
       g.player.set(...awayFromHome);
-      g.frame(g.last + 16);
+      g.simulationTick();
       check(
         "walking to the backpack gets everything back",
         g.inventory.count("stone") === 5 && g.world.backpacks.length === 0,
@@ -437,14 +437,14 @@ export function installSmokeTests(g) {
       }
       const herdBefore = g.animals.length;
       g.breedClock = 0;
-      g.frame(g.last + 16);
+      g.simulationTick();
       const calf = g.animals.find((x) => x.baby && x.type === "cow");
       check(
         "two happy cows have a calf",
         g.animals.length === herdBefore + 1 && calf,
       );
       g.world.age = calf.grownAt + 1;
-      g.frame(g.last + 16);
+      g.simulationTick();
       check("the calf grows up", !calf.baby);
       const bunny = g.animals.find((x) => x.type === "rabbit");
       bunny.x = g.player.x + 1.5;
@@ -555,7 +555,7 @@ export function installSmokeTests(g) {
         z: g.player.z,
       });
       archerOne.cooldown = 0;
-      g.frame(g.last + 16);
+      g.simulationTick();
       check("the archer shoots suction-cup arrows", g.arrows.length >= 1);
       const monstersBefore = g.monsters.length;
       g.save();
@@ -616,7 +616,7 @@ export function installSmokeTests(g) {
       const editsBefore = [...g.edits.values()].filter(
         (v) => v === null,
       ).length;
-      g.frame(g.last + 16);
+      g.simulationTick();
       check(
         "Puffy goes PUF: knocks natural blocks but never Biel's builds",
         !g.monsters.includes(cloud) &&
@@ -758,7 +758,7 @@ export function installSmokeTests(g) {
       );
       g.mode = "playing";
       g.playSeconds = 30 * 60 - 0.001;
-      g.frame(g.last + 16);
+      g.simulationTick();
       check("the break reminder appears", g.mode === "rest");
       g.action("restdone");
       check("and play goes on", g.mode === "playing" && g.playSeconds === 0);
@@ -803,7 +803,7 @@ export function installSmokeTests(g) {
       g.action("craft", "bread");
       check("bread from wheat", g.inventory.count("bread") >= 1);
       hold("fishing_rod");
-      g.fishing = { until: g.elapsed - 1, from: g.player.clone() };
+      g.fishing = { until: g.world.age - 1, from: g.player.clone() };
       const fishBefore = g.inventory.count("fish");
       g.updateFishing();
       check(
@@ -1484,7 +1484,8 @@ export function installSmokeTests(g) {
       g.frame(g.last + 16);
       check(
         "the performance overlay shows numbers",
-        /fps/.test(g.statsEl.textContent),
+        /fps/.test(g.statsEl.textContent) &&
+          /20 Hz/.test(g.statsEl.textContent),
       );
       g.toggleStats();
       g.world.options = normalizeOptions({
@@ -1562,7 +1563,7 @@ export function installSmokeTests(g) {
       // A quiet save every minute keeps where Biel is.
       g.player.x += 0.5;
       g.autosaveClock = 0.001;
-      g.frame(g.last + 16);
+      g.simulationTick();
       check(
         "the game saves by itself every minute",
         Math.abs(g.store.load(g.world.id).player.x - g.player.x) < 0.3,
@@ -1954,7 +1955,7 @@ export function installSmokeTests(g) {
         !g.animals.includes(rewardAnimal) && droppedCount("beef") === 2,
       );
       hold("fishing_rod");
-      g.fishing = { until: g.elapsed - 1, from: g.player.clone() };
+      g.fishing = { until: g.world.age - 1, from: g.player.clone() };
       g.updateFishing();
       check(
         "fishing rewards wait on the ground when the backpack is full",
@@ -1969,7 +1970,7 @@ export function installSmokeTests(g) {
           droppedCount("fish") === 1,
       );
       g.inventory = new Inventory();
-      g.frame(g.last + 16);
+      g.simulationTick();
       check(
         "making room collects nearby saved rewards without loss",
         g.inventory.count("stick") === 2 &&
@@ -1978,6 +1979,55 @@ export function installSmokeTests(g) {
           g.world.backpacks.length === 0,
       );
       g.world.mode = modeBefore;
+
+      // The same island advances identically at different rendering rates.
+      const tickBase = g.saveData();
+      tickBase.mode = "creative";
+      tickBase.options.monsters = false;
+      tickBase.options.weather = false;
+      tickBase.monsters = [];
+      tickBase.creatures = tickBase.creatures.filter(
+        (a) => a.type === "chicken",
+      );
+      const tickStates = [];
+      for (const rate of [30, 60, 120]) {
+        g.loadWorld(JSON.parse(JSON.stringify(tickBase)));
+        g.frame(g.last);
+        for (let i = 0; i < rate; i++) g.frame(g.last + 1000 / rate);
+        tickStates.push(
+          JSON.stringify({
+            age: g.world.age,
+            time: g.timeOfDay,
+            day: g.world.day,
+            animals: g.animals.map(({ x, y, z, yaw, timer }) => ({
+              x,
+              y,
+              z,
+              yaw,
+              timer,
+            })),
+          }),
+        );
+      }
+      check(
+        "rules advance identically at 30, 60 and 120 fps",
+        tickStates.every((state) => state === tickStates[0]),
+      );
+      const pausedAge = g.world.age;
+      g.action("pause");
+      g.frame(g.last + 5000);
+      check(
+        "paused worlds do not accumulate simulation time",
+        g.world.age === pausedAge,
+      );
+      g.action("play");
+      g.frame(g.last + 5000);
+      check("resuming discards time spent paused", g.world.age === pausedAge);
+      g.frame(g.last + 50);
+      check(
+        "simulation resumes with one 50 ms tick",
+        Math.abs(g.world.age - pausedAge - 0.05) < 1e-8,
+      );
 
       g.action("home");
       g.frame(g.last + 16);

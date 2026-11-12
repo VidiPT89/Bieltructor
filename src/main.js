@@ -102,6 +102,8 @@ import {
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops, toolUses } from "./items.js";
 import { Inventory } from "./inventory.js";
 import { collectRewards } from "./loot.js";
+import { FixedStep, EntityInterpolation, TICK_SECONDS } from "./simulation.js";
+
 import {
   ANIMALS,
   initialAnimals,
@@ -185,6 +187,7 @@ import { strings } from "./strings.js";
 import { installSmokeTests } from "./dev/smoke-tests.js";
 import { safeStorage, snapshotWorld, createCloud } from "./persistence.js";
 import { createRandom } from "./random.js";
+
 import {
   escapeHtml,
   field,
@@ -193,6 +196,12 @@ import {
   credits,
   logo,
 } from "./ui/html.js";
+
+const simulationClock = new FixedStep();
+const entityInterpolation = new EntityInterpolation();
+let simulationRunning = false,
+  tickMilliseconds = 0;
+
 const $ = (s) => document.querySelector(s),
   app = $("#app");
 let settings = {
@@ -307,6 +316,7 @@ try {
 // Rolls for the rules of the game (what a block drops, where a monster
 // appears, the weather). Seeded again for each world that is loaded.
 let roll = createRandom(Date.now());
+let ambientRoll = roll.fork("ambient-fish");
 const makeId = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 store.migrate(makeId);
@@ -588,6 +598,10 @@ function worldFields(o, withMode) {
   ].join("");
 }
 function render() {
+  if (mode !== "playing") {
+    simulationClock.reset();
+    simulationRunning = false;
+  }
   app.className = mode;
   if (mode !== "playing") touchInput.clear();
   let content = "";
@@ -2646,9 +2660,29 @@ function spawn() {
 spawn();
 // Rebuilds the scene for a world: generated terrain plus the player's edits.
 function loadWorld(w) {
+  simulationClock.reset();
+  entityInterpolation.reset();
+  simulationRunning = false;
+  tickMilliseconds = 0;
   world = w;
+  // Rule clocks belong to a world, never to the menu or the previous island.
+  spawnClock = 2;
+  growClock = 5;
+  waterClock = lavaClock = biomeClock = containerClock = 0;
+  breedClock = 1;
+  thunderClock = 8;
+  autosaveClock = 60;
+  attackCooldown = 0;
+  fishing = null;
+  bobber.visible = false;
+  rainLevel = darkLevel = 0;
   // The same world at the same age rolls the same way.
   roll = createRandom(`${w.id}:${Math.floor(w.age ?? 0)}`);
+  ambientRoll = roll.fork("ambient-fish");
+  fishClock = 0;
+  school.children.forEach((f) => {
+    f.userData.home = null;
+  });
   store.setCurrent(w.id);
   useTerrain({ seed: w.seed, size: w.size, gen: w.gen });
   water.scale.setScalar((SIZE * 2 + 90) / 125);
@@ -2954,6 +2988,8 @@ function setupAnimals() {
   for (const model of [...animalGroup.children]) disposeModel(model);
   for (const a of animals) {
     a.mesh = MODELS[a.type]();
+    a.mesh.position.set(a.x, a.y - 0.01, a.z);
+    a.mesh.rotation.y = a.yaw;
     a.mesh.userData.animal = a;
     dressAnimal(a);
     animalGroup.add(a.mesh);
@@ -3146,8 +3182,8 @@ function updateFish(dt) {
     school.children.forEach((f, i) => {
       f.userData.home = null;
       for (let tries = 0; tries < 12 && !f.userData.home; tries++) {
-        const x = Math.round(player.x + (roll() - 0.5) * 28),
-          z = Math.round(player.z + (roll() - 0.5) * 28),
+        const x = Math.round(player.x + (ambientRoll() - 0.5) * 28),
+          z = Math.round(player.z + (ambientRoll() - 0.5) * 28),
           floor = topAt(x, z);
         if (
           Math.abs(x) <= SIZE &&
@@ -3231,10 +3267,7 @@ function updateAnimals(dt) {
         pressed("left") ||
         pressed("backward") ||
         pressed("right");
-      const swingRide = gallop ? Math.sin(elapsed * 14) * 0.7 : 0;
-      m.userData.legs.forEach(
-        (l, i) => (l.rotation.x = i % 2 ? swingRide : -swingRide),
-      );
+      m.userData.moving = gallop;
       continue;
     }
     if (ANIMALS[a.type].companion && a.tamed) {
@@ -3306,17 +3339,39 @@ function updateAnimals(dt) {
         Math.sin(a.yaw - m.rotation.y),
         Math.cos(a.yaw - m.rotation.y),
       ) * Math.min(1, dt * 8);
-    const swing = speed ? Math.sin(elapsed * 10) * 0.6 : 0;
-    m.userData.legs.forEach((l, i) => (l.rotation.x = i % 2 ? swing : -swing));
-    if (m.userData.head)
-      m.userData.head.rotation.x = speed
-        ? 0
-        : Math.sin(elapsed * 1.5 + a.x) * 0.12;
+    m.userData.moving = speed > 0;
     if (m.userData.body) m.userData.body.rotation.x = a.sitting ? -0.35 : 0;
-    if (m.userData.tail)
-      m.userData.tail.rotation.y = a.tamed ? Math.sin(elapsed * 14) * 0.5 : 0;
     if (m.userData.wool)
       m.userData.wool.scale.setScalar(world.age < a.readyAt ? 0.82 : 1);
+  }
+}
+// The rules say who is walking, twenty times a second. Legs, heads and tails
+// swing on every drawn frame, so they stay smooth between ticks.
+function poseCreatures() {
+  const swingLegs = (mesh, swing) =>
+    mesh.userData.legs.forEach(
+      (l, i) => (l.rotation.x = i % 2 ? swing : -swing),
+    );
+  for (const a of animals) {
+    const m = a.mesh,
+      moving = m.userData.moving;
+    if (!m.visible) continue;
+    if (a === riding) {
+      swingLegs(m, moving ? Math.sin(elapsed * 14) * 0.7 : 0);
+      continue;
+    }
+    swingLegs(m, moving ? Math.sin(elapsed * 10) * 0.6 : 0);
+    if (m.userData.head)
+      m.userData.head.rotation.x = moving
+        ? 0
+        : Math.sin(elapsed * 1.5 + a.x) * 0.12;
+    if (m.userData.tail)
+      m.userData.tail.rotation.y = a.tamed ? Math.sin(elapsed * 14) * 0.5 : 0;
+  }
+  for (const { mesh, x } of monsters) {
+    swingLegs(mesh, mesh.userData.moving ? Math.sin(elapsed * 8) * 0.5 : 0);
+    if (mesh.userData.head)
+      mesh.userData.head.rotation.z = Math.sin(elapsed * 2 + x) * 0.15;
   }
 }
 // Night monsters. They are not saved: a new night brings new ones.
@@ -3780,12 +3835,7 @@ function updateMonsters(dt) {
       m.z,
     );
     mesh.rotation.y = m.yaw;
-    const swing = speed ? Math.sin(elapsed * 8) * 0.5 : 0;
-    mesh.userData.legs.forEach(
-      (l, i) => (l.rotation.x = i % 2 ? swing : -swing),
-    );
-    if (mesh.userData.head)
-      mesh.userData.head.rotation.z = Math.sin(elapsed * 2 + m.x) * 0.15;
+    mesh.userData.moving = speed > 0;
     if (MONSTERS[m.type].flies)
       mesh.position.y += Math.sin(elapsed * 2 + m.z) * 0.15;
     m.flash = Math.max(0, m.flash - dt);
@@ -3927,9 +3977,9 @@ function thunder() {
     osc.stop(at + 1.9);
   } catch {}
 }
-function updateWeather(dt, inGame) {
+function tickWeather(dt) {
   let state = "clear";
-  if (inGame && world.options.weather) {
+  if (world.options.weather) {
     world.weather = validateWeather(world.weather);
     if (world.age >= world.weather.until)
       world.weather = {
@@ -3940,6 +3990,19 @@ function updateWeather(dt, inGame) {
   }
   rainLevel = approach(rainLevel, LOOK[state].rain, dt);
   darkLevel = approach(darkLevel, LOOK[state].dark, dt, 0.15);
+  if (state === "storm") {
+    thunderClock -= dt;
+    if (thunderClock <= 0) {
+      thunderClock = 6 + roll() * 12;
+      thunder();
+    }
+  }
+}
+function updateWeather(dt, inGame) {
+  if (!inGame) {
+    rainLevel = approach(rainLevel, 0, dt);
+    darkLevel = approach(darkLevel, 0, dt, 0.15);
+  }
   // The sky, light and clouds turn grey with the weather.
   scene.background.lerp(STORM_SKY, darkLevel);
   scene.fog.color.copy(scene.background);
@@ -3979,13 +4042,6 @@ function updateWeather(dt, inGame) {
     rain.geometry.attributes.position.needsUpdate = true;
   }
   rainNoise(inGame && !snowing ? rainLevel * (sheltered ? 0.4 : 1) : 0);
-  if (inGame && state === "storm") {
-    thunderClock -= dt;
-    if (thunderClock <= 0) {
-      thunderClock = 6 + roll() * 12;
-      thunder();
-    }
-  }
 }
 function pick() {
   // First person with a mouse aims with the crosshair; touch aims where the finger tapped.
@@ -4581,20 +4637,19 @@ function castLine() {
     topAt(Math.round(hit.point.x), Math.round(hit.point.z)) + 0.5 >= WATER_LEVEL
   )
     return;
-  fishing = { until: elapsed + 2 + roll() * 3, from: player.clone() };
+  fishing = { until: world.age + 2 + roll() * 3, from: player.clone() };
   bobber.position.copy(hit.point);
   bobber.visible = true;
   toast(t("fishing"));
 }
 function updateFishing() {
   if (!fishing) return;
-  bobber.position.y = WATER_LEVEL + 0.05 + Math.sin(elapsed * 4) * 0.03;
   if (player.distanceTo(fishing.from) > 3 || ITEMS[heldId()]?.tool !== "rod") {
     fishing = null;
     bobber.visible = false;
-  } else if (elapsed >= fishing.until) {
+  } else if (world.age >= fishing.until) {
     if (!creative() && !giveRewards([["fish", 1]])) {
-      fishing.until = elapsed + 5;
+      fishing.until = world.age + 5;
       return;
     }
     fishing = null;
@@ -5164,9 +5219,111 @@ let last = performance.now(),
   elapsed = 0;
 const desired = new THREE.Vector3(),
   look = new THREE.Vector3();
+const simulatedObjects = () => [
+  ...animals.map((a) => a.mesh),
+  ...monsters.map((m) => m.mesh),
+  ...arrows.map((a) => a.mesh),
+  ...bielArrows.map((a) => a.mesh),
+];
+function simulationTick() {
+  const dt = TICK_SECONDS;
+  if (mode !== "playing" || !world) return false;
+  const started = performance.now();
+  entityInterpolation.begin(simulatedObjects());
+  if (world.options.cycle === "normal") {
+    timeOfDay += dt / DAY_LENGTHS[world.options.dayLength];
+    if (timeOfDay >= 1) {
+      timeOfDay -= 1;
+      world.day++;
+      if (!creative()) emit("night");
+    }
+  }
+  world.age += dt;
+  // Visiting a new biome counts for the explorer sticker.
+  biomeClock -= dt;
+  if (biomeClock <= 0) {
+    biomeClock = 1;
+    const here = biomeAt(Math.round(player.x), Math.round(player.z));
+    if (here !== lastBiome) {
+      lastBiome = here;
+      if (here !== "valley") emit("biome:" + here);
+    }
+  }
+  // A quiet save every minute keeps where Biel is, the time and the animals.
+  autosaveClock -= dt;
+  if (autosaveClock <= 0) {
+    autosaveClock = 60;
+    save();
+  }
+  // Break reminder set by the parents.
+  playSeconds += dt;
+  if (reminderDue(playSeconds, settings.parents.reminder)) {
+    save();
+    mode = "rest";
+    render();
+    return false;
+  }
+  tickWeather(dt);
+  updateAnimals(dt);
+  breedAnimals(dt);
+  updateFurnaces(dt);
+  updateMonsters(dt);
+  updateBielArrows(dt);
+  growCrops(dt);
+  updateFishing();
+  updateWater(dt);
+  touchLava(dt);
+  if (!creative()) {
+    const underwater = inWater(blocks, player.x, player.y + 1.6, player.z),
+      moving =
+        pressed("left") ||
+        pressed("right") ||
+        pressed("forward") ||
+        pressed("backward"),
+      running = pressed("run");
+    const before = vitals.health;
+    tick(vitals, dt, {
+      rules: rules(),
+      hunger: world.options.hunger,
+      exertion: moving ? (running ? 1 : 0.3) : 0,
+      underwater,
+    });
+    if (vitals.health < before) hurtFlash();
+    for (const m of [...backpackGroup.children]) {
+      const pack = m.userData.pack;
+      if (m.position.distanceTo(player) < 1.4 && !(pack.wait > world.age)) {
+        // Whatever does not fit stays in the backpack on the ground.
+        pack.items = pack.items.flatMap((slot) => {
+          if (!slot) return [];
+          const left = inventory.add(...slot);
+          return left ? [[slot[0], left, slot[2]]] : [];
+        });
+        if (pack.items.length) {
+          pack.wait = world.age + 5;
+          toast(t("full"));
+        } else {
+          world.backpacks = world.backpacks.filter((b) => b !== pack);
+          rebuildBackpacks();
+          toast(t("backpackFound"));
+        }
+        render();
+      }
+    }
+    if (vitals.health <= 0) fallAsleep();
+  }
+  entityInterpolation.end(simulatedObjects());
+  tickMilliseconds = performance.now() - started;
+  return mode === "playing";
+}
 function frame(now) {
-  const dt = Math.max(0, Math.min((now - last) / 1000, 0.04));
+  const frameSeconds = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(frameSeconds, 0.04);
   last = now;
+  if (mode !== "playing") {
+    simulationClock.reset();
+    simulationRunning = false;
+    entityInterpolation.draw(simulatedObjects(), 1);
+  }
   elapsed += dt;
   pollGamepad(dt);
   // How far the bow is drawn, shown above the hotbar.
@@ -5199,14 +5356,6 @@ function frame(now) {
     pointerDown.mining = true;
   if (mode === "playing") scenery = "game";
   if (mode === "menu" || mode === "splash") scenery = "menu";
-  if (mode === "playing" && world.options.cycle === "normal") {
-    timeOfDay += dt / DAY_LENGTHS[world.options.dayLength];
-    if (timeOfDay >= 1) {
-      timeOfDay -= 1;
-      world.day++;
-      if (!creative()) emit("night");
-    }
-  }
   if (mode === "playing") {
     biel.scale.setScalar(1);
     let dx = Number(pressed("right")) - Number(pressed("left")),
@@ -5274,7 +5423,6 @@ function frame(now) {
       }
     }
     if (player.y < -5) spawn();
-    touchLava(dt);
     // Footsteps while walking on the ground (riding and flying are quiet).
     if (grounded && !flying && !riding && (dx || dz)) {
       stepClock -= speed * dt;
@@ -5284,40 +5432,22 @@ function frame(now) {
       }
     }
     animalChatter(dt);
-    world.age += dt;
-    // Visiting a new biome counts for the explorer sticker.
-    biomeClock -= dt;
-    if (biomeClock <= 0) {
-      biomeClock = 1;
-      const here = biomeAt(Math.round(player.x), Math.round(player.z));
-      if (here !== lastBiome) {
-        lastBiome = here;
-        if (here !== "valley") emit("biome:" + here);
-      }
-    }
-    // A quiet save every minute keeps where Biel is, the time and the animals.
-    autosaveClock -= dt;
-    if (autosaveClock <= 0) {
-      autosaveClock = 60;
-      save();
-    }
-    // Break reminder set by the parents.
-    playSeconds += dt;
-    if (reminderDue(playSeconds, settings.parents.reminder)) {
-      save();
-      mode = "rest";
-      render();
-    }
     if (dx || dz) tutorialEvent("walk", speed * dt);
-    updateAnimals(dt);
-    breedAnimals(dt);
+    const alpha = simulationClock.advance(
+      simulationRunning ? frameSeconds : 0,
+      simulationTick,
+    );
+    simulationRunning = mode === "playing";
+    entityInterpolation.draw(simulatedObjects(), alpha);
+    // The mount follows the per-frame player, avoiding a 20 Hz camera wobble.
+    if (riding) {
+      riding.x = player.x;
+      riding.y = player.y;
+      riding.z = player.z;
+      riding.mesh.position.set(player.x, player.y - 0.01, player.z);
+    }
+    poseCreatures();
     updateMinimap(dt);
-    updateFurnaces(dt);
-    updateMonsters(dt);
-    updateBielArrows(dt);
-    growCrops(dt);
-    updateFishing();
-    updateWater(dt);
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
       if (grounded || swimming || flying || onLadder) {
@@ -5328,39 +5458,8 @@ function frame(now) {
         }
         peakY = null;
       } else peakY = Math.max(peakY ?? player.y, player.y);
-      const underwater = inWater(blocks, player.x, player.y + 1.6, player.z),
-        moving = dx || dz,
-        running = pressed("run");
-      const before = vitals.health;
-      tick(vitals, dt, {
-        rules: rules(),
-        hunger: world.options.hunger,
-        exertion: moving ? (running ? 1 : 0.3) : 0,
-        underwater,
-      });
-      if (vitals.health < before) hurtFlash();
+      const underwater = inWater(blocks, player.x, player.y + 1.6, player.z);
       updateVitalsHud(underwater);
-      for (const m of [...backpackGroup.children]) {
-        m.rotation.y += dt;
-        const pack = m.userData.pack;
-        if (m.position.distanceTo(player) < 1.4 && !(pack.wait > elapsed)) {
-          // Whatever does not fit stays in the backpack on the ground.
-          pack.items = pack.items.flatMap((slot) => {
-            if (!slot) return [];
-            const left = inventory.add(...slot);
-            return left ? [[slot[0], left, slot[2]]] : [];
-          });
-          if (pack.items.length) {
-            pack.wait = elapsed + 5;
-            toast(t("full"));
-          } else {
-            world.backpacks = world.backpacks.filter((b) => b !== pack);
-            rebuildBackpacks();
-            toast(t("backpackFound"));
-          }
-          render();
-        }
-      }
       if (vitals.health <= 0) fallAsleep();
     }
     biel.position.copy(player);
@@ -5451,8 +5550,11 @@ function frame(now) {
       if (particlePool.length < 200) particlePool.push(p.m);
     }
   }
+  for (const bag of backpackGroup.children) bag.rotation.y += dt;
+  if (fishing)
+    bobber.position.y = WATER_LEVEL + 0.05 + Math.sin(elapsed * 4) * 0.03;
   renderer.render(scene, camera);
-  updateStats(dt);
+  updateStats(frameSeconds);
 }
 // The saved world loads once every part of the scene exists.
 if (world) loadWorld(world);
@@ -5499,7 +5601,7 @@ function updateStats(dt) {
     place = world
       ? ` · ${bx}, ${by}, ${bz} · ${biomeAt(bx, bz)} · light ${light?.inside(bx, by, bz) ? light.level(bx, by, bz, paintedDay < 0 ? 1 : paintedDay) : "-"}`
       : "";
-  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""} · ${(statsWork / statsFrames).toFixed(1)} ms${place}`;
+  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""} · ${(statsWork / statsFrames).toFixed(1)} ms · tick ${tickMilliseconds.toFixed(2)} ms (20 Hz)${place}`;
   statsWork = 0;
   statsFrames = 0;
   statsClock = 0;
@@ -5556,6 +5658,9 @@ window.importNativeWorld = (json) => {
 };
 // The in-game checks live in dev/smoke-tests.js; they see the game through these.
 installSmokeTests({
+  get simulationTick() {
+    return simulationTick;
+  },
   get $() {
     return $;
   },
@@ -5666,9 +5771,6 @@ installSmokeTests({
   },
   get edits() {
     return edits;
-  },
-  get elapsed() {
-    return elapsed;
   },
   get firstPerson() {
     return firstPerson;

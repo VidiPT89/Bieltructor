@@ -4,7 +4,18 @@ Verified against the source on 2026-11-12.
 
 ## Runtime
 
-The same Vite/Three.js game runs in a browser and in WKWebView on macOS and iOS. `src/main.js` owns the scene, game loop, screens, input dispatch and live world. The loop caps its variable delta at 40 ms; a fixed simulation step remains roadmap phase 0b.
+The same Vite/Three.js game runs in a browser and in WKWebView on macOS and iOS. `src/main.js` owns the scene, game loop, screens, input dispatch and live world.
+
+## Ticks and frames
+
+The rules advance in fixed ticks of 50 ms (20 a second), whatever the drawing rate. `src/simulation.js` holds the two pieces:
+
+- `FixedStep` collects the time of each drawn frame and runs whole ticks from it. A frame longer than 250 ms counts as 250 ms, so a stall catches up at most five ticks. Leaving the game (pause, backpack, menus, the break reminder, falling asleep) throws away the unfinished part of a tick, and the frame that resumes the game adds no time.
+- `EntityInterpolation` remembers where each animal, monster and arrow was before and after the last tick, and draws them in between. Before the next tick it puts back the real position, so the rules never read a drawn one. A jump of more than 8 blocks (a pet catching up) is shown at once.
+
+`simulationTick()` in `main.js` runs, in order: time of day and world age, the biome visit, the autosave and break reminder clocks, weather and thunder, animals, breeding, furnaces, monsters and their arrows, Biel's arrows, crops, fishing, water and lava, the lava under Biel, hunger, air and health, and picking up bags on the ground. Fishing and the bag wait use the world's age, which is saved, and no longer the frame clock.
+
+Still once per drawn frame, with a step capped at 40 ms: Biel's movement, jumping, swimming and falls, the camera, mining progress, the bow, particles, bees, birds and fish, the swing of legs, heads and tails (`poseCreatures()`), the sky, rain drops and sound. The horse Biel rides follows him every frame. The ambient fish take their rolls from a fork of the world's generator, so drawing faster or slower never shifts the rolls the rules see.
 
 `src/world.js` owns block IDs, terrain, shapes used for collision and save validation. `src/main.js` owns the rendering materials, geometries, chunk instances and generated inventory pictures. Changing a block rebuilds its chunk and affected neighbours. Terrain and initial animals retain their original seeded algorithms so existing worlds do not change.
 
