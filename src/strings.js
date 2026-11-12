@@ -236,7 +236,13 @@ export const strings = {
       "Foi uma aventura cansativa. Descansa um bocadinho e volta a casa.",
     wake: "Voltar a casa",
     backpackLeft: "A tua mochila ficou onde adormeceste. Vai buscá-la!",
-    backpackFound: "Recuperaste a mochila!",
+    backpackFound: "Recolheste os objetos da mochila!",
+    rewardsLeft:
+      "A mochila está cheia. As recompensas ficaram no chão, junto de ti!",
+    groundBagsFull:
+      "Há muitas mochilas no chão. Recolhe algumas antes de continuar!",
+    backpackKept:
+      "O chão está cheio de mochilas. Guardaste os teus objetos desta vez.",
     yum: "Nham! {item}",
     notHungry: "O Biel não tem fome.",
     sleepNight: "Bom dia! Esta cama é agora a tua casa.",
@@ -732,7 +738,12 @@ export const strings = {
     asleepText: "What a tiring adventure. Rest a little and head home.",
     wake: "Go home",
     backpackLeft: "Your backpack stayed where you fell asleep. Go and get it!",
-    backpackFound: "You got your backpack back!",
+    backpackFound: "You collected the items in the bag!",
+    rewardsLeft:
+      "Your backpack is full. Your rewards are on the ground beside you!",
+    groundBagsFull:
+      "There are too many bags on the ground. Collect some before continuing!",
+    backpackKept: "The ground is full of bags. You kept your items this time.",
     yum: "Yum! {item}",
     notHungry: "Biel isn’t hungry.",
     sleepNight: "Good morning! This bed is your home now.",

@@ -101,6 +101,7 @@ import {
 } from "./weather.js";
 import { ITEMS, CREATIVE_BLOCKS, breakTime, drops, toolUses } from "./items.js";
 import { Inventory } from "./inventory.js";
+import { collectRewards } from "./loot.js";
 import {
   ANIMALS,
   initialAnimals,
@@ -3494,7 +3495,12 @@ function hurtPlayer(amount, from) {
   if (grounded) velocity = 4;
 }
 function hitMonster(m, damage) {
+  const previousHealth = m.hp;
   const res = strike(m, damage);
+  if (res.result === "poof" && !creative() && !giveRewards([res.drop])) {
+    m.hp = previousHealth;
+    return false;
+  }
   m.flash = 0.2;
   const away = Math.atan2(m.x - player.x, m.z - player.z);
   m.x += Math.sin(away) * 0.6;
@@ -3507,7 +3513,7 @@ function hitMonster(m, damage) {
       addMonster("jelly", { x: m.x + side, y: m.y, z: m.z - side }, true);
   } else if (res.result === "poof") {
     removeMonster(m);
-    if (!creative() && !inventory.add(...res.drop))
+    if (!creative())
       setTimeout(() => flashLabel(`+${res.drop[1]} ${itemName(res.drop[0])}`));
     render();
   }
@@ -3534,8 +3540,11 @@ function attack() {
   }
   attackCooldown = 0.45;
   rightArm.rotation.x = -1.6;
-  hitMonster(foe, weaponDamage(heldId()));
-  if (ITEMS[heldId()]?.damage) wearHeld();
+  if (
+    hitMonster(foe, weaponDamage(heldId())) !== false &&
+    ITEMS[heldId()]?.damage
+  )
+    wearHeld();
 }
 // With "Animals only friends" off, farm animals can be caught for food:
 // the animal under the pointer, or the nearest one in reach.
@@ -3556,6 +3565,7 @@ function preyNearby() {
 function catchAnimal(a) {
   const who = nested("animalNames", a.type);
   animalVoice(a);
+  const previousHits = a.hits;
   const give = hitAnimal(a);
   if (!give) {
     // The first hit makes it hop away from Biel.
@@ -3566,11 +3576,14 @@ function catchAnimal(a) {
     toast(t("ouch", { animal: who }));
     return;
   }
+  if (!giveRewards(give)) {
+    a.hits = previousHits;
+    return;
+  }
   sparkle([a.x, a.y + 0.5, a.z]);
   disposeModel(a.mesh);
   animals = animals.filter((x) => x !== a);
   if (targetAnimal === a) targetAnimal = null;
-  for (const [id, n] of give) if (inventory.add(id, n)) toast(t("full"));
   toast(t("hunted", { animal: who }));
   if (ITEMS[heldId()]?.damage) wearHeld();
   scheduleSave();
@@ -4222,6 +4235,34 @@ const backpackMaterial = new THREE.MeshStandardMaterial({
   roughness: 0.8,
 });
 const backpackGeometry = new THREE.BoxGeometry(0.5, 0.55, 0.35);
+function bagPosition(position) {
+  return {
+    x: Math.max(-SIZE, Math.min(SIZE, position.x)),
+    y: Math.max(0, Math.min(MAX_Y + 10, position.y)),
+    z: Math.max(-SIZE, Math.min(SIZE, position.z)),
+  };
+}
+function giveRewards(items) {
+  const where = inLava(blocks, player.x, player.y, player.z)
+    ? lastSafe
+    : player;
+  const result = collectRewards(
+    inventory,
+    world.backpacks,
+    items,
+    bagPosition(where),
+  );
+  if (!result.ok) {
+    toast(t("groundBagsFull"));
+    return false;
+  }
+  if (result.dropped) {
+    rebuildBackpacks();
+    setTimeout(() => toast(t("rewardsLeft")), 0);
+  }
+  scheduleSave();
+  return true;
+}
 function rebuildBackpacks() {
   backpackGroup.clear();
   for (const pack of world?.backpacks ?? []) {
@@ -4269,15 +4310,20 @@ function fallAsleep() {
     const where = inLava(blocks, player.x, player.y, player.z)
       ? lastSafe
       : player;
-    world.backpacks.push({
-      x: where.x,
-      y: where.y,
-      z: where.z,
-      items: inventory.toJSON(),
-    });
-    inventory = new Inventory();
-    rebuildBackpacks();
-    setTimeout(() => toast(t("backpackLeft")), 300);
+    const stored = collectRewards(
+      new Inventory(0),
+      world.backpacks,
+      inventory.toJSON().filter(Boolean),
+      bagPosition(where),
+    );
+    if (stored.ok) {
+      inventory = new Inventory();
+      rebuildBackpacks();
+      setTimeout(() => toast(t("backpackLeft")), 300);
+    } else {
+      // Never discard a backpack when every ground bag is full.
+      setTimeout(() => toast(t("backpackKept")), 300);
+    }
   }
   save();
   render();
@@ -4547,10 +4593,13 @@ function updateFishing() {
     fishing = null;
     bobber.visible = false;
   } else if (elapsed >= fishing.until) {
+    if (!creative() && !giveRewards([["fish", 1]])) {
+      fishing.until = elapsed + 5;
+      return;
+    }
     fishing = null;
     bobber.visible = false;
-    if (!creative() && inventory.add("fish", 1)) toast(t("full"));
-    else toast(t("caught"));
+    toast(t("caught"));
     beepAt(700, 1000);
     wearHeld();
     render();

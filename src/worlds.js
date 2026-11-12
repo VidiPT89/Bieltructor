@@ -1,5 +1,6 @@
 // Worlds: options, difficulty rules, saving format (v2) and migration from v1.
 import { Inventory } from "./inventory.js";
+import { MAX_GROUND_BAGS } from "./loot.js";
 import { validateSave, validatePlayer, SIZES, MAX_Y } from "./world.js";
 
 const SAVE_VERSION = 2;
@@ -223,6 +224,9 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
     world.inventory = raw.inventory.slice(0, 36);
   if (Array.isArray(raw.creatures))
     world.creatures = raw.creatures.slice(0, 60);
+  // Reject an oversized save instead of silently deleting its ground bags.
+  if (Array.isArray(raw.backpacks) && raw.backpacks.length > MAX_GROUND_BAGS)
+    return null;
   if (Array.isArray(raw.backpacks))
     world.backpacks = raw.backpacks
       .filter(
@@ -235,7 +239,6 @@ export function validateWorld(raw, { id, now = Date.now(), name } = {}) {
           pack.y <= MAX_Y + 10 &&
           Array.isArray(pack.items),
       )
-      .slice(0, 10)
       .map(({ x, y, z, items }) => ({
         x,
         y,

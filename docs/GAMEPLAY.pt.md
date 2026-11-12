@@ -63,6 +63,8 @@ Bem no fundo das grutas há **lava**, que brilha e ilumina tudo à volta. No Nor
 
 ## Fabricar
 
+**Mochila cheia:** ao minerar, o bloco fica no sítio até haver espaço para recolher tudo. As recompensas de monstros, caça e pesca que não cabem ficam numa mochila laranja no chão, junto de ti. Liberta espaço e aproxima-te para as apanhar. Essas mochilas ficam guardadas com o mundo. Recompensas próximas juntam-se na mesma mochila. Se já houver 64 mochilas no chão sem espaço disponível, recolhe algumas antes de gerar mais recompensas; os objetos não são descartados. Se o Biel adormecer nessa situação, conserva a mochila que tem consigo.
+
 Abre a **mochila** (🎒, tecla E ou Y no comando). Toca num espaço e depois noutro, ou arrasta, para mudar as coisas de sítio: itens iguais juntam-se. Com um monte escolhido, **Dividir ao meio** separa-o em dois. Em baixo está o **livro de receitas**: os ingredientes ficam verdes quando os tens. Algumas receitas precisam de uma **bancada** por perto.
 
 **A bancada e os 9 quadrados:** usa a bancada (Construir, botão direito, ou um toque no modo 🧱) para abrir a caixa dos **9 quadrados**. Toca nas coisas da mochila para as pores nos quadrados, uma em cada um; toca num quadrado para o esvaziar. Ao lado aparece o que essas coisas dão: toca para fabricar. Não importa o sítio de cada coisa, só o que lá está. Se as mesmas coisas derem duas ferramentas (3 pedras e 2 paus dão uma picareta ou um machado), escolhes qual queres. Não sabes a receita? Em baixo, **Pôr nos quadrados** arruma tudo por ti. Na mochila, perto de uma bancada, o botão **Abrir a bancada** faz o mesmo.

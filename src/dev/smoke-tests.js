@@ -1914,6 +1914,71 @@ export function installSmokeTests(g) {
       g.world.mode = modeBefore;
       g.pointerKind = "mouse";
 
+      // Full backpacks keep combat, hunting and fishing rewards on the ground.
+      g.world.mode = "adventure";
+      g.world.options.friendsOnly = false;
+      g.world.backpacks = [];
+      g.inventory = new Inventory();
+      for (let i = 0; i < 36; i++) g.inventory.add("wooden_sword");
+      g.selected = 0;
+      const droppedCount = (id) =>
+        g.world.backpacks.reduce(
+          (sum, bag) => sum + Inventory.from(bag.items).count(id),
+          0,
+        );
+      const rewardMonster = g.addMonster("sleepy", {
+        x: g.player.x + 1,
+        y: g.player.y,
+        z: g.player.z,
+      });
+      rewardMonster.hp = 1;
+      g.targetMonster = rewardMonster;
+      g.attackCooldown = 0;
+      g.attack();
+      check(
+        "combat rewards wait on the ground when the backpack is full",
+        !g.monsters.includes(rewardMonster) && droppedCount("stick") === 2,
+      );
+      const rewardAnimal = g.animals.find((a) => a.type === "cow" && !a.baby);
+      check(
+        "a grown cow is available for the overflow hunting check",
+        !!rewardAnimal,
+      );
+      rewardAnimal.hits = 1;
+      g.targetMonster = null;
+      g.targetAnimal = rewardAnimal;
+      g.attackCooldown = 0;
+      g.attack();
+      check(
+        "hunting rewards wait on the ground when the backpack is full",
+        !g.animals.includes(rewardAnimal) && droppedCount("beef") === 2,
+      );
+      hold("fishing_rod");
+      g.fishing = { until: g.elapsed - 1, from: g.player.clone() };
+      g.updateFishing();
+      check(
+        "fishing rewards wait on the ground when the backpack is full",
+        droppedCount("fish") === 1 && g.inventory.count("fish") === 0,
+      );
+      g.save();
+      g.loadWorld(g.store.load(g.world.id));
+      check(
+        "overflow rewards survive saving and reloading",
+        droppedCount("stick") === 2 &&
+          droppedCount("beef") === 2 &&
+          droppedCount("fish") === 1,
+      );
+      g.inventory = new Inventory();
+      g.frame(g.last + 16);
+      check(
+        "making room collects nearby saved rewards without loss",
+        g.inventory.count("stick") === 2 &&
+          g.inventory.count("beef") === 2 &&
+          g.inventory.count("fish") === 1 &&
+          g.world.backpacks.length === 0,
+      );
+      g.world.mode = modeBefore;
+
       g.action("home");
       g.frame(g.last + 16);
       return { ok: true, checks, triangles: g.renderer.info.render.triangles };
