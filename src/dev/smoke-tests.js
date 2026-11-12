@@ -1081,7 +1081,8 @@ export function installSmokeTests(g) {
       );
       check(
         "faces are painted with their light",
-        floorMesh.instanceColor && floorMesh.userData.glow[at] >= 12,
+        (floorMesh.instanceColor || floorMesh.geometry.attributes.color) &&
+          floorMesh.userData.glow[at] >= 12,
       );
       g.blocks.delete(key(lx0, ly0 + 1, lz0));
       g.edits.set(key(lx0, ly0 + 1, lz0), null);
@@ -1408,6 +1409,40 @@ export function installSmokeTests(g) {
           g.chunks.size > 30,
       );
       check("a medium island loads quickly", loadMs < 4000);
+      // Plain blocks: one mesh a chunk, hidden faces left out.
+      const plainMeshes = [...g.chunks.values()].map((c) =>
+        c.meshes.filter((m) => !m.isInstancedMesh),
+      );
+      check(
+        "the plain blocks of a chunk are one mesh without the hidden faces",
+        plainMeshes.every((list) => list.length <= 1) &&
+          plainMeshes.flat().length > 30 &&
+          plainMeshes
+            .flat()
+            .every(
+              (m) =>
+                m.geometry.index.count === m.userData.faceCell.length * 6 &&
+                m.userData.faceCell.length < m.userData.cells.length * 4,
+            ),
+      );
+      // Aiming straight down from the sky finds the block under it.
+      const below = new THREE.Raycaster(
+        new THREE.Vector3(Math.round(g.player.x), 70, Math.round(g.player.z)),
+        new THREE.Vector3(0, -1, 0),
+      ).intersectObjects(plainMeshes.flat(), false)[0];
+      const aimed =
+        below &&
+        below.object.userData.cells[
+          below.object.userData.faceCell[below.faceIndex >> 1]
+        ];
+      check(
+        "a ray finds the block behind a face of the plain mesh",
+        aimed &&
+          aimed[0] === Math.round(g.player.x) &&
+          aimed[2] === Math.round(g.player.z) &&
+          g.blocks.has(key(...aimed)) &&
+          Math.abs(below.point.y - (aimed[1] + 0.5)) < 1e-6,
+      );
       check(
         "Biel starts on dry land",
         height(Math.round(g.player.x), Math.round(g.player.z)) > WATER_LEVEL &&

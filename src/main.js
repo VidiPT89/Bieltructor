@@ -31,6 +31,7 @@ import {
   DOOR,
   DOOR_OPEN,
   seeThrough,
+  fillsBlock,
   toggleDoor,
   passable,
   PLANKS,
@@ -101,6 +102,15 @@ import { Inventory } from "./inventory.js";
 import { collectRewards } from "./loot.js";
 import { FixedStep, EntityInterpolation, TICK_SECONDS } from "./simulation.js";
 import { BLOCKS } from "./blocks.js";
+import {
+  buildChunkGeometry,
+  atlasRows,
+  tilePixel,
+  TILE,
+  GUTTER,
+  CELL,
+  ATLAS_COLUMNS,
+} from "./chunkmesh.js";
 import {
   ANIMALS,
   initialAnimals,
@@ -2069,6 +2079,53 @@ const amber = materials[7];
 amber.emissive.set(0xffa040);
 amber.emissiveMap = amber.map;
 amber.emissiveIntensity = 0;
+// Plain blocks (whole cubes that do not glow or let light through) share
+// one picture with all their drawings, and one material: each chunk draws
+// them as a single mesh with only the faces that can be seen.
+const plainTile = new Map();
+materials.forEach((material, type) => {
+  if (
+    fillsBlock(type) &&
+    !BLOCKS[type].light &&
+    material?.map?.image &&
+    !material.transparent &&
+    !material.alphaTest &&
+    !material.emissiveMap
+  )
+    plainTile.set(type, plainTile.size);
+});
+const ATLAS_ROWS = atlasRows(plainTile.size);
+const atlasCanvas = document.createElement("canvas");
+atlasCanvas.width = ATLAS_COLUMNS * CELL;
+atlasCanvas.height = ATLAS_ROWS * CELL;
+{
+  const ctx = atlasCanvas.getContext("2d"),
+    last = TILE - 1;
+  ctx.imageSmoothingEnabled = false;
+  for (const [type, tile] of plainTile) {
+    const image = materials[type].map.image,
+      [x, y] = tilePixel(tile);
+    // Each piece: [from x, y, width, height] of the drawing, then where
+    // it goes. The four edges and four corners are stretched outwards.
+    for (const [sx, sy, sw, sh, dx, dy, dw, dh] of [
+      [0, 0, TILE, TILE, 0, 0, TILE, TILE],
+      [0, 0, 1, TILE, -GUTTER, 0, GUTTER, TILE],
+      [last, 0, 1, TILE, TILE, 0, GUTTER, TILE],
+      [0, 0, TILE, 1, 0, -GUTTER, TILE, GUTTER],
+      [0, last, TILE, 1, 0, TILE, TILE, GUTTER],
+      [0, 0, 1, 1, -GUTTER, -GUTTER, GUTTER, GUTTER],
+      [last, 0, 1, 1, TILE, -GUTTER, GUTTER, GUTTER],
+      [0, last, 1, 1, -GUTTER, TILE, GUTTER, GUTTER],
+      [last, last, 1, 1, TILE, TILE, GUTTER, GUTTER],
+    ])
+      ctx.drawImage(image, sx, sy, sw, sh, x + dx, y + dy, dw, dh);
+  }
+}
+const plainMaterial = new THREE.MeshStandardMaterial({
+  map: pixelTexture(atlasCanvas),
+  roughness: 1,
+  vertexColors: true,
+});
 // Top block of each column, remembered for the maps until something changes.
 const topCache = new Map();
 function topInfo(x, z) {
@@ -2197,7 +2254,9 @@ function clearChunk(id) {
   if (!chunk) return;
   for (const m of chunk.meshes) {
     terrain.remove(m);
-    m.dispose();
+    // Instanced meshes share their shape; the plain mesh owns its own.
+    if (m.isInstancedMesh) m.dispose();
+    else m.geometry.dispose();
   }
   chunks.delete(id);
 }
@@ -2205,6 +2264,7 @@ function buildChunk(cx, cz, cells) {
   const id = chunkKey(cx, cz);
   clearChunk(id);
   const groups = new Map(),
+    plain = [],
     lights = [],
     nests = [],
     crops = [];
@@ -2213,12 +2273,48 @@ function buildChunk(cx, cz, cells) {
       lights.push([x, y, z]);
     if (type === BEE_NEST) nests.push([x, y, z]);
     if (cropInfo(type) && cropInfo(type).stage < 3) crops.push(key(x, y, z));
+    if (plainTile.has(type)) {
+      plain.push([x, y, z, type]);
+      continue;
+    }
     if (!exposed(x, y, z)) continue;
     if (!groups.has(type)) groups.set(type, []);
     groups.get(type).push([x, y, z]);
   }
   const matrix = new THREE.Matrix4(),
     meshList = [];
+  const built = buildChunkGeometry(
+    plain,
+    (x, y, z) => fillsBlock(blocks.get(key(x, y, z))),
+    (type) => plainTile.get(type),
+    ATLAS_ROWS,
+  );
+  if (built.cells.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(built.positions, 3),
+    );
+    geometry.setAttribute(
+      "normal",
+      new THREE.BufferAttribute(built.normals, 3),
+    );
+    geometry.setAttribute("uv", new THREE.BufferAttribute(built.uvs, 2));
+    geometry.setAttribute(
+      "color",
+      new THREE.BufferAttribute(new Float32Array(built.positions.length), 3),
+    );
+    geometry.setIndex(new THREE.BufferAttribute(built.indices, 1));
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, plainMaterial);
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.userData.cells = built.cells;
+    mesh.userData.faceCell = built.faceCell;
+    mesh.userData.cellVertex = built.cellVertex;
+    measureLight(mesh);
+    terrain.add(mesh);
+    meshList.push(mesh);
+  }
   for (const [type, group] of groups) {
     const mesh = new THREE.InstancedMesh(
       shapes[type] ?? cube,
@@ -2330,17 +2426,31 @@ function measureLight(mesh) {
 }
 // Torch light is warm; sky light follows the time of day.
 function paintMesh(mesh, day) {
-  const { sky, glow } = mesh.userData;
+  const { sky, glow, cellVertex } = mesh.userData,
+    corners = mesh.isInstancedMesh ? null : mesh.geometry.attributes.color;
   for (let i = 0; i < sky.length; i++) {
     const fromSky = sky[i] * day,
       level = Math.max(glow[i], fromSky),
       b = brightness(level);
     if (glow[i] > fromSky) lightColor.setRGB(b, b * 0.93, b * 0.8);
     else lightColor.setRGB(b, b, b);
-    mesh.setColorAt(i, lightColor);
+    if (!corners) mesh.setColorAt(i, lightColor);
+    else
+      // The plain mesh: every corner of the block takes its light.
+      for (let v = cellVertex[i]; v < cellVertex[i + 1]; v++)
+        corners.setXYZ(v, lightColor.r, lightColor.g, lightColor.b);
   }
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  if (corners) corners.needsUpdate = true;
+  else if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
+// The block a ray hit: an instance of a shaped block, or a face of the
+// plain mesh.
+const hitCell = (hit) =>
+  hit.object.isInstancedMesh
+    ? hit.object.userData.cells[hit.instanceId]
+    : hit.object.userData.cells[
+        hit.object.userData.faceCell[hit.faceIndex >> 1]
+      ];
 // Repaints everything when the sky gets noticeably lighter or darker.
 function paintAll(day) {
   if (Math.abs(day - paintedDay) < 0.03) return;
@@ -4029,7 +4139,7 @@ function pick() {
   targetWater = null;
   targetLava = null;
   for (const hit of hits) {
-    const p = hit.object.userData.cells[hit.instanceId];
+    const p = hitCell(hit);
     // Water and lava are looked through; a bucket can still scoop them.
     const liquid = hit.object.userData.type;
     if (isLiquid(liquid)) {

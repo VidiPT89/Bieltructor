@@ -120,6 +120,11 @@ export const cropInfo = (type) =>
 // blocks that do not fill their whole space. Both come from blocks.js.
 export const passable = (type) => BLOCKS[type]?.passable === true;
 export const seeThrough = (type) => BLOCKS[type]?.clear === true;
+// A whole solid cube: it covers the face of the block next to it.
+export const fillsBlock = (type) => {
+  const block = BLOCKS[type];
+  return !!block && !block.clear && !block.boxes && !block.cross;
+};
 export const key = (x, y, z) => `${x},${y},${z}`;
 // Which way something is, as the map shows it (north is towards -z).
 const DIRECTIONS = [

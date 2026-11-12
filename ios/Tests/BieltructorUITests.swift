@@ -7,7 +7,9 @@ final class BieltructorUITests: XCTestCase {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
     let result = app.staticTexts["smoke-result"]
-    XCTAssertTrue(result.waitForExistence(timeout: 45))
+    // The shared checks take about half a minute alone, and longer when two
+    // simulators run side by side.
+    XCTAssertTrue(result.waitForExistence(timeout: 150))
     XCTAssertEqual(result.label, "Tests passed")
     app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continuar aventura")).firstMatch.tap()
     XCTAssertTrue(app.buttons["Saltar"].waitForExistence(timeout: 5))

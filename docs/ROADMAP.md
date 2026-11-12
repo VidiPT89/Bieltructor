@@ -2,13 +2,13 @@
 
 This follows the 18-phase v3 brief (`prompt-bieltructor-v3.md`). The brief was written against the first version of the game (57 × 57 world, 8 materials, 23 smoke checks). The repository is already far past that, so each phase starts from what exists. One phase, or one part of a phase, per session.
 
-Last updated: 2026-11-12 (phase 0c and automatic backups).
+Last updated: 2026-11-12 (first part of phase 0d).
 
 ## Where each phase stands
 
 | Phase | State | What exists | What is missing |
 |---|---|---|---|
-| 0 Foundations | **in progress (0a, 0b and 0c done)** | One block table with text IDs, rules in fixed ticks of 20 a second with interpolated drawing, chunks of 16 × 16 with only the edited chunk redrawn, input action layer, F3 overlay, saves that keep only the changes from the seed, seeded terrain, data tables for items, recipes, animals, monsters and difficulty | See "Phase 0 in parts" below |
+| 0 Foundations | **in progress (0a, 0b, 0c and the first part of 0d done)** | Plain blocks drawn as one mesh a chunk from a texture atlas, one block table with text IDs, rules in fixed ticks of 20 a second with interpolated drawing, chunks of 16 × 16 with only the edited chunk redrawn, input action layer, F3 overlay, saves that keep only the changes from the seed, seeded terrain, data tables for items, recipes, animals, monsters and difficulty | See "Phase 0 in parts" below |
 | 1 Worlds, modes, difficulty | mostly done | New-world screen with preview, Creative and Adventure, four difficulties in `difficultyRules`, six worlds with rename, duplicate, export, import and delete | Flat, islands-only and single-biome worlds; 256 and 512 sizes; welcome chest; structures switch; photo mode; magic panel; "one life"; eight worlds instead of six |
 | 2 Day, night, light, weather | mostly done | Day and night, block light 0 to 15 in two channels, beds, rain, snow, storms, campfires put out by rain | Moon phases, shooting stars, ambient occlusion, rainbow, fog, wind, light in the hand, seasons |
 | 3 World generation | partly done | Six biomes, caves with lakes, ores by depth, water and lava that flow, ruins, cabins and wells with seeded treasure | Height 96, most biomes, tree kinds and saplings, deep stone, falling sand, the larger structures |
@@ -26,7 +26,7 @@ Last updated: 2026-11-12 (phase 0c and automatic backups).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 155 unit tests, 231 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 160 unit tests, 233 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
 
 ## Phase 0 in parts
 
@@ -63,7 +63,15 @@ Left for later: the special drawings (textures) are still small functions in `sr
 
 ### 0d: drawing and storage for bigger worlds
 
-- One mesh per chunk with hidden faces removed and a texture atlas made at start-up (today: one instanced mesh per block type per chunk, one material each).
+Done on 2026-11-12, the drawing of plain blocks:
+
+- `src/chunkmesh.js`: the plain blocks of a chunk (whole cubes that do not glow and are not see-through: grass, dirt, stone, sand, wood, planks, ores, wool...) are one mesh with only the faces that can be seen, all drawn from one atlas picture made at start-up. In the test scene the triangles drawn fell from about 75,000 to about 15,000, and the terrain needs one draw per chunk instead of one per kind of block.
+- Each atlas tile has its edges stretched 8 pixels outwards, so no lines show between blocks when they are drawn small.
+- Light is still one value per block, painted on its corners, so the look is the same as before. Aiming reads the block from the face that was hit.
+- Shaped, see-through and glowing blocks (torches, glass, water, lava, plants, fences, beds, lanterns, furnaces, amber) stay as they were, one instanced mesh per kind per chunk: they are few, and each has its own material.
+
+Still to do:
+
 - One entity list for animals, monsters and arrows, with shared movement and collision.
 - Storage: worlds live in `localStorage`, which is small. Before any world larger than 129 × 129, move worlds to IndexedDB or to files through the Swift bridge. **This changes where saves live, so it will be asked about before it is done.**
 - Generating in a Web Worker only if WKWebView proves reliable with the custom `bieltructor://` scheme; otherwise spread over frames.
