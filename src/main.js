@@ -175,6 +175,7 @@ import "./style.css";
 import { strings } from "./strings.js";
 import { installSmokeTests } from "./dev/smoke-tests.js";
 import { safeStorage, snapshotWorld, createCloud } from "./persistence.js";
+import { createRandom } from "./random.js";
 import {
   escapeHtml,
   field,
@@ -294,6 +295,9 @@ try {
 } catch {
   progress = createProgress();
 }
+// Rolls for the rules of the game (what a block drops, where a monster
+// appears, the weather). Seeded again for each world that is loaded.
+let roll = createRandom(Date.now());
 const makeId = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 store.migrate(makeId);
@@ -2510,6 +2514,8 @@ spawn();
 // Rebuilds the scene for a world: generated terrain plus the player's edits.
 function loadWorld(w) {
   world = w;
+  // The same world at the same age rolls the same way.
+  roll = createRandom(`${w.id}:${Math.floor(w.age ?? 0)}`);
   store.setCurrent(w.id);
   useTerrain({ seed: w.seed, size: w.size, gen: w.gen });
   water.scale.setScalar((SIZE * 2 + 90) / 125);
@@ -2847,7 +2853,7 @@ function interactWith(a) {
   if (a === riding) return;
   const kind = ANIMALS[a.type],
     held = creative() && kind.tameWith && !a.tamed ? kind.tameWith : heldId();
-  const res = interact(a, held, world.age, Math.random());
+  const res = interact(a, held, world.age, roll());
   const who = nested("animalNames", a.type);
   animalVoice(a);
   if (res.use && !creative()) inventory.remove(res.use, 1);
@@ -2996,8 +3002,8 @@ function updateFish(dt) {
     school.children.forEach((f, i) => {
       f.userData.home = null;
       for (let tries = 0; tries < 12 && !f.userData.home; tries++) {
-        const x = Math.round(player.x + (Math.random() - 0.5) * 28),
-          z = Math.round(player.z + (Math.random() - 0.5) * 28),
+        const x = Math.round(player.x + (roll() - 0.5) * 28),
+          z = Math.round(player.z + (roll() - 0.5) * 28),
           floor = topAt(x, z);
         if (
           Math.abs(x) <= SIZE &&
@@ -3123,9 +3129,9 @@ function updateAnimals(dt) {
     } else {
       a.timer = (a.timer ?? 0) - dt;
       if (a.timer <= 0) {
-        a.walking = Math.random() < 0.6;
-        a.yaw += (Math.random() - 0.5) * 2.4;
-        a.timer = 2 + Math.random() * 3;
+        a.walking = roll() < 0.6;
+        a.yaw += (roll() - 0.5) * 2.4;
+        a.timer = 2 + roll() * 3;
       }
       if (a.walking) speed = ANIMALS[a.type].speed;
     }
@@ -3139,7 +3145,7 @@ function updateAnimals(dt) {
         ny - a.y > 1.05 ||
         (ny < WATER_LEVEL - 0.3 && !a.tamed);
       if (blocked) {
-        a.yaw += Math.PI * (0.5 + Math.random());
+        a.yaw += Math.PI * (0.5 + roll());
         a.timer = 1;
         speed = 0;
       } else {
@@ -3188,7 +3194,7 @@ function addMonster(type, at, small = false, quiet = false) {
     small,
     cooldown: 1,
     warned: false,
-    hop: Math.random() * 6,
+    hop: roll() * 6,
     flash: 0,
   };
   m.mesh =
@@ -3208,9 +3214,9 @@ const underground = () =>
 // A dark empty spot in the cave near Biel, with floor under it.
 function caveSpot() {
   for (let i = 0; i < 24; i++) {
-    const x = Math.round(player.x + (Math.random() - 0.5) * 20),
-      z = Math.round(player.z + (Math.random() - 0.5) * 20),
-      y = Math.round(player.y + (Math.random() - 0.5) * 6);
+    const x = Math.round(player.x + (roll() - 0.5) * 20),
+      z = Math.round(player.z + (roll() - 0.5) * 20),
+      y = Math.round(player.y + (roll() - 0.5) * 6);
     if (Math.hypot(x - player.x, z - player.z) < 6) continue;
     if (
       blocks.has(key(x, y, z)) ||
@@ -3244,7 +3250,7 @@ function trySpawnMonster() {
   const spot = below
     ? caveSpot()
     : spawnSpot({
-        rand: Math.random,
+        rand: roll,
         player,
         lights: lightBlocks,
         lightAt: light
@@ -3254,7 +3260,7 @@ function trySpawnMonster() {
       });
   if (!spot) return null;
   const types = allowedMonsters(world.options.difficulty, below);
-  const m = addMonster(types[Math.floor(Math.random() * types.length)], spot);
+  const m = addMonster(types[Math.floor(roll() * types.length)], spot);
   m.cave = below;
   return m;
 }
@@ -3515,7 +3521,7 @@ function updateMonsters(dt) {
     // At sunrise they fizzle away in sparkles (cave monsters stay in the dark).
     if (!night && !(m.cave && underground())) {
       // Each one fizzles at its own moment, within two seconds.
-      m.dawn = (m.dawn ?? Math.random() * 2) - dt;
+      m.dawn = (m.dawn ?? roll() * 2) - dt;
       if (m.dawn <= 0) removeMonster(m);
       continue;
     }
@@ -3770,8 +3776,8 @@ function updateWeather(dt, inGame) {
     world.weather = validateWeather(world.weather);
     if (world.age >= world.weather.until)
       world.weather = {
-        state: nextWeather(Math.random, world.options.difficulty),
-        until: world.age + weatherLength(Math.random),
+        state: nextWeather(roll, world.options.difficulty),
+        until: world.age + weatherLength(roll),
       };
     state = world.weather.state;
   }
@@ -3819,7 +3825,7 @@ function updateWeather(dt, inGame) {
   if (inGame && state === "storm") {
     thunderClock -= dt;
     if (thunderClock <= 0) {
-      thunderClock = 6 + Math.random() * 12;
+      thunderClock = 6 + roll() * 12;
       thunder();
     }
   }
@@ -4353,7 +4359,7 @@ function growCrops(dt) {
       type,
       step,
       raining() || isWatered(topAt, x, z),
-      Math.random(),
+      roll(),
     );
     if (grown !== type) {
       blocks.set(k, grown);
@@ -4385,7 +4391,7 @@ function castLine() {
     topAt(Math.round(hit.point.x), Math.round(hit.point.z)) + 0.5 >= WATER_LEVEL
   )
     return;
-  fishing = { until: elapsed + 2 + Math.random() * 3, from: player.clone() };
+  fishing = { until: elapsed + 2 + roll() * 3, from: player.clone() };
   bobber.position.copy(hit.point);
   bobber.visible = true;
   toast(t("fishing"));
@@ -4774,7 +4780,7 @@ function edit(place) {
     tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
-      const got = drops(type, heldId(), Math.random());
+      const got = drops(type, heldId(), roll());
       const kind = ITEMS[heldId()]?.tool;
       if (kind && kind !== "bow" && kind !== "rod") wearHeld();
       if (cropInfo(type)?.crop === "wheat" && cropInfo(type).stage === 3)
@@ -5259,6 +5265,7 @@ document.body.append(statsEl);
 let statsOn = false,
   statsFrames = 0,
   statsClock = 0,
+  statsWork = 0,
   twoFingerTaps = [];
 function toggleStats() {
   statsOn = !statsOn;
@@ -5287,8 +5294,13 @@ function updateStats(dt) {
   statsFrames++;
   statsClock += dt;
   if (!statsOn || statsClock < 0.5) return;
-  const shown = [...chunks.values()].filter((c) => c.meshes[0]?.visible).length;
-  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""}`;
+  const shown = [...chunks.values()].filter((c) => c.meshes[0]?.visible).length,
+    [bx, by, bz] = [player.x, player.y + 1, player.z].map(Math.round),
+    place = world
+      ? ` · ${bx}, ${by}, ${bz} · ${biomeAt(bx, bz)} · light ${light?.inside(bx, by, bz) ? light.level(bx, by, bz, paintedDay < 0 ? 1 : paintedDay) : "-"}`
+      : "";
+  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""} · ${(statsWork / statsFrames).toFixed(1)} ms${place}`;
+  statsWork = 0;
   statsFrames = 0;
   statsClock = 0;
 }
@@ -5299,7 +5311,9 @@ window.nativePowerSaving = (on) => (lowPower = !!on);
 function animate(now) {
   if (!lowPower || now - lastDrawn > 30) {
     lastDrawn = now;
+    const before = performance.now();
     frame(now);
+    statsWork += performance.now() - before;
   }
   requestAnimationFrame(animate);
 }
