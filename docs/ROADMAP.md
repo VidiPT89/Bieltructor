@@ -26,7 +26,7 @@ Last updated: 2026-11-12 (phase 0a).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, 132 unit tests, 211 in-game checks, UI test | Automatic backups (last three per world), parents' summary, `docs/ARCHITECTURE.md` |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, 134 unit tests, 218 in-game checks, UI test, `docs/ARCHITECTURE.md` | Automatic backups (last three per world), parents' summary |
 
 ## Phase 0 in parts
 
@@ -64,5 +64,5 @@ Blocks are numbers in `src/world.js`, and their colour, texture, shape, light an
 ## Known problems
 
 - Not yet tried on real devices: mining with a finger, a long session on the 6th generation iPad (fps and heat), physical controllers, iCloud between two devices.
-- Items that do not fit in a full backpack when a block is broken are lost (there are no items lying on the ground yet; phase 4).
+- Mining and animal products now wait until everything fits. Combat/hunting and fishing loot can still be lost with a full backpack (persistent dropped items remain phase 4).
 - `src/main.js` is about 5,700 lines and mixes screens, input and rules. Parts 0b and 0c take rules and tables out of it.

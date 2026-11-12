@@ -7,6 +7,27 @@ const material = (color) => {
     cache.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
   return cache.get(color);
 };
+// Model geometries and custom materials belong to the model. Colours in
+// the cache are shared by other animals and must stay alive. Sprite geometry
+// is also shared internally by Three, but each label owns its canvas texture.
+export function disposeModel(model) {
+  const shared = new Set(cache.values());
+  const geometries = new Set(),
+    materials = new Set(),
+    textures = new Set();
+  model.traverse((node) => {
+    if (node.isMesh) geometries.add(node.geometry);
+    for (const mat of [node.material].flat().filter(Boolean)) {
+      if (shared.has(mat)) continue;
+      materials.add(mat);
+      if (mat.map) textures.add(mat.map);
+    }
+  });
+  for (const geometry of geometries) geometry.dispose();
+  for (const texture of textures) texture.dispose();
+  for (const mat of materials) mat.dispose();
+  model.removeFromParent();
+}
 function box(parent, [w, h, d], [x, y, z], color) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(color));
   m.position.set(x, y, z);

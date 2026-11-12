@@ -111,7 +111,15 @@ import {
   huntable,
   hitAnimal,
 } from "./creatures.js";
-import { MODELS, nameTag, arrow, bird, bee, fish } from "./models.js";
+import {
+  MODELS,
+  disposeModel,
+  nameTag,
+  arrow,
+  bird,
+  bee,
+  fish,
+} from "./models.js";
 import {
   CHALLENGES,
   createProgress,
@@ -373,11 +381,135 @@ const word = (name) =>
   settings.icons ? `<span class="icon-word">${ICONS[name]}</span>` : t(name);
 // With pictures, the button still says its name to VoiceOver.
 const say = (name) => (settings.icons ? `aria-label="${t(name)}"` : "");
-// Blocks show their colour; other items show a picture.
-const icon = (id) =>
-  ITEMS[id].block !== undefined
-    ? `<i class="swatch" style="--block:#${colors[ITEMS[id].block].toString(16).padStart(6, "0")}"></i>`
-    : `<span class="item-icon">${ITEMS[id].icon}</span>`;
+// Blocks show the same drawing they have in the world (their colour until
+// the drawings exist); other items show a picture.
+let blockPictures = null;
+// Things with their own shape get a small drawing of that shape, since
+// their texture alone would look like a plain square.
+const bars = (ctx, color, list) => {
+  ctx.fillStyle = color;
+  for (const [x, y, w, h] of list) ctx.fillRect(x, y, w, h);
+};
+const SHAPE_PICTURES = {
+  [TORCH]: (ctx) => {
+    bars(ctx, "#8a5a33", [[7, 6, 2, 9]]);
+    bars(ctx, "#f2a12b", [[6, 2, 4, 4]]);
+    bars(ctx, "#ffe07a", [[7, 3, 2, 2]]);
+  },
+  [LADDER]: (ctx) => {
+    bars(ctx, "#8a5a33", [
+      [3, 1, 2, 14],
+      [11, 1, 2, 14],
+    ]);
+    bars(ctx, "#b98552", [
+      [5, 3, 6, 1],
+      [5, 7, 6, 1],
+      [5, 11, 6, 1],
+    ]);
+  },
+  [FENCE]: (ctx) => {
+    bars(ctx, "#8a5a33", [
+      [2, 3, 3, 12],
+      [11, 3, 3, 12],
+    ]);
+    bars(ctx, "#b98552", [
+      [0, 6, 16, 2],
+      [0, 11, 16, 2],
+    ]);
+  },
+  [GATE]: (ctx) => {
+    bars(ctx, "#8a5a33", [
+      [1, 2, 2, 13],
+      [13, 2, 2, 13],
+    ]);
+    bars(ctx, "#b98552", [
+      [3, 5, 10, 2],
+      [3, 10, 10, 2],
+      [7, 5, 2, 7],
+    ]);
+    bars(ctx, "#f2c14e", [[10, 8, 2, 1]]);
+  },
+  [TRAPDOOR]: (ctx) => {
+    bars(ctx, "#9a6a3c", [[1, 4, 14, 9]]);
+    bars(ctx, "#6c4325", [
+      [1, 4, 14, 1],
+      [1, 12, 14, 1],
+      [1, 4, 1, 9],
+      [14, 4, 1, 9],
+      [5, 5, 1, 7],
+      [10, 5, 1, 7],
+    ]);
+    bars(ctx, "#f2c14e", [[7, 8, 2, 1]]);
+  },
+  [SIGN]: (ctx) => {
+    bars(ctx, "#8a5a33", [[7, 9, 2, 6]]);
+    bars(ctx, "#c08a55", [[2, 2, 12, 7]]);
+    bars(ctx, "#6c4325", [
+      [4, 4, 8, 1],
+      [4, 6, 6, 1],
+    ]);
+  },
+  [POT]: (ctx) => {
+    bars(ctx, "#5f9f4a", [
+      [7, 2, 2, 6],
+      [4, 3, 3, 2],
+      [9, 4, 3, 2],
+    ]);
+    bars(ctx, "#b5603c", [
+      [3, 8, 10, 2],
+      [4, 10, 8, 5],
+    ]);
+  },
+  [LANTERN]: (ctx) => {
+    bars(ctx, "#3b3f40", [
+      [6, 1, 4, 2],
+      [4, 3, 8, 2],
+      [4, 12, 8, 2],
+      [4, 5, 1, 7],
+      [11, 5, 1, 7],
+    ]);
+    bars(ctx, "#ffd36b", [[5, 5, 6, 7]]);
+    bars(ctx, "#fff4c2", [[7, 7, 2, 3]]);
+  },
+};
+function drawBlockPictures() {
+  blockPictures = new Set();
+  const rules = [];
+  materials.forEach((material, type) => {
+    try {
+      let image = material?.map?.image;
+      const draw = SHAPE_PICTURES[type];
+      if (draw) {
+        image = document.createElement("canvas");
+        image.width = image.height = 16;
+        draw(image.getContext("2d"));
+      }
+      // Translucent materials such as ice have no world texture.
+      // Give their inventory picture the same pixel finish as other blocks.
+      if (!image) {
+        const preview = texture(colors[type]);
+        image = preview.image;
+        preview.dispose();
+      }
+      const url = image?.toDataURL?.();
+      if (!url) return;
+      rules.push(`.blk-${type}{--img:url(${url})}`);
+      // Flowers, mushrooms, crops and shaped things are drawn alone,
+      // without a block behind.
+      blockPictures.add(type + (draw || material.alphaTest ? ":plant" : ""));
+    } catch {}
+  });
+  const sheet = document.createElement("style");
+  sheet.textContent = rules.join("");
+  document.head.append(sheet);
+}
+const icon = (id) => {
+  const type = ITEMS[id].block;
+  if (type === undefined)
+    return `<span class="item-icon">${ITEMS[id].icon}</span>`;
+  if (!blockPictures) drawBlockPictures();
+  return `<i class="swatch blk-${type}${blockPictures.has(type + ":plant") ? " plant" : ""}" style="--block:#${colors[type].toString(16).padStart(6, "0")}"></i>`;
+};
 // One line of the recipe book: what it makes, what it needs and a button.
 function recipeRow(r, bench, act, label) {
   const ok = canCraft(inventory, r, bench);
@@ -2565,8 +2697,10 @@ function loadWorld(w) {
   riding = null;
   setupAnimals();
   for (const m of [...monsters]) removeMonster(m, false);
-  for (const a of arrows) scene.remove(a.mesh);
+  for (const a of [...arrows, ...bielArrows]) disposeModel(a.mesh);
   arrows = [];
+  bielArrows = [];
+  drawStart = null;
   // Monsters from last time come back where they were.
   for (const saved of validateMonsters(w.monsters).filter(
     (m) =>
@@ -2816,7 +2950,7 @@ function setupAnimals() {
     }
     world.animalsSpawned = true;
   }
-  animalGroup.clear();
+  for (const model of [...animalGroup.children]) disposeModel(model);
   for (const a of animals) {
     a.mesh = MODELS[a.type]();
     a.mesh.userData.animal = a;
@@ -2836,13 +2970,19 @@ const DYE_COLORS = {
 };
 function dressAnimal(a) {
   const m = a.mesh;
-  if (m.userData.wool && a.color)
+  if (m.userData.wool && a.color) {
+    if (m.userData.dyedWool) m.userData.wool.material.dispose();
+    m.userData.dyedWool = true;
     m.userData.wool.material = new THREE.MeshStandardMaterial({
       color: DYE_COLORS[a.color],
       roughness: 0.9,
     });
+  }
   if (m.userData.collar) m.userData.collar.visible = a.tamed;
-  if (m.userData.tag) m.remove(m.userData.tag);
+  if (m.userData.tag) {
+    disposeModel(m.userData.tag);
+    m.userData.tag = null;
+  }
   if (a.tamed && a.name) {
     m.userData.tag = nameTag(a.name);
     m.userData.tag.position.y = 1.35;
@@ -2857,15 +2997,19 @@ function interactWith(a) {
   const who = nested("animalNames", a.type);
   animalVoice(a);
   if (res.use && !creative()) inventory.remove(res.use, 1);
-  // With a full backpack the animal keeps what it had and can be asked again.
-  const noRoom = () => {
+  // Collect every product together: a partial stack must not duplicate wool
+  // or lose the chicken's feather when the animal is asked again.
+  if (
+    res.give &&
+    !creative() &&
+    !inventory.collect([res.give, ...(res.extra ? [res.extra] : [])])
+  ) {
     a.readyAt = 0;
     toast(t("full"));
-  };
+    return;
+  }
   if (res.result === "gave") {
-    if (!creative() && inventory.add(...res.give)) noRoom();
-    else toast(t("gave_" + a.type) + (res.extra ? " " + t("gotFeather") : ""));
-    if (res.extra && !creative()) inventory.add(...res.extra);
+    toast(t("gave_" + a.type) + (res.extra ? " " + t("gotFeather") : ""));
     beepAt(620, 920);
   } else if (res.result === "tamed") {
     hearts(a);
@@ -2877,8 +3021,7 @@ function interactWith(a) {
     namingDog = a;
     mode = "namedog";
   } else if (res.result === "shorn") {
-    if (!creative() && inventory.add(...res.give)) noRoom();
-    else toast(t("shorn", { n: res.give[1] }));
+    toast(t("shorn", { n: res.give[1] }));
     beepAt(620, 920);
     wearHeld();
   } else if (res.result === "mount") {
@@ -3048,7 +3191,8 @@ function breedAnimals(dt) {
       .filter(([, d]) => d > 40)
       .sort((a, b) => b[1] - a[1])[0]?.[0];
     if (far) {
-      animalGroup.remove(far.mesh);
+      disposeModel(far.mesh);
+      if (targetAnimal === far) targetAnimal = null;
       animals = animals.filter((x) => x !== far);
     }
   }
@@ -3301,7 +3445,7 @@ function puffBoom(m) {
 }
 function removeMonster(m, poof = true) {
   if (poof) sparkle([m.x, m.y + 0.6, m.z]);
-  monsterGroup.remove(m.mesh);
+  disposeModel(m.mesh);
   monsters = monsters.filter((x) => x !== m);
   if (targetMonster === m) targetMonster = null;
 }
@@ -3423,7 +3567,7 @@ function catchAnimal(a) {
     return;
   }
   sparkle([a.x, a.y + 0.5, a.z]);
-  animalGroup.remove(a.mesh);
+  disposeModel(a.mesh);
   animals = animals.filter((x) => x !== a);
   if (targetAnimal === a) targetAnimal = null;
   for (const [id, n] of give) if (inventory.add(id, n)) toast(t("full"));
@@ -3489,7 +3633,7 @@ function updateBielArrows(dt) {
       key(Math.round(p.x), Math.round(p.y), Math.round(p.z)),
     );
     if (foe || (t0 !== undefined && !passable(t0)) || a.life <= 0) {
-      scene.remove(a.mesh);
+      disposeModel(a.mesh);
       bielArrows = bielArrows.filter((x) => x !== a);
     }
   }
@@ -3650,7 +3794,7 @@ function updateMonsters(dt) {
         z: p.z - a.vel.z,
       });
     if (hitBiel || hitBlock || a.life <= 0) {
-      scene.remove(a.mesh);
+      disposeModel(a.mesh);
       arrows = arrows.filter((x) => x !== a);
     }
   }
@@ -4416,7 +4560,7 @@ function updateFishing() {
 const signGroup = new THREE.Group();
 scene.add(signGroup);
 function refreshSigns() {
-  signGroup.clear();
+  for (const tag of [...signGroup.children]) disposeModel(tag);
   for (const [k, text] of Object.entries(world?.signs ?? {})) {
     if (blocks.get(k) !== SIGN) continue;
     const [x, y, z] = k.split(",").map(Number);
@@ -4449,7 +4593,7 @@ function openContainer(type, k) {
   open(type === CHEST ? "chest" : "furnace");
   render();
 }
-function emptyContainer(type, k) {
+function emptyContainer(type, k, extra = []) {
   const items =
     type === CHEST
       ? chestAt(k)
@@ -4458,7 +4602,7 @@ function emptyContainer(type, k) {
       : ["input", "fuel", "output"]
           .map((slot) => validateFurnace(world.furnaces[k])[slot])
           .filter(Boolean);
-  if (!inventory.collect(items)) {
+  if (!inventory.collect([...items, ...extra])) {
     toast(t("full"));
     return false;
   }
@@ -4770,8 +4914,13 @@ function edit(place) {
     }
   } else {
     const type = blocks.get(k);
-    if ((type === CHEST || type === FURNACE) && !emptyContainer(type, k))
+    const got = creative() ? [] : drops(type, heldId(), roll());
+    if (type === CHEST || type === FURNACE) {
+      if (!emptyContainer(type, k, got)) return;
+    } else if (!inventory.collect(got)) {
+      toast(t("full"));
       return;
+    }
     burst(p, type);
     if (type === SIGN) {
       delete world.signs[k];
@@ -4780,7 +4929,6 @@ function edit(place) {
     tutorialEvent("break");
     // Adventure: what you break goes into the backpack.
     if (!creative()) {
-      const got = drops(type, heldId(), roll());
       const kind = ITEMS[heldId()]?.tool;
       if (kind && kind !== "bow" && kind !== "rod") wearHeld();
       if (cropInfo(type)?.crop === "wheat" && cropInfo(type).stage === 3)
@@ -4789,7 +4937,6 @@ function edit(place) {
         emit("got:" + id);
         if (id === "iron_ore") emit("got:iron");
       }
-      for (const [id, n] of got) if (inventory.add(id, n)) toast(t("full"));
       if (got.length)
         setTimeout(() => flashLabel(`+${got[0][1]} ${itemName(got[0][0])}`));
     }
@@ -5179,6 +5326,7 @@ function frame(now) {
     rightLeg.rotation.x = -stride;
     leftArm.rotation.x = -stride;
     rightArm.rotation.x = attackCooldown > 0.25 ? -1.6 : stride;
+    rightArm.rotation.z = 0;
     head.rotation.z = Math.sin(elapsed * 2) * 0.025;
     look.copy(player).add(new THREE.Vector3(0, 1.5, 0));
     if (firstPerson) {
@@ -5214,8 +5362,11 @@ function frame(now) {
       groundY = height(ax, az);
     biel.position.set(ax + 6, height(ax + 6, az + 5) + 0.51, az + 5);
     biel.rotation.y = 0.55;
+    // Both arms hang the same way and sway a little, one after the other.
     leftArm.rotation.x = Math.sin(elapsed * 2) * 0.12;
-    rightArm.rotation.z = -0.15 + Math.sin(elapsed * 2) * 0.08;
+    rightArm.rotation.x = -Math.sin(elapsed * 2) * 0.12;
+    rightArm.rotation.z = 0;
+    leftLeg.rotation.x = rightLeg.rotation.x = 0;
     head.rotation.z = Math.sin(elapsed) * 0.04;
     camera.position.set(
       ax + 12 + Math.sin(elapsed * 0.07) * 1.3,

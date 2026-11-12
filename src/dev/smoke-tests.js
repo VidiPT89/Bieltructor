@@ -42,7 +42,7 @@ import { NOON } from "../daynight.js";
 import { RECIPES, canCraft } from "../recipes.js";
 import { hurt } from "../survival.js";
 import { normalizeParents } from "../parents.js";
-import { breakTime, toolUses } from "../items.js";
+import { ITEMS, breakTime, toolUses } from "../items.js";
 import { Inventory } from "../inventory.js";
 import { strings } from "../strings.js";
 import { emptyFurnace } from "../smelting.js";
@@ -97,6 +97,23 @@ export function installSmokeTests(g) {
       );
       for (let i = 0; i < 30; i++) g.frame(g.last + 16);
       check("spawn above ground", !collides(g.blocks, g.player));
+      g.action("inventory");
+      const pictures = [...g.app.querySelectorAll(".swatch")];
+      check(
+        "creative blocks have visible pictures",
+        pictures.length > 40 &&
+          pictures.every((el) =>
+            getComputedStyle(el).backgroundImage.includes("data:image/png"),
+          ),
+      );
+      const mushroom = g.app.querySelector(`.blk-${ITEMS.mushroom.block}`);
+      check(
+        "mushroom picture has no coloured square behind it",
+        mushroom &&
+          getComputedStyle(mushroom).backgroundColor === "rgba(0, 0, 0, 0)" &&
+          getComputedStyle(mushroom).transform === "none",
+      );
+      g.action("back");
       const before = g.player.clone();
       g.keys.add("KeyW");
       for (let i = 0; i < 25; i++) g.frame(g.last + 16);
@@ -863,6 +880,30 @@ export function installSmokeTests(g) {
         g.blocks.get(chestKey) === CHEST &&
           JSON.stringify(g.world.chests[chestKey]) === chestContents,
       );
+      // Even if the contents fit, leave the chest intact unless its block fits too.
+      g.world.chests[chestKey] = [["dirt", 1]];
+      g.inventory.slots[1] = { id: "dirt", count: 63 };
+      g.edit(false);
+      check(
+        "breaking a chest collects contents and block atomically",
+        g.blocks.get(chestKey) === CHEST &&
+          g.inventory.count("dirt") === 63 &&
+          g.world.chests[chestKey][0][1] === 1,
+      );
+      const fullBagBlock = [cx0 + 2, MAX_Y - 3, cz0];
+      g.setBlock(fullBagBlock, 4);
+      g.target = { p: fullBagBlock, normal: new THREE.Vector3(0, 1, 0) };
+      g.edit(false);
+      check(
+        "a full backpack leaves mined materials in the world",
+        g.blocks.get(key(...fullBagBlock)) === 4,
+      );
+      g.inventory.slots[2] = null;
+      g.edit(false);
+      check(
+        "mining resumes when the backpack has room",
+        !g.blocks.has(key(...fullBagBlock)) && g.inventory.count("wood") === 1,
+      );
       g.inventory = Inventory.from(beforeTransfer);
       const fx0 = cx0 + 1;
       g.inventory.add("furnace", 1);
@@ -1221,6 +1262,27 @@ export function installSmokeTests(g) {
         "shears give more wool",
         g.inventory.count("wool") === woolBefore + 3,
       );
+      const beforeFullShearing = g.inventory.toJSON();
+      g.inventory = new Inventory();
+      for (let i = 0; i < 36; i++) g.inventory.add("wooden_sword");
+      g.inventory.slots[0] = { id: "shears", count: 1 };
+      g.inventory.slots[1] = { id: "wool", count: 63 };
+      shorn.readyAt = 0;
+      g.interactWith(shorn);
+      g.interactWith(shorn);
+      check(
+        "partial room cannot duplicate wool or wear the shears",
+        g.inventory.count("wool") === 63 &&
+          !g.inventory.slots[0].wear &&
+          shorn.readyAt === 0,
+      );
+      g.inventory.slots[2] = null;
+      g.interactWith(shorn);
+      check(
+        "the sheep gives its full wool once there is room",
+        g.inventory.count("wool") === 66 && shorn.readyAt > g.world.age,
+      );
+      g.inventory = Inventory.from(beforeFullShearing);
       // A game controller drives the same actions.
       const padStart = g.player.clone();
       window.nativeGamepad({ ly: -1 });

@@ -545,7 +545,8 @@ kbd {
   width: 26px;
   height: 27px;
   margin: 7px auto 0;
-  background: var(--block);
+  background: var(--block) var(--img, none) center / 100% 100%;
+  image-rendering: pixelated;
   box-shadow:
     inset -7px -5px 0 #0002,
     inset 0 6px 0 #fff2;
@@ -1157,7 +1158,8 @@ kbd {
   display: block;
   width: 28px;
   height: 28px;
-  background: var(--block);
+  background: var(--block) var(--img, none) center / 100% 100%;
+  image-rendering: pixelated;
   box-shadow:
     inset -7px -5px 0 #0002,
     inset 0 6px 0 #fff2;
@@ -1793,7 +1795,8 @@ kbd {
   display: block;
   width: 26px;
   height: 26px;
-  background: var(--block);
+  background: var(--block) var(--img, none) center / 100% 100%;
+  image-rendering: pixelated;
   box-shadow:
     inset -7px -5px 0 #0002,
     inset 0 6px 0 #fff2;
@@ -1837,4 +1840,11 @@ kbd {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+/* Flowers, mushrooms and crops show their own drawing, not a tilted block. */
+.slot i.plant,
+.swatch.plant {
+  background-color: transparent;
+  box-shadow: none;
+  transform: none;
 }
