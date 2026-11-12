@@ -17,7 +17,7 @@ The rules advance in fixed ticks of 50 ms (20 a second), whatever the drawing ra
 
 Still once per drawn frame, with a step capped at 40 ms: Biel's movement, jumping, swimming and falls, the camera, mining progress, the bow, particles, bees, birds and fish, the swing of legs, heads and tails (`poseCreatures()`), the sky, rain drops and sound. The horse Biel rides follows him every frame. The ambient fish take their rolls from a fork of the world's generator, so drawing faster or slower never shifts the rolls the rules see.
 
-`src/world.js` owns block IDs, terrain, shapes used for collision and save validation. `src/main.js` owns the rendering materials, geometries, chunk instances and generated inventory pictures. Changing a block rebuilds its chunk and affected neighbours. Terrain and initial animals retain their original seeded algorithms so existing worlds do not change.
+`src/blocks.js` is the block table: one entry per block with a text ID, base colour, light, whether it can be walked through, whether light passes and its shape when it is not a whole cube. The place of an entry is the number written in saved worlds, so entries are only added at the end. `src/world.js` names the blocks the rules need, and owns terrain, collision and save validation. `src/main.js` builds the materials and geometries from the table, and owns the textures, chunk instances and generated inventory pictures. Changing a block rebuilds its chunk and affected neighbours. Terrain and initial animals retain their original seeded algorithms so existing worlds do not change.
 
 ## Rules and interfaces
 

@@ -2,13 +2,13 @@
 
 This follows the 18-phase v3 brief (`prompt-bieltructor-v3.md`). The brief was written against the first version of the game (57 × 57 world, 8 materials, 23 smoke checks). The repository is already far past that, so each phase starts from what exists. One phase, or one part of a phase, per session.
 
-Last updated: 2026-11-12 (phase 0b).
+Last updated: 2026-11-12 (phase 0c).
 
 ## Where each phase stands
 
 | Phase | State | What exists | What is missing |
 |---|---|---|---|
-| 0 Foundations | **in progress (0a and 0b done)** | Rules in fixed ticks of 20 a second with interpolated drawing, chunks of 16 × 16 with only the edited chunk redrawn, input action layer, F3 overlay, saves that keep only the changes from the seed, seeded terrain, data tables for items, recipes, animals, monsters and difficulty | See "Phase 0 in parts" below |
+| 0 Foundations | **in progress (0a, 0b and 0c done)** | One block table with text IDs, rules in fixed ticks of 20 a second with interpolated drawing, chunks of 16 × 16 with only the edited chunk redrawn, input action layer, F3 overlay, saves that keep only the changes from the seed, seeded terrain, data tables for items, recipes, animals, monsters and difficulty | See "Phase 0 in parts" below |
 | 1 Worlds, modes, difficulty | mostly done | New-world screen with preview, Creative and Adventure, four difficulties in `difficultyRules`, six worlds with rename, duplicate, export, import and delete | Flat, islands-only and single-biome worlds; 256 and 512 sizes; welcome chest; structures switch; photo mode; magic panel; "one life"; eight worlds instead of six |
 | 2 Day, night, light, weather | mostly done | Day and night, block light 0 to 15 in two channels, beds, rain, snow, storms, campfires put out by rain | Moon phases, shooting stars, ambient occlusion, rainbow, fog, wind, light in the hand, seasons |
 | 3 World generation | partly done | Six biomes, caves with lakes, ores by depth, water and lava that flow, ruins, cabins and wells with seeded treasure | Height 96, most biomes, tree kinds and saplings, deep stone, falling sand, the larger structures |
@@ -26,7 +26,7 @@ Last updated: 2026-11-12 (phase 0b).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, 145 unit tests, 228 in-game checks, UI test, `docs/ARCHITECTURE.md` | Automatic backups (last three per world), parents' summary |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, 149 unit tests, 228 in-game checks, UI test, `docs/ARCHITECTURE.md` | Automatic backups (last three per world), parents' summary |
 
 ## Phase 0 in parts
 
@@ -53,9 +53,13 @@ Left for later, on purpose:
 - Biel's own movement, jumping and falls are still per frame (a 20 Hz step changes how jumping feels). They move to ticks with the shared entity list of 0d.
 - The in-game checks still call some `update…` functions directly with their own step (crops, furnaces, water, lava). They test the rule, not the clock.
 
-### 0c: block registry with text IDs (next)
+### 0c: block registry with text IDs (done, 2026-11-12)
 
-Blocks are numbers in `src/world.js`, and their colour, texture, shape, light and "can walk through" live in separate lists in `src/main.js`, `src/world.js` and `src/lighting.js`. Move them into one table keyed by a text ID (`"stone"`, `"torch"`), so a new block is one entry. Saves keep numbers today; the table maps both ways, so no save changes.
+- `src/blocks.js`: one entry per block with its text ID (`"stone"`, `"torch"`), base colour, light, "can walk through", "light passes" and its shape when it is not a whole cube (boxes or crossed panels). The place in the list is the number saved worlds use; `blockNumber()` and `blockId()` map both ways, so no save changes.
+- `src/world.js` takes its block names, `passable` and `seeThrough` from the table; `src/lighting.js` its light sources; `src/main.js` its colours and shapes. The four separate lists are gone.
+- `tests/block-registry.test.js`: every saved number still means the same block, the three rules match what they were before the table, every entry is well formed, and an item with the name of a block places that block.
+
+Left for later: the special drawings (textures) are still small functions in `src/main.js`, and the families (crops, wool and bed colours, water levels) are still found by arithmetic on their first number. Both move with the texture atlas of 0d.
 
 ### 0d: drawing and storage for bigger worlds
 
@@ -77,4 +81,4 @@ Blocks are numbers in `src/world.js`, and their colour, texture, shape, light an
 
 - Not yet tried on real devices: mining with a finger, a long session on the 6th generation iPad (fps and heat), physical controllers, iCloud between two devices.
 - Mining and animal products wait until everything fits. Combat, hunting and fishing overflow now uses persistent ground bags; individual loose-item models remain phase 4. Ground bags are capped at 64, with collection deferred rather than discarded when no destination has room.
-- `src/main.js` is about 5,700 lines and mixes screens, input and rules. Part 0b gathered the rules into one `simulationTick()`, still inside it; part 0c takes the block tables out.
+- `src/main.js` is about 5,700 lines and mixes screens, input and rules. Part 0b gathered the rules into one `simulationTick()`, still inside it; part 0c took the block tables out.

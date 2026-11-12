@@ -1,3 +1,5 @@
+import { BLOCKS, blockNumber } from "./blocks.js";
+
 // Half the width of the world and the height of the sea. They change with
 // the world that is loaded (see useTerrain), so they are live bindings.
 export let SIZE = 28;
@@ -5,67 +7,68 @@ export let WATER_LEVEL = 2.2;
 export const MAX_Y = 63,
   MAX_SIZE = 64;
 export const SIZES = { small: 28, medium: 48, large: 64 };
-// Block types: 0-7 natural materials and amber, then the building extras.
-export const GLASS = 8,
-  DOOR = 9,
-  DOOR_OPEN = 10,
-  PLANKS = 11,
-  BENCH = 12,
-  TORCH = 13,
-  BED = 14,
-  COAL = 15,
-  WOOL = 16,
-  FARMLAND = 17,
+// Block types by name. Their numbers, colours, shapes and light are in
+// blocks.js; 0 to 7 are the natural materials and amber.
+export const GLASS = blockNumber("glass"),
+  DOOR = blockNumber("door"),
+  DOOR_OPEN = blockNumber("door_open"),
+  PLANKS = blockNumber("planks"),
+  BENCH = blockNumber("bench"),
+  TORCH = blockNumber("torch"),
+  BED = blockNumber("bed"),
+  COAL = blockNumber("coal_ore"),
+  WOOL = blockNumber("wool"),
+  FARMLAND = blockNumber("farmland"),
   // Crops: three plants with four growing stages each (18 to 29).
-  CROP_BASE = 18,
-  SNOW = 30,
-  ICE = 31,
-  CACTUS = 32,
-  IRON_ORE = 33,
-  GOLD_ORE = 34,
-  CRYSTAL_ORE = 35,
-  GLOWSTONE = 36,
-  FLOWER = 37,
-  TALL_GRASS = 38,
-  MUSHROOM = 39,
-  CHEST = 40,
-  FURNACE = 41,
-  STONE_BRICK = 42,
+  CROP_BASE = blockNumber("wheat_0"),
+  SNOW = blockNumber("snow"),
+  ICE = blockNumber("ice"),
+  CACTUS = blockNumber("cactus"),
+  IRON_ORE = blockNumber("iron_ore"),
+  GOLD_ORE = blockNumber("gold_ore"),
+  CRYSTAL_ORE = blockNumber("crystal_ore"),
+  GLOWSTONE = blockNumber("glowstone"),
+  FLOWER = blockNumber("flower"),
+  TALL_GRASS = blockNumber("tall_grass"),
+  MUSHROOM = blockNumber("mushroom"),
+  CHEST = blockNumber("chest"),
+  FURNACE = blockNumber("furnace"),
+  STONE_BRICK = blockNumber("stone_brick"),
   // Building shapes: ladders, fences, gates, trapdoors, signs and pots.
-  LADDER = 43,
-  FENCE = 44,
-  GATE = 45,
-  GATE_OPEN = 46,
-  TRAPDOOR = 47,
-  TRAPDOOR_OPEN = 48,
-  SIGN = 49,
-  POT = 50,
+  LADDER = blockNumber("ladder"),
+  FENCE = blockNumber("fence"),
+  GATE = blockNumber("gate"),
+  GATE_OPEN = blockNumber("gate_open"),
+  TRAPDOOR = blockNumber("trapdoor"),
+  TRAPDOOR_OPEN = blockNumber("trapdoor_open"),
+  SIGN = blockNumber("sign"),
+  POT = blockNumber("pot"),
   // Wool in seven more colours (white wool is WOOL).
-  WOOL_BASE = 51,
+  WOOL_BASE = blockNumber("wool_red"),
   // Water: a still source, then flowing water at levels 3, 2 and 1.
-  WATER = 58,
-  FLOW_BASE = 59,
-  COPPER_ORE = 62,
-  COPPER_BLOCK = 63,
-  BEE_NEST = 64,
+  WATER = blockNumber("water"),
+  FLOW_BASE = blockNumber("water_flow_3"),
+  COPPER_ORE = blockNumber("copper_ore"),
+  COPPER_BLOCK = blockNumber("copper_block"),
+  BEE_NEST = blockNumber("bee_nest"),
   // Lava: a source and its short flow (only deep in the caves of new worlds).
-  LAVA = 65,
-  LAVA_FLOW = 66,
+  LAVA = blockNumber("lava"),
+  LAVA_FLOW = blockNumber("lava_flow"),
   // A campfire (lit, or put out by the rain), red sand, metal blocks,
   // a lantern and three more flowers.
-  CAMPFIRE = 67,
-  CAMPFIRE_OUT = 68,
-  RED_SAND = 69,
-  IRON_BLOCK = 70,
-  GOLD_BLOCK = 71,
-  LANTERN = 72,
-  BLUE_FLOWER = 73,
-  WHITE_FLOWER = 74,
-  YELLOW_FLOWER = 75,
+  CAMPFIRE = blockNumber("campfire"),
+  CAMPFIRE_OUT = blockNumber("campfire_out"),
+  RED_SAND = blockNumber("red_sand"),
+  IRON_BLOCK = blockNumber("iron_block"),
+  GOLD_BLOCK = blockNumber("gold_block"),
+  LANTERN = blockNumber("lantern"),
+  BLUE_FLOWER = blockNumber("blue_flower"),
+  WHITE_FLOWER = blockNumber("white_flower"),
+  YELLOW_FLOWER = blockNumber("yellow_flower"),
   // Beds in six more colours (the first bed is red), and cobblestone.
-  BED_BASE = 76,
-  COBBLESTONE = 82,
-  TYPES = 83;
+  BED_BASE = blockNumber("bed_orange"),
+  COBBLESTONE = blockNumber("cobblestone"),
+  TYPES = BLOCKS.length;
 // How much lava a block holds: 2 for a source, 1 for flowing lava.
 export const lavaLevel = (type) =>
   type === LAVA ? 2 : type === LAVA_FLOW ? 1 : 0;
@@ -102,8 +105,6 @@ export const OPENS = {
   [TRAPDOOR]: TRAPDOOR_OPEN,
   [TRAPDOOR_OPEN]: TRAPDOOR,
 };
-// Shapes that do not fill their whole block.
-const isShape = (type) => type >= LADDER && type <= POT;
 // Small plants drawn as two crossed panels.
 export const FLOWERS = [FLOWER, BLUE_FLOWER, WHITE_FLOWER, YELLOW_FLOWER];
 export const isPlant = (type) =>
@@ -116,33 +117,9 @@ export const cropInfo = (type) =>
     ? { crop: CROPS[(type - CROP_BASE) >> 2], stage: (type - CROP_BASE) & 3 }
     : null;
 // Biel walks through open doors and torches; light passes through the
-// blocks that do not fill their whole space.
-export const passable = (type) =>
-  type === DOOR_OPEN ||
-  type === TORCH ||
-  type === LADDER ||
-  type === GATE_OPEN ||
-  type === TRAPDOOR_OPEN ||
-  type === SIGN ||
-  type === POT ||
-  type === LANTERN ||
-  isLiquid(type) ||
-  cropInfo(type) !== null ||
-  isPlant(type);
-export const seeThrough = (type) =>
-  type === GLASS ||
-  isShape(type) ||
-  type === ICE ||
-  isPlant(type) ||
-  type === DOOR_OPEN ||
-  type === TORCH ||
-  isBed(type) ||
-  type === LANTERN ||
-  type === CAMPFIRE ||
-  type === CAMPFIRE_OUT ||
-  type === LAVA_FLOW ||
-  isWater(type) ||
-  cropInfo(type) !== null;
+// blocks that do not fill their whole space. Both come from blocks.js.
+export const passable = (type) => BLOCKS[type]?.passable === true;
+export const seeThrough = (type) => BLOCKS[type]?.clear === true;
 export const key = (x, y, z) => `${x},${y},${z}`;
 // Which way something is, as the map shows it (north is towards -z).
 const DIRECTIONS = [

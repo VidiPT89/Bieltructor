@@ -3,27 +3,14 @@
 // lanterns, glowstone, furnaces, campfires and lava light up their surroundings. Each step
 // away from a light loses one level.
 
-import {
-  TORCH,
-  GLOWSTONE,
-  FURNACE,
-  LAVA,
-  LAVA_FLOW,
-  CAMPFIRE,
-  LANTERN,
-} from "./world.js";
+import { BLOCKS } from "./blocks.js";
 
-// How much light each kind of block gives (7 is amber, which glows).
-export const LIGHT_SOURCES = {
-  [TORCH]: 14,
-  7: 15,
-  [GLOWSTONE]: 15,
-  [FURNACE]: 12,
-  [LAVA]: 15,
-  [LAVA_FLOW]: 13,
-  [CAMPFIRE]: 15,
-  [LANTERN]: 15,
-};
+// How much light each kind of block gives, by block number.
+export const LIGHT_SOURCES = Object.fromEntries(
+  BLOCKS.flatMap((block, number) =>
+    block.light ? [[number, block.light]] : [],
+  ),
+);
 export const MAX_LIGHT = 15;
 
 export class LightMap {

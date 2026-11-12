@@ -45,14 +45,11 @@ import {
   LADDER,
   FENCE,
   GATE,
-  GATE_OPEN,
   TRAPDOOR,
-  TRAPDOOR_OPEN,
   SIGN,
   POT,
   OPENS,
   WATER,
-  FLOW_BASE,
   isWater,
   COPPER_ORE,
   COPPER_BLOCK,
@@ -103,7 +100,7 @@ import { ITEMS, CREATIVE_BLOCKS, breakTime, drops, toolUses } from "./items.js";
 import { Inventory } from "./inventory.js";
 import { collectRewards } from "./loot.js";
 import { FixedStep, EntityInterpolation, TICK_SECONDS } from "./simulation.js";
-
+import { BLOCKS } from "./blocks.js";
 import {
   ANIMALS,
   initialAnimals,
@@ -334,30 +331,8 @@ const isNight = () => sky(skyTime()).night;
 const WEATHER_ICON = { clear: "", cloudy: " ☁︎", rain: " 🌧", storm: " ⛈" };
 const clock = () =>
   `${isNight() ? `☾︎ ${t("night")}` : `☀︎ ${t("day")}`}${WEATHER_ICON[world?.weather?.state ?? "clear"] ?? ""} · ${t("dayCount", { n: world?.day ?? 1 })}${lastBiome && lastBiome !== "valley" ? ` · ${nested("biomes", lastBiome)}` : ""}`;
-const colors = [
-  0x789b45, 0x95704c, 0x8e9797, 0xe9cf8b, 0x93633c, 0x447951, 0xbb6346,
-  0xefad36, 0xbfe6ec, 0x8a5a33, 0x8a5a33, 0xc08a55, 0xa0703f, 0xf2b544,
-  0xc8473c, 0x5b5f60, 0xf1ede4, 0x6b4a2e,
-  // Crops: wheat, carrot and potato, four stages each.
-  0x7cbf4e, 0x8bc34a, 0xa8c94a, 0xe0b54a, 0x6fbf5a, 0x76c25a, 0x7fc45a,
-  0xee8a2b, 0x6aa84f, 0x72ad52, 0x7db257, 0xb48a4c,
-  // Snow, ice, cactus, ores, glowstone, plants, chest, furnace, stone bricks.
-  0xf4f8fb, 0xa9d8ee, 0x4f9a46, 0x9a8b80, 0xd8b84a, 0x5fb8e8, 0xffd36b,
-  0xe85d8a, 0x6fae4e, 0xc8473c, 0x9a6a3c, 0x6b6f70, 0x8a9090,
-  // Ladder, fence, gate, open gate, trapdoor, open trapdoor, sign, pot.
-  0x9a6a3c, 0x8a5a33, 0x8a5a33, 0x8a5a33, 0x9a6a3c, 0x9a6a3c, 0xc08a55,
-  0xb5603c,
-  // Wool: red, orange, yellow, green, blue, purple, black.
-  0xc8473c, 0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30,
-  // Water (still, then flowing), copper ore, copper block, bee nest.
-  0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0x3f9fb4, 0xb87350, 0xd8834f, 0xe0b54a,
-  // Lava (source, flow), campfire (lit, out), red sand, iron and gold
-  // blocks, lantern, then blue, white and yellow flowers.
-  0xf06a1f, 0xf06a1f, 0x9a6a3c, 0x5b4a3c, 0xc9663a, 0xd9dcdc, 0xf2c94c,
-  0x3b3f40, 0x5f8fe8, 0xf4f1ea, 0xf2c94c,
-  // Beds: orange, yellow, green, blue, purple, black; then cobblestone.
-  0xe98d2b, 0xf2c94c, 0x5f9f4a, 0x3f6fc8, 0x8a4fb5, 0x2b2b30, 0x7f8787,
-];
+// The base colour of each block, by block number.
+const colors = BLOCKS.map((block) => block.color);
 function theme() {
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.classList.toggle("big-text", settings.bigText);
@@ -2015,45 +1990,6 @@ const torchMaterial = materials[TORCH];
 torchMaterial.emissive.set(0xffb347);
 torchMaterial.emissiveMap = torchMaterial.map;
 torchMaterial.emissiveIntensity = 0.6;
-// Torches are thin sticks and beds are low, so they get their own shapes.
-const shapes = {
-  [DOOR_OPEN]: new THREE.BoxGeometry(0.14, 1, 1).translate(-0.43, 0, 0),
-  [TORCH]: new THREE.BoxGeometry(0.16, 0.66, 0.16).translate(0, -0.17, 0),
-  [BED]: new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
-  ...Object.fromEntries(
-    BED_COLORS.map((color) => [
-      bedBlock(color),
-      new THREE.BoxGeometry(1, 0.56, 1).translate(0, -0.22, 0),
-    ]),
-  ),
-  [WATER]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
-  [LAVA]: new THREE.BoxGeometry(1, 0.9, 1).translate(0, -0.05, 0),
-  [LAVA_FLOW]: new THREE.BoxGeometry(1, 0.45, 1).translate(0, -0.275, 0),
-  [CAMPFIRE]: new THREE.BoxGeometry(0.8, 0.4, 0.8).translate(0, -0.3, 0),
-  [CAMPFIRE_OUT]: new THREE.BoxGeometry(0.8, 0.3, 0.8).translate(0, -0.35, 0),
-  [LANTERN]: new THREE.BoxGeometry(0.4, 0.5, 0.4).translate(0, -0.25, 0),
-};
-// Flowing water: levels 3, 2 and 1 get lower and lower.
-[0.7, 0.5, 0.3].forEach(
-  (h, i) =>
-    (shapes[FLOW_BASE + i] = new THREE.BoxGeometry(1, h, 1).translate(
-      0,
-      -0.5 + h / 2,
-      0,
-    )),
-);
-for (const crop of CROPS)
-  for (let stage = 0; stage < 4; stage++)
-    shapes[cropBlock(crop, stage)] = crossGeometry(0.3 + stage * 0.2);
-for (const type of [
-  FLOWER,
-  BLUE_FLOWER,
-  WHITE_FLOWER,
-  YELLOW_FLOWER,
-  TALL_GRASS,
-  MUSHROOM,
-])
-  shapes[type] = crossGeometry(0.7);
 // Building shapes made of a few boxes: [width, height, depth, x, y, z].
 function boxesGeometry(parts) {
   const geos = parts.map(([w, h, d, x, y, z]) =>
@@ -2077,45 +2013,12 @@ function boxesGeometry(parts) {
   geometry.setIndex(index);
   return geometry;
 }
-Object.assign(shapes, {
-  [LADDER]: boxesGeometry([
-    [0.08, 1, 0.08, -0.35, 0, 0],
-    [0.08, 1, 0.08, 0.35, 0, 0],
-    [0.7, 0.06, 0.06, 0, -0.3, 0],
-    [0.7, 0.06, 0.06, 0, 0, 0],
-    [0.7, 0.06, 0.06, 0, 0.3, 0],
-  ]),
-  [FENCE]: boxesGeometry([
-    [0.24, 1, 0.24, 0, 0, 0],
-    [1, 0.12, 0.1, 0, 0.18, 0],
-    [1, 0.12, 0.1, 0, -0.18, 0],
-    [0.1, 0.12, 1, 0, 0.18, 0],
-    [0.1, 0.12, 1, 0, -0.18, 0],
-  ]),
-  [GATE]: boxesGeometry([
-    [0.12, 0.9, 0.12, -0.45, -0.05, 0],
-    [0.12, 0.9, 0.12, 0.45, -0.05, 0],
-    [0.8, 0.1, 0.08, 0, 0.22, 0],
-    [0.8, 0.1, 0.08, 0, -0.18, 0],
-    [0.1, 0.5, 0.08, 0, 0.02, 0],
-  ]),
-  [GATE_OPEN]: boxesGeometry([
-    [0.12, 0.9, 0.12, -0.45, -0.05, 0],
-    [0.12, 0.9, 0.12, 0.45, -0.05, 0],
-    [0.08, 0.1, 0.8, -0.4, 0.22, 0.4],
-    [0.08, 0.1, 0.8, -0.4, -0.18, 0.4],
-  ]),
-  [TRAPDOOR]: new THREE.BoxGeometry(1, 0.16, 1).translate(0, -0.42, 0),
-  [TRAPDOOR_OPEN]: new THREE.BoxGeometry(1, 1, 0.16).translate(0, 0, -0.42),
-  [SIGN]: boxesGeometry([
-    [0.1, 0.6, 0.1, 0, -0.2, 0],
-    [0.8, 0.45, 0.08, 0, 0.18, 0],
-  ]),
-  [POT]: boxesGeometry([
-    [0.4, 0.35, 0.4, 0, -0.32, 0],
-    [0.06, 0.3, 0.06, 0, -0.02, 0],
-    [0.22, 0.16, 0.22, 0, 0.18, 0],
-  ]),
+// Blocks that are not a whole cube: their boxes or crossed panels are
+// listed in blocks.js.
+const shapes = {};
+BLOCKS.forEach((block, type) => {
+  if (block.boxes) shapes[type] = boxesGeometry(block.boxes);
+  else if (block.cross) shapes[type] = crossGeometry(block.cross);
 });
 // Amber works as a lantern: it glows as night falls.
 const amber = materials[7];
