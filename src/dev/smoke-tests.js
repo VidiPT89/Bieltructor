@@ -1347,6 +1347,39 @@ export function installSmokeTests(g) {
         );
         g.store.remove(copied.id);
       }
+      // Backups: an earlier copy of a world comes back from the world list.
+      const dayKept = g.world.day,
+        backedUp = g.world.id;
+      g.save();
+      g.store.backup(backedUp, Date.now(), 0);
+      g.world.day = dayKept + 5;
+      g.action("backupsworld", backedUp);
+      const copies = g.store.backups(backedUp);
+      check(
+        "the world list shows the automatic backups of a world",
+        g.mode === "backups" &&
+          copies.length >= 1 &&
+          copies[0].day === dayKept &&
+          g.store.load(backedUp).day === dayKept + 5 &&
+          g.app.querySelectorAll('[data-action="restorebackup"]').length ===
+            copies.length,
+      );
+      g.action("restorebackup", String(copies[0].at));
+      check(
+        "restoring asks first",
+        g.store.load(backedUp).day === dayKept + 5 &&
+          !!g.app.querySelector(".danger.confirm"),
+      );
+      g.action("restorebackup", String(copies[0].at));
+      check(
+        "a backup brings the world back and keeps what was there",
+        g.world.id === backedUp &&
+          g.world.day === dayKept &&
+          g.store.load(backedUp).day === dayKept &&
+          g.store.backups(backedUp).length === Math.min(3, copies.length + 1) &&
+          g.store.backups(backedUp)[0].day === dayKept + 5,
+      );
+      g.action("back");
       // The new terrain: a seeded medium island, drawn chunk by chunk.
       g.action("newworld");
       g.draft.size = "medium";

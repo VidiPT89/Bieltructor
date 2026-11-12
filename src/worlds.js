@@ -5,6 +5,9 @@ import { validateSave, validatePlayer, SIZES, MAX_Y } from "./world.js";
 
 const SAVE_VERSION = 2;
 export const MAX_WORLDS = 6;
+// Each world keeps its last three earlier copies, at least half an hour apart.
+export const MAX_BACKUPS = 3,
+  BACKUP_GAP = 30 * 60 * 1000;
 const MODES = ["adventure", "creative"];
 export const DIFFICULTIES = ["peaceful", "easy", "normal", "hard"];
 const CYCLES = ["normal", "day", "night"];
@@ -283,6 +286,38 @@ export function createStore(storage) {
       return null;
     }
   };
+  const backupKey = (id, at) => `biel-backup-${id}-${at}`;
+  const setBackups = (id, list) =>
+    list.length
+      ? storage.setItem("biel-backups-" + id, JSON.stringify(list))
+      : storage.removeItem("biel-backups-" + id);
+  // Makes room when storage is full: the oldest backup of any world goes.
+  const dropOldestBackup = () => {
+    let oldest = null;
+    for (const { id } of store.list())
+      for (const backup of store.backups(id))
+        if (!oldest || backup.at < oldest.at) oldest = { id, ...backup };
+    if (!oldest) return false;
+    try {
+      storage.removeItem(backupKey(oldest.id, oldest.at));
+      setBackups(
+        oldest.id,
+        store.backups(oldest.id).filter((b) => b.at !== oldest.at),
+      );
+    } catch {
+      return false;
+    }
+    return true;
+  };
+  // A world is worth more than its backups: writing one may drop them.
+  const write = (k, v) => {
+    for (;;)
+      try {
+        return storage.setItem(k, v);
+      } catch (error) {
+        if (!dropOldestBackup()) throw error;
+      }
+  };
   const store = {
     list() {
       const index = read("biel-worlds");
@@ -302,10 +337,70 @@ export function createStore(storage) {
       return validateWorld(read("biel-world-" + id), { id });
     },
     save(world) {
-      storage.setItem("biel-world-" + world.id, JSON.stringify(world));
+      write("biel-world-" + world.id, JSON.stringify(world));
       const index = store.list().filter((w) => w.id !== world.id);
       index.unshift(summary(world));
-      storage.setItem("biel-worlds", JSON.stringify(index));
+      write("biel-worlds", JSON.stringify(index));
+    },
+    // The earlier copies of a world, newest first: when each was kept and
+    // which day of the world it holds.
+    backups(id) {
+      const list = read("biel-backups-" + id);
+      return Array.isArray(list)
+        ? list
+            .filter((b) => b && Number.isFinite(b.at) && Number.isFinite(b.day))
+            .sort((a, b) => b.at - a.at)
+            .slice(0, MAX_BACKUPS)
+        : [];
+    },
+    // Keeps the stored copy of a world before it is written over. Does
+    // nothing while the newest backup is younger than `gap`, or the same.
+    // Never throws: with storage full, the game goes on without a backup.
+    backup(id, now = Date.now(), gap = BACKUP_GAP) {
+      try {
+        const text = storage.getItem("biel-world-" + id);
+        if (typeof text !== "string") return false;
+        const list = store.backups(id),
+          newest = list[0];
+        if (newest && now >= newest.at && now - newest.at < gap) return false;
+        if (newest && storage.getItem(backupKey(id, newest.at)) === text)
+          return false;
+        const at = newest ? Math.max(now, newest.at + 1) : now;
+        const put = () => storage.setItem(backupKey(id, at), text);
+        try {
+          put();
+        } catch {
+          // Full: this world's own oldest backup makes room, or none is kept.
+          const old = list.pop();
+          if (!old) return false;
+          storage.removeItem(backupKey(id, old.at));
+          setBackups(id, list);
+          put();
+        }
+        list.unshift({
+          at,
+          day: Math.floor(read("biel-world-" + id)?.day) || 1,
+        });
+        for (const old of list.splice(MAX_BACKUPS))
+          storage.removeItem(backupKey(id, old.at));
+        setBackups(id, list);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    // Puts a backup back as the world. What was there is kept as a backup
+    // first, so restoring can itself be undone. Returns the world, or null
+    // when the backup is missing or damaged (nothing changes then).
+    restore(id, at, now = Date.now()) {
+      if (!store.backups(id).some((b) => b.at === at)) return null;
+      const world = validateWorld(read(backupKey(id, at)), { id });
+      if (!world) return null;
+      store.backup(id, now, 0);
+      world.id = id;
+      world.updatedAt = now;
+      store.save(world);
+      return world;
     },
     // A small picture of each world for the list. It stays on this device.
     thumb(id) {
@@ -322,6 +417,9 @@ export function createStore(storage) {
       } catch {}
     },
     remove(id) {
+      for (const { at } of store.backups(id))
+        storage.removeItem(backupKey(id, at));
+      storage.removeItem("biel-backups-" + id);
       storage.removeItem("biel-world-" + id);
       storage.removeItem("biel-thumb-" + id);
       storage.setItem(

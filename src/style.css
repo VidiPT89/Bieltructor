@@ -1043,6 +1043,9 @@ kbd {
   border-radius: 12px;
   background: var(--field);
 }
+.world-card.backup-card {
+  grid-template-columns: 1fr auto;
+}
 .world-card.current {
   border-color: var(--orange, #ed8524);
 }

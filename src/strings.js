@@ -460,6 +460,14 @@ export const strings = {
     keepInventory: "Manter a mochila ao adormecer",
     friendsOnly: "Animais só amigos",
     duplicate: "Duplicar mundo",
+    backups: "Cópias de segurança",
+    backupsHelp:
+      "O jogo guarda sozinho as três últimas cópias deste mundo, de meia em meia hora enquanto jogas. Se algo correr mal, podes voltar atrás.",
+    noBackups: "Ainda não há cópias. Joga um bocadinho e elas aparecem aqui.",
+    restore: "Repor",
+    backupRestored: "Mundo reposto! O que lá estava ficou guardado como cópia.",
+    backupBroken:
+      "Esta cópia não se consegue abrir. O teu mundo ficou como estava.",
     rename: "Mudar o nome",
     compassSays: "A casa fica a {n} blocos, para {dir}. 🧭",
     compassHere: "Estás em casa! 🏠",
@@ -962,6 +970,14 @@ export const strings = {
     keepInventory: "Keep the backpack when Biel falls asleep",
     friendsOnly: "Animals only friends",
     duplicate: "Duplicate world",
+    backups: "Backups",
+    backupsHelp:
+      "The game keeps the last three copies of this world by itself, every half hour while you play. If something goes wrong, you can go back.",
+    noBackups:
+      "No copies yet. Play for a little while and they will show up here.",
+    restore: "Restore",
+    backupRestored: "World restored! What was there is kept as a copy.",
+    backupBroken: "This copy cannot be opened. Your world stayed as it was.",
     rename: "Rename",
     compassSays: "Home is {n} blocks away, to the {dir}. 🧭",
     compassHere: "You are home! 🏠",

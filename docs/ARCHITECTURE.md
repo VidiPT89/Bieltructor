@@ -36,7 +36,9 @@ Still once per drawn frame, with a step capped at 40 ms: Biel's movement, jumpin
 
 The native `CloudBridge.swift` stores one file per world in iCloud Drive with coordinated writes and expected timestamps. Local worlds are not replaced while playing. Tests use a fake bridge; real cross-device iCloud still requires device validation.
 
-Storage remains localStorage, with six worlds and maximum terrain size 129 × 129. There is no rolling local backup yet. Moving storage or enlarging worlds requires the migration work described in phase 0d, not just a larger size constant.
+Each world keeps its last three earlier copies (`store.backup()`, `backups()`, `restore()` in `worlds.js`). Before a save writes over the stored world, that stored copy becomes a backup if the newest one is at least half an hour old and different. Restoring validates the backup like an import, first keeps the present world as a backup, and stamps the restored world as the newest so iCloud sends it. Backups are local, are deleted with their world, and are the first thing given up when storage is full: a world save that does not fit drops the oldest backup of any world and tries again.
+
+Storage remains localStorage, with six worlds and maximum terrain size 129 × 129. Moving storage or enlarging worlds requires the migration work described in phase 0d, not just a larger size constant.
 
 ## Native wrappers and builds
 

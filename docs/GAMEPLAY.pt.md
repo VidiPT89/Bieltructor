@@ -4,7 +4,7 @@ Um guia simples para o Biel e para os pais.
 
 ## Os mundos
 
-Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo, **duplicas** um (botão ⧉, para experimentar sem estragar o original), mudas-lhe o nome (✏️), exportas (⤓) ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). Ao criar um mundo vês logo um pequeno mapa da ilha que vai sair. O nome muda-se em Definições do mundo, e **Exportar** está também no menu de pausa. No Mac, a pausa tem ainda **Sair**. Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
+Podes ter até **6 mundos**. Em **Os meus mundos** escolhes um para jogar, crias um novo, **duplicas** um (botão ⧉, para experimentar sem estragar o original), mudas-lhe o nome (✏️), exportas (⤓) ou apagas um (é preciso carregar duas vezes, para não apagar sem querer). O botão 🕘 mostra as **cópias de segurança**: o jogo guarda sozinho as três últimas, de meia em meia hora enquanto jogas. Se uma construção se estragar, carrega em **Repor** (duas vezes) para o mundo voltar a como estava; o que lá estava fica guardado como cópia, por isso também dá para desfazer. Ao criar um mundo vês logo um pequeno mapa da ilha que vai sair. O nome muda-se em Definições do mundo, e **Exportar** está também no menu de pausa. No Mac, a pausa tem ainda **Sair**. Cada mundo mostra uma pequena fotografia, tirada quando pões o jogo em pausa (fica só neste dispositivo).
 
 Ao criar um mundo escolhes:
 
@@ -160,6 +160,6 @@ Funcionam comandos de PlayStation, Xbox e MFi no Mac, no iPad e no iPhone. Maní
 - O jogo funciona **sem Internet**, sem contas, sem anúncios, sem compras e sem recolha de dados.
 - Em **Definições › Pais** (protegido por uma conta escrita por extenso) podem ligar um **lembrete de pausa** (30, 45 ou 60 minutos), escolher a **dificuldade máxima** e desligar sempre os **monstros**.
 - O jogo grava sozinho sempre que constróis, ao pôr em pausa, ao sair e também de minuto a minuto.
-- Os mundos ficam guardados **neste dispositivo**. Com **Guardar no iCloud** ligado nas Definições, ficam iguais no Mac, no iPad e no iPhone com a mesma conta; se um mundo mudar em dois dispositivos, o jogo pergunta qual manter. Também se pode usar **Exportar mundo** e **Importar mundo**.
+- Os mundos ficam guardados **neste dispositivo**. Com **Guardar no iCloud** ligado nas Definições, ficam iguais no Mac, no iPad e no iPhone com a mesma conta; se um mundo mudar em dois dispositivos, o jogo pergunta qual manter. Também se pode usar **Exportar mundo** e **Importar mundo**. As cópias de segurança ficam só neste dispositivo.
 - Para um jogo calmo: escolham **Pacífico**, ou desliguem os **Monstros** em qualquer dificuldade.
 - Nas Definições há volumes separados para **música**, **efeitos** e **ambiente**, a opção **Texto grande** e a opção **Ícones em vez de texto**, que põe desenhos nos botões do jogo para quem ainda não lê.

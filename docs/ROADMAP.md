@@ -2,7 +2,7 @@
 
 This follows the 18-phase v3 brief (`prompt-bieltructor-v3.md`). The brief was written against the first version of the game (57 × 57 world, 8 materials, 23 smoke checks). The repository is already far past that, so each phase starts from what exists. One phase, or one part of a phase, per session.
 
-Last updated: 2026-11-12 (phase 0c).
+Last updated: 2026-11-12 (phase 0c and automatic backups).
 
 ## Where each phase stands
 
@@ -26,7 +26,7 @@ Last updated: 2026-11-12 (phase 0c).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, 149 unit tests, 228 in-game checks, UI test, `docs/ARCHITECTURE.md` | Automatic backups (last three per world), parents' summary |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 155 unit tests, 231 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
 
 ## Phase 0 in parts
 
@@ -74,6 +74,7 @@ Left for later: the special drawings (textures) are still small functions in `sr
 - **Two older generators keep their own arithmetic** (`src/world.js` terrain and the starting animals in `src/creatures.js`). Moving them to `src/random.js` would reshape every existing island and move every starting animal.
 - **The workbench has nine squares** although the brief says "no grid to memorise" (asked for by Gabriel on 2026-11-12). Positions do not matter and the recipe book fills the squares, so there is still nothing to memorise.
 - Six worlds, and sizes of 57, 97 and 129, stay until storage moves (0d).
+- **Backups are kept in the same storage as the worlds** (2026-11-12), every half hour of play at most, and are dropped first when storage is full. They move with the worlds in 0d.
 - **Ticks are 50 ms and a stall catches up at most 250 ms** (0b). Past that the game slows down instead of freezing to catch up, which is kinder on the old iPad.
 - **Leg, head and tail swings are drawing, not rules** (0b). At 20 Hz they looked jerky, so they run every frame from a "moving" flag the tick sets.
 

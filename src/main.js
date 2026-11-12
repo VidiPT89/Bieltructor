@@ -252,6 +252,8 @@ let mode = "splash",
   invPick = null,
   invDrag = null,
   renaming = null,
+  backupsOf = null,
+  confirmRestore = null,
   inventory = new Inventory(),
   vitals = createVitals(),
   animals = [],
@@ -625,11 +627,32 @@ function render() {
           ? list
               .map(
                 (w) =>
-                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}<div class="world-actions">${button("renameworld", "✏️", "copy", w.id, `aria-label="${t("rename")}" title="${t("rename")}"`)}${button("export", "⤓", "copy", w.id, `aria-label="${t("export")}" title="${t("export")}"`)}${list.length < MAX_WORLDS ? button("duplicateworld", "⧉", "copy", w.id, `aria-label="${t("duplicate")}" title="${t("duplicate")}"`) : ""}</div>${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
+                  `<div class="world-card ${w.id === world?.id ? "current" : ""}">${store.thumb(w.id) ? `<img class="world-thumb" src="${store.thumb(w.id)}" alt="">` : `<span class="world-thumb">▧</span>`}<div><strong>${escapeHtml(w.name)}</strong><small>${w.mode === "creative" ? t("creativeMode") : t("adventure")} · ${t(w.difficulty)} · ${new Date(w.updatedAt).toLocaleDateString(settings.lang === "pt" ? "pt-PT" : "en-GB")}</small></div>${button("openworld", t("play"), "primary", w.id)}<div class="world-actions">${button("renameworld", "✏️", "copy", w.id, `aria-label="${t("rename")}" title="${t("rename")}"`)}${button("export", "⤓", "copy", w.id, `aria-label="${t("export")}" title="${t("export")}"`)}${list.length < MAX_WORLDS ? button("duplicateworld", "⧉", "copy", w.id, `aria-label="${t("duplicate")}" title="${t("duplicate")}"`) : ""}${button("backupsworld", "🕘", "copy", w.id, `aria-label="${t("backups")}" title="${t("backups")}"`)}</div>${button("deleteworld", confirmDelete === w.id ? t("confirmDelete") : t("deleteWorld"), confirmDelete === w.id ? "danger confirm" : "danger", w.id)}</div>`,
               )
               .join("")
           : `<p class="help-copy">${t("noWorlds")}</p>`
       }</div>${list.length >= MAX_WORLDS ? `<p class="field-hint">${t("worldFull")}</p>` : button("newworld", "+ " + t("newWorld"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
+    }
+    if (mode === "backups") {
+      const list = store.backups(backupsOf),
+        when = (at) =>
+          new Date(at).toLocaleString(
+            settings.lang === "pt" ? "pt-PT" : "en-GB",
+            {
+              dateStyle: "medium",
+              timeStyle: "short",
+            },
+          );
+      inner = `<span class="eyebrow">🕘 ${escapeHtml(store.load(backupsOf)?.name ?? "")}</span><h2>${t("backups")}</h2><p class="help-copy">${t("backupsHelp")}</p><div class="world-list">${
+        list.length
+          ? list
+              .map(
+                (b) =>
+                  `<div class="world-card backup-card"><div><strong>${when(b.at)}</strong><small>${t("dayCount", { n: b.day })}</small></div>${button("restorebackup", confirmRestore === b.at ? t("confirmDelete") : t("restore"), confirmRestore === b.at ? "danger confirm" : "primary", b.at)}</div>`,
+              )
+              .join("")
+          : `<p class="help-copy">${t("noBackups")}</p>`
+      }</div>${button("back", t("back"), "quiet wide")}`;
     }
     if (mode === "newworld")
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("newWorld")}</h2><label>${t("worldName")}<input id="world-name" maxlength="32" value="${escapeHtml(draft.name)}"></label>${worldFields(draft.options, true)}${button("create", t("create"), "primary wide")}${button("back", t("back"), "quiet wide")}`;
@@ -1085,6 +1108,7 @@ const cloud = createCloud({
 window.cloudReply = cloud.reply;
 const MODALS = [
   "renameworld",
+  "backups",
   "settings",
   "help",
   "paused",
@@ -1114,6 +1138,7 @@ function open(screen) {
 }
 function action(a, arg) {
   if (a !== "deleteworld") confirmDelete = null;
+  if (a !== "restorebackup") confirmRestore = null;
   if (a === "play") {
     if (!world) {
       draft = newDraft();
@@ -1253,6 +1278,23 @@ function action(a, arg) {
     renaming = null;
     action("back");
     return;
+  } else if (a === "backupsworld") {
+    // What is being played is saved first, so the list is up to date.
+    if (world?.id === arg) save();
+    backupsOf = arg;
+    open("backups");
+  } else if (a === "restorebackup") {
+    const at = Number(arg);
+    if (confirmRestore !== at) confirmRestore = at;
+    else {
+      confirmRestore = null;
+      const restored = store.restore(backupsOf, at);
+      if (restored) {
+        if (world?.id === restored.id) loadWorld(restored);
+        cloud.schedule();
+        toast(t("backupRestored"));
+      } else toast(t("backupBroken"));
+    }
   } else if (a === "quit") {
     // Only the Mac app can quit; iPad and iPhone apps are closed by the system.
     save();
@@ -1368,6 +1410,8 @@ function saveData() {
 function save() {
   if (!world) return true;
   try {
+    // The copy from before this play time is kept, at most every half hour.
+    store.backup(world.id);
     store.save(saveData());
     cloud.schedule();
     return true;
