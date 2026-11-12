@@ -102,6 +102,7 @@ import { Inventory } from "./inventory.js";
 import { collectRewards } from "./loot.js";
 import { FixedStep, EntityInterpolation, TICK_SECONDS } from "./simulation.js";
 import { BLOCKS } from "./blocks.js";
+import { openStorage, idbBackend } from "./storage.js";
 import {
   buildChunkGeometry,
   atlasRows,
@@ -314,8 +315,14 @@ const tips = strings[settings.lang].tips,
   tip = tips[Math.floor(Math.random() * tips.length)];
 const music = new Music();
 music.volume = settings.volume.music;
-// Worlds live in the browser storage of the app; see src/worlds.js.
-const storage = safeStorage;
+// Worlds live in IndexedDB, with a second copy of what fits in the small
+// browser storage; see src/storage.js and src/worlds.js. The first time,
+// the worlds kept in the small storage are copied over.
+const storage = await openStorage({
+  backend: idbBackend(),
+  local: safeStorage,
+  onError: () => toast(t("saveError")),
+});
 const store = createStore(storage);
 try {
   progress = createProgress(JSON.parse(storage.getItem("biel-stickers")));
@@ -1308,7 +1315,13 @@ function action(a, arg) {
   } else if (a === "quit") {
     // Only the Mac app can quit; iPad and iPhone apps are closed by the system.
     save();
-    window.webkit?.messageHandlers?.files?.postMessage({ action: "quit" });
+    // The last save reaches the big storage first (or a second passes).
+    Promise.race([
+      storage.flush(),
+      new Promise((done) => setTimeout(done, 1500)),
+    ]).then(() =>
+      window.webkit?.messageHandlers?.files?.postMessage({ action: "quit" }),
+    );
     return;
   } else if (a === "duplicateworld") {
     if (world?.id === arg) save();
@@ -5658,7 +5671,7 @@ function updateStats(dt) {
     place = world
       ? ` · ${bx}, ${by}, ${bz} · ${biomeAt(bx, bz)} · light ${light?.inside(bx, by, bz) ? light.level(bx, by, bz, paintedDay < 0 ? 1 : paintedDay) : "-"}`
       : "";
-  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""} · ${(statsWork / statsFrames).toFixed(1)} ms · tick ${tickMilliseconds.toFixed(2)} ms (20 Hz)${place}`;
+  statsEl.textContent = `${Math.round(statsFrames / statsClock)} fps · ${renderer.info.render.calls} draws · ${Math.round(renderer.info.render.triangles / 1000)}k tris · ${shown}/${chunks.size} chunks · ${blocks.size} blocks · ${animals.length} animals · ${monsters.length} monsters · ${settings.quality}${lowPower ? " · low power" : ""} · ${(statsWork / statsFrames).toFixed(1)} ms · tick ${tickMilliseconds.toFixed(2)} ms (20 Hz) · ${storage.kind}${place}`;
   statsWork = 0;
   statsFrames = 0;
   statsClock = 0;
@@ -5715,6 +5728,9 @@ window.importNativeWorld = (json) => {
 };
 // The in-game checks live in dev/smoke-tests.js; they see the game through these.
 installSmokeTests({
+  get storage() {
+    return storage;
+  },
   get simulationTick() {
     return simulationTick;
   },

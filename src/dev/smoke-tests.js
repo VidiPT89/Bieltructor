@@ -47,6 +47,7 @@ import { Inventory } from "../inventory.js";
 import { strings } from "../strings.js";
 import { emptyFurnace } from "../smelting.js";
 
+import { idbBackend } from "../storage.js";
 export function installSmokeTests(g) {
   if (new URLSearchParams(location.search).has("test"))
     window.runSmokeTests = async () => {
@@ -1348,6 +1349,19 @@ export function installSmokeTests(g) {
         );
         g.store.remove(copied.id);
       }
+      // Worlds are kept in IndexedDB, with a copy in the small storage.
+      g.save();
+      await g.storage.flush();
+      const keptKey = "biel-world-" + g.world.id,
+        kept = await idbBackend().readAll();
+      check(
+        "worlds are kept in IndexedDB, with a copy in the small storage",
+        g.storage.kind === "indexeddb" &&
+          kept.get("biel-storage-version") === "1" &&
+          kept.get(keptKey) === g.storage.getItem(keptKey) &&
+          localStorage.getItem(keptKey) === kept.get(keptKey) &&
+          JSON.parse(kept.get("biel-worlds")).some((w) => w.id === g.world.id),
+      );
       // Backups: an earlier copy of a world comes back from the world list.
       const dayKept = g.world.day,
         backedUp = g.world.id;

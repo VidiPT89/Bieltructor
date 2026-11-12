@@ -20,6 +20,13 @@ export const safeStorage = {
       localStorage.removeItem(k);
     } catch {}
   },
+  keys: () => {
+    try {
+      return Object.keys(localStorage);
+    } catch {
+      return [];
+    }
+  },
 };
 
 // Writes the live game into the world object, ready to store or export.
