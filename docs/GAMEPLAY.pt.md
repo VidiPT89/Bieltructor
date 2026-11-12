@@ -65,6 +65,8 @@ Bem no fundo das grutas há **lava**, que brilha e ilumina tudo à volta. No Nor
 
 Abre a **mochila** (🎒, tecla E ou Y no comando). Toca num espaço e depois noutro, ou arrasta, para mudar as coisas de sítio: itens iguais juntam-se. Com um monte escolhido, **Dividir ao meio** separa-o em dois. Em baixo está o **livro de receitas**: os ingredientes ficam verdes quando os tens. Algumas receitas precisam de uma **bancada** por perto.
 
+**A bancada e os 9 quadrados:** usa a bancada (Construir, botão direito, ou um toque no modo 🧱) para abrir a caixa dos **9 quadrados**. Toca nas coisas da mochila para as pores nos quadrados, uma em cada um; toca num quadrado para o esvaziar. Ao lado aparece o que essas coisas dão: toca para fabricar. Não importa o sítio de cada coisa, só o que lá está. Se as mesmas coisas derem duas ferramentas (3 pedras e 2 paus dão uma picareta ou um machado), escolhes qual queres. Não sabes a receita? Em baixo, **Pôr nos quadrados** arruma tudo por ti. Na mochila, perto de uma bancada, o botão **Abrir a bancada** faz o mesmo.
+
 Para começar:
 
 1. Parte **madeira** de uma árvore.
@@ -137,6 +139,15 @@ No canto há um **minimapa**: a seta laranja és tu e a 🏠 é a tua casa. Se a
 ## Tutorial e caderneta
 
 Nos mundos novos de Aventura há um **tutorial guiado** com 9 passos pequenos (dá para saltar e voltar a começar em "Como jogar"). A **caderneta** tem 12 autocolantes para ganhar, iguais em todos os mundos: o próximo aparece sempre no canto do ecrã. Na primeira vez que fazes algo importante (a primeira tocha, a primeira bancada, o primeiro carvão ou ferro, a primeira picareta, o primeiro cristal ou a primeira lava) aparece uma mensagem a festejar.
+
+## Minerar e construir com o dedo (iPad e iPhone)
+
+Lá em cima, ao lado da mochila, há um botão que troca entre dois modos:
+
+- **⛏️ Minerar:** mantém o dedo parado em cima de um bloco para o partir. Se não levantares o dedo, continua a cavar o bloco que estiver atrás. No Criativo basta um toque.
+- **🧱 Construir:** toca onde queres pôr o bloco. Um toque também abre portas, baús, o forno e a bancada, e come a comida que tens na mão.
+
+Arrastar o dedo continua a servir para olhar à volta, e os botões **Partir** e **Construir** continuam a funcionar. Tocar num animal ou num monstro faz o mesmo nos dois modos.
 
 ## Comandos de jogo
 

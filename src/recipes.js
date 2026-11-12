@@ -246,3 +246,58 @@ export function craft(inventory, recipe, nearBench) {
   }
   return true;
 }
+
+// The workbench has nine squares. Where things go does not matter, only
+// what is in them: one of each ingredient per square.
+export const GRID = 9;
+const tally = (cells) => {
+  const count = {};
+  for (const id of cells) if (id) count[id] = (count[id] ?? 0) + 1;
+  return count;
+};
+// Every recipe the squares make. The same things can make more than one
+// (a pickaxe or an axe, a door or a trapdoor): Biel chooses.
+export function gridMatches(cells) {
+  const have = tally(cells),
+    ids = Object.keys(have);
+  if (!ids.length) return [];
+  return RECIPES.filter(
+    (r) =>
+      Object.keys(r.needs).length === ids.length &&
+      ids.every((id) => r.needs[id] === have[id]),
+  );
+}
+// Tools are laid out in their shape; everything else fills the squares in order.
+const SHAPES = {
+  pickaxe: [0, 1, 2, 4, 7],
+  axe: [0, 1, 3, 4, 7],
+  hoe: [0, 1, 4, 7],
+  shovel: [1, 4, 7],
+  sword: [1, 4, 7],
+};
+export function gridFor(recipe) {
+  const items = Object.entries(recipe.needs).flatMap(([id, n]) =>
+      Array(n).fill(id),
+    ),
+    shape = SHAPES[recipe.out[0].split("_").pop()],
+    cells = Array(GRID).fill(null);
+  // In a tool the sticks are the handle, so they go last (lower down).
+  if (shape?.length === items.length)
+    items
+      .sort((a, b) => (a === "stick") - (b === "stick"))
+      .forEach((id, i) => (cells[shape[i]] = id));
+  else items.forEach((id, i) => (cells[i] = id));
+  return cells;
+}
+// Squares that the backpack can no longer fill are emptied, last ones first.
+export function pruneGrid(cells, inventory) {
+  const have = tally(cells);
+  for (let i = cells.length - 1; i >= 0; i--) {
+    const id = cells[i];
+    if (id && have[id] > inventory.count(id)) {
+      have[id]--;
+      cells[i] = null;
+    }
+  }
+  return cells;
+}

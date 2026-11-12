@@ -1719,6 +1719,139 @@ export function installSmokeTests(g) {
       g.settings.cloud = false;
       if (!g.world) g.loadWorld(g.store.load(g.store.list()[0].id));
 
+      // The workbench's nine squares.
+      const modeBefore = g.world.mode;
+      g.world.mode = "adventure";
+      g.mode = "playing";
+      g.inventory = new Inventory();
+      g.inventory.add("planks", 5);
+      g.inventory.add("stick", 2);
+      g.inventory.slots[8] = { id: "apple", count: 1 };
+      g.selected = 8;
+      g.vitals.food = 10;
+      const benchAt = [
+        Math.round(g.player.x),
+        MAX_Y - 2,
+        Math.round(g.player.z),
+      ];
+      g.setBlock(benchAt, BENCH);
+      g.target = { p: benchAt, normal: new THREE.Vector3(0, 1, 0) };
+      build();
+      check(
+        "a workbench opens its nine squares, even with food in the hand",
+        g.mode === "bench" &&
+          g.app.querySelectorAll("[data-bench]").length === 9 &&
+          g.inventory.count("apple") === 1,
+      );
+      const bagSlot = (id) =>
+        [...g.app.querySelectorAll("[data-benchadd]")].find(
+          (b) => g.inventory.slots[+b.dataset.benchadd]?.id === id,
+        );
+      for (const id of ["planks", "planks", "planks", "stick", "stick"])
+        bagSlot(id).click();
+      const makes = () =>
+        [...g.app.querySelectorAll('[data-action="benchcraft"]')].map(
+          (b) => b.dataset.arg,
+        );
+      check(
+        "three planks and two sticks make a pickaxe or an axe",
+        makes().join() === "wooden_pickaxe,wooden_axe",
+      );
+      check(
+        "what sits in the squares is taken off the backpack picture",
+        bagSlot("planks").querySelector(".count")?.textContent === "2",
+      );
+      bagSlot("stick").click();
+      check(
+        "the squares never hold more than the backpack has",
+        g.benchGrid.filter((id) => id === "stick").length === 2,
+      );
+      g.app
+        .querySelector('[data-action="benchcraft"][data-arg="wooden_pickaxe"]')
+        .click();
+      check(
+        "the squares make the pickaxe and keep only what is left",
+        g.inventory.count("wooden_pickaxe") === 1 &&
+          g.inventory.count("planks") === 2 &&
+          g.benchGrid.filter(Boolean).join() === "planks,planks" &&
+          makes().join() === "stick",
+      );
+      g.app.querySelector('[data-bench="0"]').click();
+      check(
+        "a tap empties a square",
+        g.benchGrid[0] === null && makes().length === 0,
+      );
+      g.action("benchfill", "stick");
+      g.action("benchcraft", "stick");
+      check(
+        "a recipe from the book fills the squares",
+        g.inventory.count("stick") === 4 && !g.benchGrid.some(Boolean),
+      );
+      g.action("back");
+      check("the workbench goes back to the game", g.mode === "playing");
+      g.setBlock(benchAt, null);
+
+      // Touch screens: Mine mode breaks with a finger held on a block, Build
+      // mode builds (or eats) with a tap.
+      const finger = (type) =>
+        g.$("#world").dispatchEvent(
+          new PointerEvent(type, {
+            pointerType: "touch",
+            pointerId: 77,
+            clientX: innerWidth / 2,
+            clientY: innerHeight / 2,
+            button: 0,
+            bubbles: true,
+          }),
+        );
+      g.settings.touchMode = "mine";
+      g.render();
+      check(
+        "the game shows the Mine and Build switch",
+        !!g.app.querySelector('[data-action="touchmode"]'),
+      );
+      const dirtAt = [2, MAX_Y - 3, 2];
+      g.setBlock(dirtAt, 1);
+      g.inventory = new Inventory();
+      g.inventory.slots[0] = { id: "apple", count: 2 };
+      g.selected = 0;
+      g.vitals.food = 10;
+      finger("pointerdown");
+      finger("pointerup");
+      check(
+        "a tap in Mine mode neither builds nor eats",
+        g.inventory.count("apple") === 2,
+      );
+      finger("pointerdown");
+      await new Promise((done) => setTimeout(done, 260));
+      g.target = { p: dirtAt, normal: new THREE.Vector3(0, 1, 0) };
+      g.frame(g.last + 16);
+      for (let i = 0; i < 30 && g.blocks.has(key(...dirtAt)); i++) {
+        g.target = { p: dirtAt, normal: new THREE.Vector3(0, 1, 0) };
+        g.updateBreaking(0.1);
+      }
+      check(
+        "a finger held on a block mines it",
+        !g.blocks.has(key(...dirtAt)) && g.inventory.count("dirt") === 1,
+      );
+      finger("pointerup");
+      check(
+        "letting go after mining does nothing else",
+        g.inventory.count("apple") === 2,
+      );
+      g.updateBreaking(0.1);
+      g.action("touchmode");
+      check("the switch changes to Build", g.settings.touchMode === "build");
+      finger("pointerdown");
+      finger("pointerup");
+      check(
+        "a tap in Build mode uses what Biel holds",
+        g.inventory.count("apple") === 1,
+      );
+      g.action("touchmode");
+      g.world.mode = modeBefore;
+      g.pointerKind = "mouse";
+
       g.action("home");
       g.frame(g.last + 16);
       return { ok: true, checks, triangles: g.renderer.info.render.triangles };

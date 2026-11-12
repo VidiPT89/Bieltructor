@@ -1744,3 +1744,97 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+
+/* The workbench: nine squares, an arrow and what they make. */
+.bench {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin: 14px 0 20px;
+}
+.bench-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 62px);
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #e7a34266;
+  border-radius: 14px;
+  background: #e7a34210;
+}
+.bench-grid .slot {
+  width: 62px;
+  height: 62px;
+  padding: 4px;
+  background: #00000024;
+  border-color: var(--border);
+}
+.bench-arrow {
+  font-size: 28px;
+  color: var(--orange);
+}
+.bench-result {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.bench-result small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.bench-make {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 15px;
+}
+.bench-make .swatch {
+  display: block;
+  width: 26px;
+  height: 26px;
+  background: var(--block);
+  box-shadow:
+    inset -7px -5px 0 #0002,
+    inset 0 6px 0 #fff2;
+}
+.bench-make .item-icon {
+  font-size: 24px;
+}
+@media (max-width: 560px) {
+  .bench {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .bench-arrow {
+    transform: rotate(90deg);
+  }
+  .bench-result {
+    justify-items: center;
+    text-align: center;
+  }
+}
+/* The Mine / Build switch only shows where fingers are used. */
+.touch-only {
+  display: none;
+  border-color: var(--orange);
+}
+@media (pointer: coarse) {
+  .touch-only {
+    display: inline-block;
+  }
+}
+[data-platform="ios"] .touch-only {
+  display: inline-block;
+}
+.gamepad .touch-only,
+.keyboard .touch-only {
+  display: none;
+}
+/* A finger held on the world mines: it never selects text or opens a callout. */
+#world,
+.playing {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

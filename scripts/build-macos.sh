@@ -3,10 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 npm run build
 APP="$PWD/build/Bieltructor.app"
-if [ -d "$APP" ]; then
-  mkdir -p build/archive
-  mv "$APP" "build/archive/Bieltructor-$(date +%Y%m%d-%H%M%S)-$$.app"
-fi
+rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Web"
 cp -R dist/. "$APP/Contents/Resources/Web/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'

@@ -140,7 +140,15 @@ import {
   bowShot,
   validateMonsters,
 } from "./monsters.js";
-import { RECIPES, canCraft, craft } from "./recipes.js";
+import {
+  RECIPES,
+  canCraft,
+  craft,
+  GRID,
+  gridMatches,
+  gridFor,
+  pruneGrid,
+} from "./recipes.js";
 import {
   createVitals,
   fallDamage,
@@ -211,6 +219,8 @@ settings.bigText = settings.bigText === true;
 // Icons instead of words on the game buttons, for children who do not read yet.
 settings.icons = settings.icons === true;
 settings.minimap = settings.minimap !== false;
+// On a touch screen: a finger held on a block mines it, or a tap builds.
+settings.touchMode = settings.touchMode === "build" ? "build" : "mine";
 if (!strings[settings.lang]) settings.lang = "pt";
 settings.parents = normalizeParents(settings.parents);
 const itemName = (id) =>
@@ -253,6 +263,8 @@ let mode = "splash",
   growClock = 5,
   rainLevel = 0,
   container = null,
+  benchGrid = Array(GRID).fill(null),
+  keepScroll = true,
   signKey = null,
   containerClock = 0,
   menuAnchor = [0, 0],
@@ -362,6 +374,20 @@ const icon = (id) =>
   ITEMS[id].block !== undefined
     ? `<i class="swatch" style="--block:#${colors[ITEMS[id].block].toString(16).padStart(6, "0")}"></i>`
     : `<span class="item-icon">${ITEMS[id].icon}</span>`;
+// One line of the recipe book: what it makes, what it needs and a button.
+function recipeRow(r, bench, act, label) {
+  const ok = canCraft(inventory, r, bench);
+  return `<div class="recipe ${ok ? "ok" : ""}">${icon(r.out[0])}<div><strong>${itemName(r.out[0])}${r.out[1] > 1 ? ` ×${r.out[1]}` : ""}</strong><span class="needs">${Object.entries(
+    r.needs,
+  )
+    .map(
+      ([id, n]) =>
+        `<em class="${inventory.count(id) >= n ? "have" : ""}">${n} ${itemName(id)}</em>`,
+    )
+    .join(
+      "",
+    )}</span>${r.bench ? `<small class="${bench ? "have" : ""}">🔨 ${t("needsBench")}</small>` : ""}</div><button data-action="${act}" data-arg="${r.id}" class="${ok ? "primary" : ""}" ${ok ? "" : "disabled"}>${label}</button></div>`;
+}
 function slotButton(slot, i, attrs, active, label = "") {
   return `<button ${attrs} aria-label="${itemName(slot?.id)}" class="slot ${active ? "selected" : ""}">${label ? `<small>${label}</small>` : ""}${slot ? icon(slot.id) : ""}${slot && !creative() && slot.count > 1 ? `<b class="count">${slot.count}</b>` : ""}${creative() ? "" : wearBar(slot?.wear, toolUses(slot?.id))}</button>`;
 }
@@ -433,7 +459,7 @@ function render() {
   if (mode === "menu")
     content = `<header><div class="brand">${logo}</div><span class="edition">${t("edition")}</span>${button("settings", "⚙︎ <span>" + t("settings") + "</span>", "quiet")}</header><main class="intro"><div class="eyebrow"><i></i>${t("tag")}</div><h1>${t("title")}</h1><p>${t("intro")}</p><div class="menu-actions">${button("play", `${world ? t("resume") : t("start")} <span>↗︎</span>`, "primary")}${button("worlds", t("worlds"), "secondary")}${button("stickers", "📒 " + t("stickers"), "secondary")}${button("help", t("help"), "secondary")}</div><div class="world-info"><span class="world-icon">▧</span><div><strong>${world ? escapeHtml(world.name) : t("newWorld")}</strong><small>${world ? modeLabel(world) : t("noWorlds")} · ${t("storage")}</small></div></div></main><div class="biel-label"><span>BIEL</span><small>${t("ready")}</small></div><footer>${credits()}<span class="version">v2.0 · ${t("made")}</span></footer>`;
   if (mode === "playing")
-    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div>${settings.minimap ? `<canvas class="minimap" width="132" height="132" aria-hidden="true"></canvas>` : ""}<div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="draw-meter" aria-hidden="true"><i></i></div><div class="hotbar">${inventory.slots
+    content = `<div class="hud-top"><div class="world-title"><b>${escapeHtml(world.name)}</b><small>${creative() ? t("creative") : t("adventureLabel")} · <span class="clock">${clock()}</span></small></div><div>${button("touchmode", settings.touchMode === "build" ? "🧱" : "⛏️", "icon touch-only", "", `aria-label="${t(settings.touchMode === "build" ? "buildMode" : "mineMode")}"`)}${button("inventory", "🎒", "icon")}${button("view", "◉", "icon")}${button("pause", "Ⅱ", "icon")}</div></div><div class="quest-slot">${questBox()}</div>${settings.minimap ? `<canvas class="minimap" width="132" height="132" aria-hidden="true"></canvas>` : ""}<div class="crosshair">+</div><div class="hotbar-wrap">${creative() ? "" : `<div class="vitals" aria-live="polite"></div>`}<div class="material-label">${itemName(heldId())}</div><div class="draw-meter" aria-hidden="true"><i></i></div><div class="hotbar">${inventory.slots
       .slice(0, 9)
       .map((slot, i) =>
         slotButton(
@@ -485,21 +511,27 @@ function render() {
       inner = `<span class="eyebrow">${t("creativeMode")}</span><h2>${t("allBlocks")}</h2><p class="field-hint">${t("pickBlock", { n: selected + 1 })}</p><div class="inv-grid">${CREATIVE_BLOCKS.map((id) => slotButton({ id, count: 1 }, 0, `data-give="${id}" title="${itemName(id)}"`, heldId() === id)).join("")}</div>${button("back", t("back"), "primary wide")}`;
     else if (mode === "inventory") {
       const bench = nearBench();
-      inner = `<span class="eyebrow">${t("adventure")}</span><h2>${t("backpack")}</h2><p class="field-hint">${t("swapHint")}</p><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-inv="${i}" title="${itemName(slot?.id)}"`, invPick === i, i < 9 ? i + 1 : "")).join("")}</div>${invPick !== null && inventory.slots[invPick]?.count > 1 ? button("split", "✂︎ " + t("split"), "secondary") : ""}<h3>${t("recipes")}</h3><p class="field-hint">${bench ? t("benchNear") : t("benchFar")}</p><div class="recipes">${RECIPES.map(
-        (r) => {
-          const ok = canCraft(inventory, r, bench);
-          return `<div class="recipe ${ok ? "ok" : ""}">${icon(r.out[0])}<div><strong>${itemName(r.out[0])}${r.out[1] > 1 ? ` ×${r.out[1]}` : ""}</strong><span class="needs">${Object.entries(
-            r.needs,
-          )
-            .map(
-              ([id, n]) =>
-                `<em class="${inventory.count(id) >= n ? "have" : ""}">${n} ${itemName(id)}</em>`,
-            )
-            .join(
-              "",
-            )}</span>${r.bench ? `<small class="${bench ? "have" : ""}">🔨 ${t("needsBench")}</small>` : ""}</div><button data-action="craft" data-arg="${r.id}" class="${ok ? "primary" : ""}" ${ok ? "" : "disabled"}>${t("craftIt")}</button></div>`;
-        },
-      ).join("")}</div>${button("back", t("back"), "primary wide")}`;
+      inner = `<span class="eyebrow">${t("adventure")}</span><h2>${t("backpack")}</h2><p class="field-hint">${t("swapHint")}</p><div class="inv-grid">${inventory.slots.map((slot, i) => slotButton(slot, i, `data-inv="${i}" title="${itemName(slot?.id)}"`, invPick === i, i < 9 ? i + 1 : "")).join("")}</div>${invPick !== null && inventory.slots[invPick]?.count > 1 ? button("split", "✂︎ " + t("split"), "secondary") : ""}<h3>${t("recipes")}</h3><p class="field-hint">${bench ? t("benchNear") : t("benchFar")}</p>${bench ? button("bench", "🔨 " + t("benchOpen"), "secondary") : ""}<div class="recipes">${RECIPES.map((r) => recipeRow(r, bench, "craft", t("craftIt"))).join("")}</div>${button("back", t("back"), "primary wide")}`;
+    }
+    if (mode === "bench") {
+      const made = gridMatches(benchGrid),
+        some = benchGrid.some(Boolean),
+        used = {};
+      for (const id of benchGrid) if (id) used[id] = (used[id] ?? 0) + 1;
+      // What sits in the squares is still in the backpack: show what is left.
+      const bag = inventory.slots.map((slot) => {
+        if (!slot || !used[slot.id]) return slot;
+        const take = Math.min(slot.count, used[slot.id]);
+        used[slot.id] -= take;
+        return take === slot.count
+          ? null
+          : { ...slot, count: slot.count - take };
+      });
+      inner = `<span class="eyebrow">🔨</span><h2>${t("bench")}</h2><p class="field-hint">${t("benchHint")}</p><div class="bench"><div class="bench-grid">${benchGrid.map((id, i) => slotButton(id ? { id, count: 1 } : null, i, `data-bench="${i}"`, false)).join("")}</div><span class="bench-arrow" aria-hidden="true">➜</span><div class="bench-result">${
+        made.length
+          ? `<small>${t("benchTake")}</small>${made.map((r) => `<button data-action="benchcraft" data-arg="${r.id}" class="primary bench-make">${icon(r.out[0])}<span>${itemName(r.out[0])}${r.out[1] > 1 ? ` ×${r.out[1]}` : ""}</span></button>`).join("")}`
+          : `<p class="field-hint">${t(some ? "benchNothing" : "benchEmpty")}</p>`
+      }${some ? button("benchclear", t("benchClear"), "quiet") : ""}</div></div><h3>${t("backpack")}</h3><div class="inv-grid">${bag.map((slot, i) => slotButton(slot, i, `data-benchadd="${i}" title="${itemName(slot?.id)}"`, false, i < 9 ? i + 1 : "")).join("")}</div><h3>${t("recipes")}</h3><div class="recipes">${RECIPES.map((r) => recipeRow(r, true, "benchfill", t("benchShow"))).join("")}</div>${button("back", t("back"), "primary wide")}`;
     }
     if (mode === "chest") {
       const chest = chestAt(container.key);
@@ -555,9 +587,18 @@ function render() {
       inner = `<span class="eyebrow">BIELTRUCTOR</span><h2>${t("help")}</h2><p class="help-copy">${t("helpText")}</p><p class="touch-help">${t("mobile")}</p><div class="key-demo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>${t("space")}</kbd></div>${world && !creative() ? button("starttutorial", "🎓 " + t("startTutorial"), "wide") : ""}${button("back", t("back"), "primary wide")}`;
     if (mode === "settings")
       inner = `<h2>${t("settings")}</h2><label>${t("language")}<select id="language"><option value="pt" ${settings.lang === "pt" ? "selected" : ""}>Português (Portugal)</option><option value="en" ${settings.lang === "en" ? "selected" : ""}>English</option></select></label><label>${t("appearance")}<select id="appearance">${["dark", "light", "system"].map((v) => `<option value="${v}" ${settings.theme === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label>${["music", "fx", "ambient"].map((k) => `<label>${t({ music: "music", fx: "sound", ambient: "ambient" }[k])} <b class="volume-value">${Math.round(settings.volume[k] * 100)}%</b><input type="range" min="0" max="100" step="5" data-volume="${k}" value="${Math.round(settings.volume[k] * 100)}"></label>`).join("")}<label>${t("minimap")}<select id="minimap"><option value="on" ${settings.minimap ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.minimap ? "selected" : ""}>${t("off")}</option></select></label><label>${t("bigText")}<select id="bigtext"><option value="on" ${settings.bigText ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.bigText ? "selected" : ""}>${t("off")}</option></select></label><label>${t("iconsOnly")}<select id="icons"><option value="on" ${settings.icons ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.icons ? "selected" : ""}>${t("off")}</option></select></label><label>${t("quality")}<select id="quality">${["high", "low"].map((v) => `<option value="${v}" ${settings.quality === v ? "selected" : ""}>${t(v)}</option>`).join("")}</select></label><div class="file-actions">${world ? button("export", t("export")) : ""}${button("import", t("import"))}</div>${cloudBridge ? `<label>${t("icloud")}<select id="cloud"><option value="on" ${settings.cloud ? "selected" : ""}>${t("on")}</option><option value="off" ${!settings.cloud ? "selected" : ""}>${t("off")}</option></select></label><p class="field-hint">${!settings.cloud ? t("icloudOff") : cloud.status === "missing" ? t("icloudMissing") : cloud.status ? t("icloudSynced", { time: cloud.status }) : t("icloudOn")}</p>` : ""}${button("parentsgate", "👪 " + t("parents"), "wide")}<small>${t("storage")}</small>${button("back", t("back"), "primary wide")}`;
-    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
+    content = `<div class="modal-backdrop"><section class="panel ${["newworld", "worldsettings", "inventory", "stickers", "chest", "furnace", "bench"].includes(mode) ? "wide-panel" : ""}" role="dialog" aria-modal="true" aria-label="${t({ paused: "pause", newworld: "newWorld", worldsettings: "worldSettings", inventory: "backpack", stickers: "stickerBook", parentsgate: "parents" }[mode] ?? mode)}">${inner}</section></div>`;
   }
+  // A long list stays where it was when the same screen is drawn again.
+  const panel = app.querySelector(".panel"),
+    scroll = keepScroll && panel?.dataset.screen === mode ? panel.scrollTop : 0;
+  keepScroll = true;
   app.innerHTML = content;
+  const drawn = app.querySelector(".panel");
+  if (drawn) {
+    drawn.dataset.screen = mode;
+    drawn.scrollTop = scroll;
+  }
   app
     .querySelectorAll("[data-action]")
     .forEach(
@@ -613,6 +654,28 @@ function render() {
       render();
     };
   });
+  // Workbench: a tap on something in the backpack puts one in the next free
+  // square; a tap on a square empties it.
+  app.querySelectorAll("[data-benchadd]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const id = inventory.slots[+b.dataset.benchadd]?.id,
+          free = benchGrid.indexOf(null);
+        if (!id) return;
+        if (free < 0) return toast(t("benchFull"));
+        if (benchGrid.filter((x) => x === id).length >= inventory.count(id))
+          return toast(t("benchNoMore"));
+        benchGrid[free] = id;
+        render();
+      }),
+  );
+  app.querySelectorAll("[data-bench]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        benchGrid[+b.dataset.bench] = null;
+        render();
+      }),
+  );
   app.querySelectorAll("[data-give]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -696,7 +759,7 @@ function render() {
   if (MODALS.includes(mode))
     app
       .querySelector(
-        ["inventory", "chest", "furnace"].includes(mode)
+        ["inventory", "chest", "furnace", "bench"].includes(mode)
           ? '[data-action="back"]'
           : "button,select",
       )
@@ -905,6 +968,7 @@ const MODALS = [
   "inventory",
   "chest",
   "furnace",
+  "bench",
   "map",
   "stickers",
   "parentsgate",
@@ -915,7 +979,8 @@ const history = [];
 function open(screen) {
   // The backpack returns straight to the game; other screens go via the pause menu.
   history.push(
-    mode === "playing" && !["inventory", "chest", "furnace"].includes(screen)
+    mode === "playing" &&
+      !["inventory", "chest", "furnace", "bench"].includes(screen)
       ? "paused"
       : mode,
   );
@@ -990,14 +1055,34 @@ function action(a, arg) {
     invPick = null;
     open("inventory");
     tutorialEvent("open:inventory");
-  } else if (a === "craft") {
-    const recipe = RECIPES.find((r) => r.id === arg);
-    if (recipe && craft(inventory, recipe, nearBench())) {
+  } else if (a === "craft" || a === "benchcraft") {
+    // From the recipe book, or from what is in the nine squares.
+    const recipe = (a === "craft" ? RECIPES : gridMatches(benchGrid)).find(
+      (r) => r.id === arg,
+    );
+    const bench = a === "benchcraft" || nearBench(),
+      can = recipe && canCraft(inventory, recipe, bench);
+    if (can && craft(inventory, recipe, bench)) {
       toast(t("crafted", { item: itemName(recipe.out[0]) }));
       emit("craft:" + recipe.id);
       beep(true);
       scheduleSave();
-    }
+    } else if (can) toast(t("full"));
+    pruneGrid(benchGrid, inventory);
+  } else if (a === "bench") {
+    benchGrid.fill(null);
+    open("bench");
+  } else if (a === "benchfill") {
+    const recipe = RECIPES.find((r) => r.id === arg);
+    if (recipe) benchGrid = pruneGrid(gridFor(recipe), inventory);
+    // Back to the top, where the squares are.
+    keepScroll = false;
+  } else if (a === "benchclear") {
+    benchGrid.fill(null);
+  } else if (a === "touchmode") {
+    settings.touchMode = settings.touchMode === "build" ? "mine" : "build";
+    theme();
+    toast(t(settings.touchMode === "build" ? "buildModeOn" : "mineModeOn"));
   } else if (["settings", "help", "worlds", "worldsettings"].includes(a)) {
     if (a === "worlds" && world) save();
     if (a === "worlds") cloud.sync();
@@ -2766,8 +2851,13 @@ function interactWith(a) {
   const who = nested("animalNames", a.type);
   animalVoice(a);
   if (res.use && !creative()) inventory.remove(res.use, 1);
+  // With a full backpack the animal keeps what it had and can be asked again.
+  const noRoom = () => {
+    a.readyAt = 0;
+    toast(t("full"));
+  };
   if (res.result === "gave") {
-    if (!creative() && inventory.add(...res.give)) toast(t("full"));
+    if (!creative() && inventory.add(...res.give)) noRoom();
     else toast(t("gave_" + a.type) + (res.extra ? " " + t("gotFeather") : ""));
     if (res.extra && !creative()) inventory.add(...res.extra);
     beepAt(620, 920);
@@ -2781,7 +2871,7 @@ function interactWith(a) {
     namingDog = a;
     mode = "namedog";
   } else if (res.result === "shorn") {
-    if (!creative() && inventory.add(...res.give)) toast(t("full"));
+    if (!creative() && inventory.add(...res.give)) noRoom();
     else toast(t("shorn", { n: res.give[1] }));
     beepAt(620, 920);
     wearHeld();
@@ -3793,7 +3883,7 @@ function pick() {
 // Holding Break (button, touch or mouse) chips away at the targeted block.
 function updateBreaking(dt) {
   breakCooldown -= dt;
-  const holding = pressed("break") || mouseBreak;
+  const holding = pressed("break") || mouseBreak || !!pointerDown?.mining;
   if (!holding || !target) {
     breaking = { key: null, time: 0 };
     outline.material.color.set(0xfff3b6);
@@ -4212,7 +4302,12 @@ function collectHoney(k) {
   honeyReady.set(k, world.age + 60);
   if (!creative()) {
     inventory.takeFrom(selected);
-    if (inventory.add("honey", 1)) toast(t("full"));
+    // No room for the honey: the bottle goes back and the bees keep it.
+    if (inventory.add("honey", 1)) {
+      inventory.add("bottle", 1);
+      honeyReady.delete(k);
+      return toast(t("full"));
+    }
   }
   toast(t("gotHoney"));
   emit("got:honey");
@@ -4456,23 +4551,36 @@ function edit(place) {
     performance.now() - drawnAt > 250
   )
     return;
-  // Holding food: eat it instead of building.
+  if (place && targetAnimal) {
+    interactWith(targetAnimal);
+    return;
+  }
+  // Doors, chests, beds and the like are used, and seeds go into farmland,
+  // even with food in the hand. Otherwise food is eaten instead of building.
+  const aimed = target ? blocks.get(key(...target.p)) : undefined,
+    usable =
+      [CHEST, FURNACE, BENCH, SIGN, CAMPFIRE_OUT].includes(aimed) ||
+      isBed(aimed) ||
+      isDoor(aimed) ||
+      !!OPENS[aimed] ||
+      (!!ITEMS[heldId()]?.plants && aimed === FARMLAND);
   const food = ITEMS[heldId()]?.food;
-  if (place && food && !creative()) {
-    const heal = ITEMS[heldId()]?.heal ?? 0;
-    if (heal && vitals.health < 20)
-      vitals.health = Math.min(20, vitals.health + heal);
-    if (eat(vitals, food) || heal) {
+  if (place && food && !creative() && !usable) {
+    const heal = ITEMS[heldId()]?.heal ?? 0,
+      healed = heal > 0 && vitals.health < 20;
+    if (healed) vitals.health = Math.min(20, vitals.health + heal);
+    if (eat(vitals, food) || healed) {
       const name = itemName(inventory.takeFrom(selected));
       toast(t("yum", { item: name }));
       chomp();
       render();
-    } else flashLabel(t("notHungry"));
-    return;
-  }
-  if (place && targetAnimal) {
-    interactWith(targetAnimal);
-    return;
+      return;
+    }
+    // Not hungry: a mushroom can still be put down like any block.
+    if (ITEMS[heldId()].block === undefined) {
+      flashLabel(t("notHungry"));
+      return;
+    }
   }
   // The compass says where home is; the map item opens the map.
   if (place && heldId() === "compass") {
@@ -4545,6 +4653,12 @@ function edit(place) {
   const usedType = blocks.get(key(...p));
   if (place && (usedType === CHEST || usedType === FURNACE)) {
     openContainer(usedType, key(...p));
+    return;
+  }
+  // A workbench opens its nine squares.
+  if (place && usedType === BENCH && !creative()) {
+    sound("chest");
+    action("bench");
     return;
   }
   if (place && usedType === BEE_NEST && heldId() === "bottle") {
@@ -4710,7 +4824,12 @@ canvas.onpointerdown = (e) => {
     id: e.pointerId,
     x: e.clientX,
     y: e.clientY,
+    startX: e.clientX,
+    startY: e.clientY,
+    at: performance.now(),
+    touch: e.pointerType === "touch",
     moved: false,
+    mining: false,
     button: e.button,
   };
   if (
@@ -4735,16 +4854,26 @@ canvas.onpointermove = (e) => {
   );
   if (pointerDown) {
     const dx = e.clientX - pointerDown.x,
-      dy = e.clientY - pointerDown.y;
-    if (Math.abs(dx) + Math.abs(dy) > 2) {
+      dy = e.clientY - pointerDown.y,
+      far = Math.hypot(
+        e.clientX - pointerDown.startX,
+        e.clientY - pointerDown.startY,
+      );
+    // A finger that is mining stays on its block and does not turn the
+    // view; a real drag stops the mining and looks around again.
+    if (pointerDown.mining && far <= 30) return;
+    pointerDown.mining = false;
+    // A finger wobbles more than a mouse before it really drags.
+    if (far > (pointerDown.touch ? 10 : 2)) {
       pointerDown.moved = true;
       mouseBreak = false;
     }
+    pointerDown.x = e.clientX;
+    pointerDown.y = e.clientY;
+    if (pointerDown.touch && !pointerDown.moved) return;
     yaw -= dx * 0.006;
     if (mode === "playing") tutorialEvent("look", Math.abs(dx) * 0.006);
     pitch = Math.max(-0.25, Math.min(1.15, pitch + dy * 0.005));
-    pointerDown.x = e.clientX;
-    pointerDown.y = e.clientY;
   }
 };
 canvas.onpointerup = (e) => {
@@ -4756,14 +4885,19 @@ canvas.onpointerup = (e) => {
   // A drawn bow shoots when the button is let go, even after turning to aim.
   if (pointerDown?.button === 2 && pointerDown.moved && drawStart !== null)
     edit(true);
-  else if (pointerDown && !pointerDown.moved) {
+  else if (pointerDown && !pointerDown.moved && !pointerDown.mining) {
     pick();
-    const place = pointerDown.button === 2 || e.shiftKey;
+    const place = pointerDown.button === 2 || e.shiftKey,
+      touch = e.pointerType === "touch";
     // Creative breaks on click; Adventure breaks while the button is held.
-    if (e.pointerType === "touch" && targetMonster) attack();
-    else if (e.pointerType === "touch" && targetAnimal)
-      interactWith(targetAnimal);
-    else if (e.pointerType !== "touch" && (place || creative())) edit(place);
+    if (touch && targetMonster) attack();
+    else if (touch && targetAnimal) interactWith(targetAnimal);
+    // A tap builds in Build mode. In Mine mode it breaks at once in
+    // Creative, and in Adventure it says to keep the finger down.
+    else if (touch && settings.touchMode === "build") edit(true);
+    else if (touch && creative()) edit(false);
+    else if (touch && target) flashLabel(t("holdToMine"));
+    else if (!touch && (place || creative())) edit(place);
   }
   pointerDown = null;
   mouseBreak = false;
@@ -4852,6 +4986,15 @@ function frame(now) {
       "--draw",
       bowShot((now - drawStart) / 1000).power,
     );
+  // Mine mode on a touch screen: a finger resting on a block breaks it.
+  if (
+    pointerDown?.touch &&
+    settings.touchMode === "mine" &&
+    target &&
+    !pointerDown.moved &&
+    performance.now() - pointerDown.at > 200
+  )
+    pointerDown.mining = true;
   if (mode === "playing") scenery = "game";
   if (mode === "menu" || mode === "splash") scenery = "menu";
   if (mode === "playing" && world.options.cycle === "normal") {
@@ -5285,6 +5428,9 @@ installSmokeTests({
   },
   get cloudBridge() {
     return cloudBridge;
+  },
+  get benchGrid() {
+    return benchGrid;
   },
   get container() {
     return container;

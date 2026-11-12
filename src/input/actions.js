@@ -1,30 +1,6 @@
 // One list of what Biel can do, whatever the input: keyboard, touch buttons
 // or a game controller. Every input names these actions, never raw keys.
 
-// Actions that last while held down.
-export const HELD = [
-  "forward",
-  "backward",
-  "left",
-  "right",
-  "run",
-  "jump",
-  "down",
-  "break",
-];
-// Actions that happen once per press.
-export const TAPS = [
-  "jump",
-  "down",
-  "place",
-  "attack",
-  "backpack",
-  "pause",
-  "view",
-  "next",
-  "previous",
-];
-
 // The keyboard keys for each action.
 export const KEYBOARD = {
   forward: ["KeyW", "ArrowUp"],

@@ -143,3 +143,42 @@ test("invalid loot never enters the inventory", () => {
   bag.add("apple", 1.5);
   assert(bag.slots.every((s) => s === null));
 });
+
+test("the workbench squares make what the recipe book makes", async () => {
+  const { RECIPES, GRID, gridFor, gridMatches, pruneGrid } =
+    await import("../src/recipes.js");
+  for (const r of RECIPES) {
+    const cells = gridFor(r);
+    assert.equal(cells.length, GRID, r.id);
+    assert(gridMatches(cells).includes(r), r.id);
+    // Where things sit does not matter.
+    assert(gridMatches([...cells].reverse()).includes(r), r.id);
+  }
+  assert.deepEqual(gridMatches(Array(GRID).fill(null)), []);
+  assert.deepEqual(gridMatches(["planks", "coal"]), []);
+  // The same things can make two tools: both are offered.
+  assert.deepEqual(
+    gridMatches(["stone", "stone", "stone", "stick", "stick"]).map((r) => r.id),
+    ["stone_pickaxe", "stone_axe"],
+  );
+  // A pickaxe is drawn as a pickaxe: head on top, handle below.
+  assert.deepEqual(gridFor(RECIPES.find((r) => r.id === "stone_pickaxe")), [
+    "stone",
+    "stone",
+    "stone",
+    null,
+    "stick",
+    null,
+    null,
+    "stick",
+    null,
+  ]);
+  const bag = new Inventory();
+  bag.add("planks", 2);
+  assert.deepEqual(pruneGrid(["planks", "stick", "planks", "planks"], bag), [
+    "planks",
+    null,
+    "planks",
+    null,
+  ]);
+});

@@ -41,6 +41,7 @@
 - ✅ Lava deep in the caves of new islands: it glows, flows one block, turns into stone under water and fits in a bucket. It burns on Normal and Hard; on Peaceful and Easy it is warm magma that only nudges Biel out, and it never sets anything on fire
 - ✅ Coal, copper, iron, gold and rare blue crystal underground; a furnace melts ores into bars and cooks food
 - ✅ Backpack with a 9-slot hotbar and 27 more slots (tap or drag to move, the same items stack up, split a stack in half), chests with 27 slots, and a visual recipe book (ingredients turn green when you have them)
+- ✅ A workbench with nine squares: put things in, see what they make and tap to craft. Positions do not matter, the recipe book can fill the squares, and when the same things make two tools (a pickaxe or an axe) both are offered
 - ✅ A small farm: till soil with a hoe, grow wheat, carrots and potatoes (faster near water or in the rain), bake bread; a fishing rod to catch fish
 - ✅ Ruins and cabins on the islands, each with a treasure chest, and wells in the plains
 - ✅ A bow that shoots further and harder the longer it is drawn, a shield that stops half of a hit from the front (all of it when held up), and a golden apple that heals
@@ -64,6 +65,7 @@
 **Everywhere**
 - ✅ Mac, iPad and iPhone with the same menus, rules and saves; layouts for iPhone in portrait and landscape
 - ✅ Keyboard and mouse, multi-touch, and PlayStation, Xbox and MFi controllers (menus too)
+- ✅ On touch screens, a Mine / Build switch: keep a finger on a block to mine it, or tap to build and to open doors and chests
 - ✅ Optional iCloud sync of worlds between devices, asking before overwriting anything; JSON export and import always available
 - ✅ Portuguese (Portugal) and English, Dark, Light and System appearance with the iVidi.dev palette
 - ✅ Calm background music generated live, two quality levels picked automatically on first run, 30 fps in Low Power Mode, fully offline
@@ -116,7 +118,7 @@ open Bieltructor.xcodeproj
 
 Select **Bieltructor-iOS**, choose your Apple development team under **Signing & Capabilities**, connect the iPad and run. Installation on a physical device requires your signing team and a provisioned device. No App Store or TestFlight upload is included.
 
-Use the directional buttons to walk, **Run** to move faster and **Jump** to jump. Hold movement with one finger while dragging the scene with another to look around. Tap a nearby block to select it, then hold **Break** or press **Build**. Tap an animal to use it and a monster to attack it. The hotbar slots choose what Biel holds, and 🎒 opens the backpack and recipes. Settings includes **Import world** and **Export world**, both integrated with Files; an imported file becomes a new world.
+Use the directional buttons to walk, **Run** to move faster and **Jump** to jump. Hold movement with one finger while dragging the scene with another to look around. The button at the top switches between ⛏️ **Mine** (keep a finger on a block to break it) and 🧱 **Build** (tap where the block should go); the **Break** and **Build** buttons work as well. Tap an animal to use it and a monster to attack it. The hotbar slots choose what Biel holds, and 🎒 opens the backpack and recipes. Settings includes **Import world** and **Export world**, both integrated with Files; an imported file becomes a new world.
 
 The game and bundled assets work offline. Mac, iPad and browser saves are independent; use JSON export/import to transfer a world. Run `npm run prepare:ios` after changing the shared game before rebuilding in Xcode. `project.yml` is the source of the generated Xcode project.
 
@@ -136,8 +138,8 @@ Open the local address printed by Vite. Browser saves and macOS app saves are se
 | Look around | Drag the scene | Drag the scene | Right stick |
 | Jump / swim up | Space | Jump | A |
 | Fly (Creative) | Double tap Space, C to go down | Double tap Jump, Down | Double tap A, B |
-| Break | Click (hold in Adventure) | Tap the block, hold Break | Right trigger |
-| Build, eat, open, sleep, use an animal or a tool (bucket, bottle, shears) | Right-click or Shift + click | Tap the block, then Build | Left trigger |
+| Break | Click (hold in Adventure) | ⛏️ mode: keep a finger on the block (or tap it, then hold Break) | Right trigger |
+| Build, eat, open, sleep, use an animal or a tool (bucket, bottle, shears) | Right-click or Shift + click | 🧱 mode: tap the spot (or tap it, then Build) | Left trigger |
 | Attack | Click the monster or F | Tap the monster, or Attack | X |
 | Hotbar | 1–9 or the mouse wheel | Tap the slot | Shoulder buttons |
 | Backpack and recipes | E | 🎒 | Y |
@@ -173,7 +175,7 @@ npm run build:ios
 # In Xcode: pick an iPad or iPhone simulator, then Product > Test.
 ```
 
-The unit suite (125 tests) covers terrain and seeds, biomes, caves, ores and the newer island features (copper, lakes, wells and bee nests, only in new worlds), block lighting, flowing water and lava, collisions, saved worlds and their migration, difficulty rules, stacking, tool families and wear, recipes, smelting and treasure, health and hunger, animals, babies, taming, riding and shearing, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, the input action layer and controller mapping, moving and splitting stacks, the shield and bow draw, footstep and animal sounds, the HTML helpers, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (194 checks in `src/dev/smoke-tests.js`, shared by the Mac and iOS apps) plays through worlds, building and building shapes, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, block lighting, tools and wear, buckets and flowing water, lava (bucket, burning on Normal, warm on Easy, cooled by water), campfires and rain, honey and shears, bees, a game controller, the minimap and map, volumes, the bow and arrows, the shield, world pictures, joining and splitting stacks in the backpack, icons instead of words, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad and iPhone simulators. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`. iOS simulator tests need the Mac's display awake (with the lid closed, WebGL in the simulator loses its graphics context).
+The unit suite (125 tests) covers terrain and seeds, biomes, caves, ores and the newer island features (copper, lakes, wells and bee nests, only in new worlds), block lighting, flowing water and lava, collisions, saved worlds and their migration, difficulty rules, stacking, tool families and wear, recipes, smelting and treasure, health and hunger, animals, babies, taming, riding and shearing, monster rules (including "never on Peaceful" and "never when switched off"), crops, weather, challenges, the tutorial, the parents' rules, the input action layer and controller mapping, moving and splitting stacks, the shield and bow draw, footstep and animal sounds, the HTML helpers, iCloud sync decisions and the music generator, and that Portuguese and English have the same texts with no key written twice. The integrated smoke suite (211 checks in `src/dev/smoke-tests.js`, shared by the Mac and iOS apps) plays through worlds, building and building shapes, crafting, farming, fishing, survival, animals, monsters, weather, chests and the furnace, the tutorial and stickers, the parents' corner, a seeded island drawn in chunks, block lighting, tools and wear, buckets and flowing water, lava (bucket, burning on Normal, warm on Easy, cooled by water), campfires and rain, honey and shears, bees, a game controller, the minimap and map, volumes, the bow and arrows, the shield, world pictures, joining and splitting stacks in the backpack, the nine squares of the workbench, mining with a finger and building with a tap, icons instead of words, every monster and iCloud sync with a pretend iCloud. The UI test drives the touch controls in landscape and portrait and passes on iPad and iPhone simulators. Run a built application with `--smoke-test` in a graphical Mac session; it uses an isolated temporary data store and writes its result to `/tmp/biel-smoke-result.txt`. iOS simulator tests need the Mac's display awake (with the lid closed, WebGL in the simulator loses its graphics context).
 
 ## Current scope
 

@@ -44,7 +44,21 @@ final class GameViewController: UIViewController, WKNavigationDelegate,
       WKUserScript(
         source: "document.documentElement.dataset.platform = 'ios';", injectionTime: .atDocumentEnd,
         forMainFrameOnly: true))
+    #if DEBUG
+      config.userContentController.add(DebugLog(), name: "debuglog")
+      config.userContentController.addUserScript(
+        WKUserScript(
+          source: """
+            addEventListener('error', e => webkit.messageHandlers.debuglog.postMessage(
+              'error: ' + (e.message || 'resource ' + (e.target && (e.target.src || e.target.href))) + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno), true);
+            addEventListener('unhandledrejection', e => webkit.messageHandlers.debuglog.postMessage(
+              'rejection: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
+            """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+    #endif
     web = WKWebView(frame: .zero, configuration: config)
+    #if DEBUG
+      if #available(iOS 16.4, *) { web.isInspectable = true }
+    #endif
     web.navigationDelegate = self
     web.isOpaque = false
     web.backgroundColor = view.backgroundColor
@@ -139,9 +153,26 @@ final class GameViewController: UIViewController, WKNavigationDelegate,
   private func showFileError() {
     web.evaluateJavaScript("window.nativeFileError?.()", completionHandler: nil)
   }
-  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
+  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+    #if DEBUG
+      NSLog("[web] content process terminated")
+    #endif
+    webView.reload()
+  }
 
+  #if DEBUG
+    func webView(
+      _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
+      withError error: Error
+    ) { NSLog("[web] provisional load failed: %@", String(describing: error)) }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+      NSLog("[web] load failed: %@", String(describing: error))
+    }
+  #endif
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    #if DEBUG
+      NSLog("[web] page finished loading")
+    #endif
     power?.send()
     guard smoke else { return }
     DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.runSmoke() }
@@ -173,3 +204,14 @@ final class GameViewController: UIViewController, WKNavigationDelegate,
     }
   }
 }
+
+#if DEBUG
+  /// Prints page errors to the Xcode console so a blank screen on a device says why.
+  final class DebugLog: NSObject, WKScriptMessageHandler {
+    func userContentController(
+      _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
+    ) {
+      NSLog("[web] %@", String(describing: message.body))
+    }
+  }
+#endif

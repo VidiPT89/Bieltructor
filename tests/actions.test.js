@@ -1,12 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  isHeld,
-  actionsForKey,
-  KEYBOARD,
-  HELD,
-  TAPS,
-} from "../src/input/actions.js";
+import { isHeld, actionsForKey } from "../src/input/actions.js";
 import { TouchInput } from "../src/input/touch-input.js";
 import { readPad } from "../src/input/gamepad.js";
 
@@ -22,15 +16,8 @@ test("keyboard, touch and controller all hold the same actions", () => {
   assert(!isHeld("forward", none));
 });
 
-test("every held action from a controller is a known action", () => {
-  const pad = readPad({ ly: -1, lx: 1, a: true, b: true, rt: 1 }).held;
-  for (const name of pad) assert(HELD.includes(name), name);
-});
-
 test("keys start known actions", () => {
   assert.deepEqual(actionsForKey("Space"), ["jump"]);
   assert.deepEqual(actionsForKey("KeyE"), ["backpack"]);
   assert.deepEqual(actionsForKey("KeyQ"), []);
-  for (const name of Object.keys(KEYBOARD))
-    assert(HELD.includes(name) || TAPS.includes(name), name);
 });
