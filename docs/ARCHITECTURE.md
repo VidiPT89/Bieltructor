@@ -34,13 +34,15 @@ Each chunk of 16 × 16 columns is drawn in two ways. Plain blocks (whole cubes t
 
 ## Persistence
 
-`worlds.js` validates version 2 worlds, migrates version 1, and stores an index plus one localStorage entry per world. Saves contain edits to generated terrain, inventory, creatures, containers and player state. `persistence.js` snapshots the live scene and drives cloud sync; `sync.js` computes conflict and deletion decisions.
+`worlds.js` validates version 2 worlds, migrates version 1, and stores an index plus one entry per world in the storage it is given.
+
+`storage.js` is that storage. The game reads and writes it at once, from a map in memory. Behind the map, every write goes to IndexedDB (one table of texts by key, writes one after the other). Whatever fits is also written straight to localStorage, except world pictures and backups: that second copy is written at once, so the last save survives the app being closed a moment later. When the game starts, `reconcile()` takes from localStorage any world whose copy there is newer than the one in IndexedDB. The first time, the worlds, pictures, backups and stickers kept in localStorage are copied to IndexedDB and nothing is deleted. If IndexedDB does not open within four seconds, or fails, the game uses localStorage alone, as it did before. The Mac app waits for pending writes (at most a second and a half) before it quits. Saves contain edits to generated terrain, inventory, creatures, containers and player state. `persistence.js` snapshots the live scene and drives cloud sync; `sync.js` computes conflict and deletion decisions.
 
 The native `CloudBridge.swift` stores one file per world in iCloud Drive with coordinated writes and expected timestamps. Local worlds are not replaced while playing. Tests use a fake bridge; real cross-device iCloud still requires device validation.
 
 Each world keeps its last three earlier copies (`store.backup()`, `backups()`, `restore()` in `worlds.js`). Before a save writes over the stored world, that stored copy becomes a backup if the newest one is at least half an hour old and different. Restoring validates the backup like an import, first keeps the present world as a backup, and stamps the restored world as the newest so iCloud sends it. Backups are local, are deleted with their world, and are the first thing given up when storage is full: a world save that does not fit drops the oldest backup of any world and tries again.
 
-Storage remains localStorage, with six worlds and maximum terrain size 129 × 129. Moving storage or enlarging worlds requires the migration work described in phase 0d, not just a larger size constant.
+There are still six worlds and a maximum terrain size of 129 × 129: the room is there now, the larger sizes belong to phase 1. Moving storage or enlarging worlds requires the migration work described in phase 0d, not just a larger size constant.
 
 ## Native wrappers and builds
 

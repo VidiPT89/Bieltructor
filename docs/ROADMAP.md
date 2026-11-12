@@ -2,7 +2,7 @@
 
 This follows the 18-phase v3 brief (`prompt-bieltructor-v3.md`). The brief was written against the first version of the game (57 × 57 world, 8 materials, 23 smoke checks). The repository is already far past that, so each phase starts from what exists. One phase, or one part of a phase, per session.
 
-Last updated: 2026-11-12 (first part of phase 0d).
+Last updated: 2026-11-13 (drawing and storage of phase 0d).
 
 ## Where each phase stands
 
@@ -26,7 +26,7 @@ Last updated: 2026-11-12 (first part of phase 0d).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 160 unit tests, 233 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 167 unit tests, 234 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
 
 ## Phase 0 in parts
 
@@ -73,7 +73,7 @@ Done on 2026-11-12, the drawing of plain blocks:
 Still to do:
 
 - One entity list for animals, monsters and arrows, with shared movement and collision.
-- Storage: worlds live in `localStorage`, which is small. Before any world larger than 129 × 129, move worlds to IndexedDB or to files through the Swift bridge. **This changes where saves live, so it will be asked about before it is done.**
+- Storage (done, 2026-11-13; IndexedDB chosen by David on 2026-11-12): `src/storage.js` keeps worlds in IndexedDB, with a second copy in `localStorage` of what fits, written at once. Existing worlds are copied the first time and the old copies are not deleted. Without a working IndexedDB the game uses `localStorage` alone.
 - Generating in a Web Worker only if WKWebView proves reliable with the custom `bieltructor://` scheme; otherwise spread over frames.
 
 ## Decisions
@@ -81,8 +81,8 @@ Still to do:
 - **The save format does not change in phase 0.** Saves already keep only the changes from the seeded terrain, carry a version and migrate version 1. The brief's "save v2" is in effect what exists; splitting the changes by chunk waits for 0d, where it matters.
 - **Two older generators keep their own arithmetic** (`src/world.js` terrain and the starting animals in `src/creatures.js`). Moving them to `src/random.js` would reshape every existing island and move every starting animal.
 - **The workbench has nine squares** although the brief says "no grid to memorise" (asked for by Gabriel on 2026-11-12). Positions do not matter and the recipe book fills the squares, so there is still nothing to memorise.
-- Six worlds, and sizes of 57, 97 and 129, stay until storage moves (0d).
-- **Backups are kept in the same storage as the worlds** (2026-11-12), every half hour of play at most, and are dropped first when storage is full. They move with the worlds in 0d.
+- Six worlds, and sizes of 57, 97 and 129, stay for now. Storage has moved (0d), so the larger sizes of phase 1 are no longer held back by it.
+- **Backups are kept in the same storage as the worlds** (2026-11-12), every half hour of play at most, and are dropped first when storage is full. They moved to IndexedDB with the worlds, and are not copied to `localStorage`.
 - **Ticks are 50 ms and a stall catches up at most 250 ms** (0b). Past that the game slows down instead of freezing to catch up, which is kinder on the old iPad.
 - **Leg, head and tail swings are drawing, not rules** (0b). At 20 Hz they looked jerky, so they run every frame from a "moving" flag the tick sets.
 
