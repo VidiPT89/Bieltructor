@@ -2075,9 +2075,15 @@ export function installSmokeTests(g) {
       for (const rate of [30, 60, 120]) {
         g.loadWorld(JSON.parse(JSON.stringify(tickBase)));
         g.frame(g.last);
+        // Biel walks and jumps the whole second.
+        g.keys.add("KeyW");
+        g.keys.add("Space");
         for (let i = 0; i < rate; i++) g.frame(g.last + 1000 / rate);
+        g.keys.delete("KeyW");
+        g.keys.delete("Space");
         tickStates.push(
           JSON.stringify({
+            biel: [g.player.x, g.player.y, g.player.z, g.velocity],
             age: g.world.age,
             time: g.timeOfDay,
             day: g.world.day,
@@ -2092,8 +2098,12 @@ export function installSmokeTests(g) {
         );
       }
       check(
-        "rules advance identically at 30, 60 and 120 fps",
-        tickStates.every((state) => state === tickStates[0]),
+        "rules and Biel's own steps advance identically at 30, 60 and 120 fps",
+        tickStates.every((state) => state === tickStates[0]) &&
+          Math.hypot(
+            JSON.parse(tickStates[0]).biel[0] - tickBase.player.x,
+            JSON.parse(tickStates[0]).biel[2] - tickBase.player.z,
+          ) > 1,
       );
       const pausedAge = g.world.age;
       g.action("pause");

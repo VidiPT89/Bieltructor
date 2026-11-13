@@ -43,14 +43,13 @@ Phase 0 changes the ground everything stands on, so it is done in four parts. Ea
 
 - `src/simulation.js`: `FixedStep` (20 ticks a second, at most five ticks of catch-up after a stall, nothing carried over a pause) and `EntityInterpolation` (animals, monsters and arrows drawn between their last two ticks).
 - `simulationTick()` in `src/main.js` runs the rules: time of day, world age, weather and thunder, animals and breeding, monsters and arrows, crops, fishing, water and lava, furnaces, hunger, air and health, bags on the ground, the autosave and the break reminder.
-- Per drawn frame, as before: Biel's movement and the camera, mining, particles, ambience and the swing of legs and tails.
+- Per drawn frame, as before: the camera, mining, particles, ambience and the swing of legs and tails. Biel's own movement joined the ticks on 2026-11-13 (see 0d).
 - Fishing and the wait on a full ground bag count in world age (saved) and no longer in the frame clock. Loading a world resets every rule clock.
 - F3 overlay: milliseconds of the last tick.
 - Tests: the same ticks, seeded rolls and furnace at 20, 30, 60 and 144 frames a second; the catch-up limit; pausing; interpolation. In the game: the same island after one second at 30, 60 and 120 frames a second, and no time passing while paused.
 
 Left for later, on purpose:
 
-- Biel's own movement, jumping and falls are still per frame (a 20 Hz step changes how jumping feels). They move to ticks with the shared entity list of 0d.
 - The in-game checks still call some `update…` functions directly with their own step (crops, furnaces, water, lava). They test the rule, not the clock.
 
 ### 0c: block registry with text IDs (done, 2026-11-12)
@@ -72,7 +71,7 @@ Done on 2026-11-12, the drawing of plain blocks:
 
 Still to do:
 
-- Entities, a first step (done, 2026-11-13): `src/entities.js` holds the step over the ground and the fall that animals and monsters share; each keeps its own rule about where it may go. Still to do: one list for animals, monsters and arrows, and Biel's own movement in ticks. Biel's movement changes how the controls feel, so it waits for a try on the real iPad first.
+- Entities, a first step (done, 2026-11-13): `src/entities.js` holds the step over the ground and the fall that animals and monsters share; each keeps its own rule about where it may go. Biel's own movement runs in the ticks too (2026-11-13): three steps of 1/60 of a second per tick, so jumps and falls are what they were at 60 frames a second, drawn between his last two places, with a quick tap on Jump remembered until the next tick. It walks and jumps the same at 30, 60 and 120 frames a second (checked in the game). **How it feels in the hand has not been tried on a real device yet**: moving answers up to a twentieth of a second later than before, looking around does not. Still to do: one list for animals, monsters and arrows.
 - Storage (done, 2026-11-13; IndexedDB chosen by David on 2026-11-12): `src/storage.js` keeps worlds in IndexedDB, with a second copy in `localStorage` of what fits, written at once. Existing worlds are copied the first time and the old copies are not deleted. Without a working IndexedDB the game uses `localStorage` alone.
 - Generating in a Web Worker: a small worker made from a Blob does run in the Mac app under `bieltructor://` (tried on 2026-11-13). Not built yet, because today's largest island loads in well under four seconds; it belongs with the 256 and 512 sizes of phase 1. A bundled module worker and the iOS apps are still to be tried.
 

@@ -2744,6 +2744,11 @@ function loadWorld(w) {
   thunderClock = 8;
   autosaveClock = 60;
   attackCooldown = 0;
+  // Biel arrives standing still, whatever he was doing in the last world.
+  velocity = 0;
+  grounded = false;
+  peakY = null;
+  jumpQueued = false;
   fishing = null;
   bobber.visible = false;
   rainLevel = darkLevel = 0;
@@ -5289,6 +5294,107 @@ let last = performance.now(),
   elapsed = 0;
 const desired = new THREE.Vector3(),
   look = new THREE.Vector3();
+// Biel's own movement. It runs inside the ticks, in three steps of 1/60 of
+// a second, so walking and jumping are the same at any drawing rate and
+// feel as they did at 60 frames a second. The drawing shows him between
+// his last two places (see frame()).
+const PLAYER_STEPS = 3;
+const playerBefore = new THREE.Vector3(),
+  playerShown = new THREE.Vector3();
+// What the drawing needs to know about the last step.
+const motion = { moving: false, speed: 0, heading: 0 };
+// A quick tap on Jump between two ticks still counts.
+let jumpQueued = false;
+function movePlayer(dt) {
+  let dx = Number(pressed("right")) - Number(pressed("left")),
+    dz = Number(pressed("forward")) - Number(pressed("backward"));
+  const len = Math.hypot(dx, dz) || 1,
+    speed =
+      (pressed("run") ? 6 : 3.8) *
+      (riding ? 2 : 1) *
+      (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1) *
+      (inLava(blocks, player.x, player.y, player.z) ? 0.5 : 1);
+  dx /= len;
+  dz /= len;
+  const vx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) * speed * dt,
+    vz = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) * speed * dt;
+  for (const [axis, amount] of [
+    ["x", vx],
+    ["z", vz],
+  ]) {
+    player[axis] += amount;
+    if (collides(blocks, player)) player[axis] -= amount;
+    player[axis] = Math.max(-SIZE + 0.3, Math.min(SIZE - 0.3, player[axis]));
+  }
+  // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
+  // Lava is thick: Biel paddles up through it like water.
+  const swimming =
+    inWater(blocks, player.x, player.y + 0.9, player.z) ||
+    inLava(blocks, player.x, player.y + 0.4, player.z);
+  const onLadder = [0.1, 1].some(
+    (dy) =>
+      blocks.get(
+        key(
+          Math.round(player.x),
+          Math.round(player.y + dy),
+          Math.round(player.z),
+        ),
+      ) === LADDER,
+  );
+  if (flying) {
+    velocity = (pressed("jump") ? 6 : 0) - (pressed("down") ? 6 : 0);
+  } else if (onLadder) {
+    velocity = pressed("jump") || pressed("forward") ? 3 : -1.2;
+  } else if (swimming) {
+    velocity = pressed("jump")
+      ? Math.min(velocity + 30 * dt, 3)
+      : Math.max(velocity - 6 * dt, -1.5);
+  } else {
+    if ((pressed("jump") || jumpQueued) && grounded) {
+      velocity = riding ? 8.5 : 7;
+      grounded = false;
+    }
+    velocity -= 19 * dt;
+  }
+  const steps = Math.ceil(Math.abs(velocity * dt) / 0.15) || 1;
+  grounded = false;
+  for (let i = 0; i < steps; i++) {
+    const delta = (velocity * dt) / steps;
+    player.y += delta;
+    if (collides(blocks, player)) {
+      player.y -= delta;
+      if (velocity < 0) grounded = true;
+      // Landing while flying ends the flight.
+      if (flying && velocity < 0) setFlying(false);
+      velocity = 0;
+      break;
+    }
+  }
+  if (player.y < -5) spawn();
+  // Footsteps while walking on the ground (riding and flying are quiet).
+  if (grounded && !flying && !riding && (dx || dz)) {
+    stepClock -= speed * dt;
+    if (stepClock <= 0) {
+      stepClock = 2.2;
+      footstep();
+    }
+  }
+  if (dx || dz) tutorialEvent("walk", speed * dt);
+  motion.moving = !!(dx || dz);
+  motion.speed = speed;
+  if (motion.moving) motion.heading = Math.atan2(vx, vz);
+  // Adventure: a long fall hurts on landing.
+  if (!creative()) {
+    if (grounded || swimming || flying || onLadder) {
+      if (peakY !== null && grounded) {
+        const before = vitals.health;
+        hurt(vitals, fallDamage(peakY - player.y), rules());
+        if (vitals.health < before) hurtFlash();
+      }
+      peakY = null;
+    } else peakY = Math.max(peakY ?? player.y, player.y);
+  }
+}
 const simulatedObjects = () => [
   ...animals.map((a) => a.mesh),
   ...monsters.map((m) => m.mesh),
@@ -5300,6 +5406,10 @@ function simulationTick() {
   if (mode !== "playing" || !world) return false;
   const started = performance.now();
   entityInterpolation.begin(simulatedObjects());
+  playerBefore.copy(player);
+  for (let i = 0; i < PLAYER_STEPS; i++) movePlayer(dt / PLAYER_STEPS);
+  jumpQueued = false;
+  if (mode !== "playing") return false;
   if (world.options.cycle === "normal") {
     timeOfDay += dt / DAY_LENGTHS[world.options.dayLength];
     if (timeOfDay >= 1) {
@@ -5428,125 +5538,42 @@ function frame(now) {
   if (mode === "menu" || mode === "splash") scenery = "menu";
   if (mode === "playing") {
     biel.scale.setScalar(1);
-    let dx = Number(pressed("right")) - Number(pressed("left")),
-      dz = Number(pressed("forward")) - Number(pressed("backward"));
-    const len = Math.hypot(dx, dz) || 1,
-      speed =
-        (pressed("run") ? 6 : 3.8) *
-        (riding ? 2 : 1) *
-        (inWater(blocks, player.x, player.y + 0.9, player.z) ? 0.6 : 1) *
-        (inLava(blocks, player.x, player.y, player.z) ? 0.5 : 1);
-    dx /= len;
-    dz /= len;
-    const vx = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) * speed * dt,
-      vz = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) * speed * dt;
-    for (const [axis, amount] of [
-      ["x", vx],
-      ["z", vz],
-    ]) {
-      player[axis] += amount;
-      if (collides(blocks, player)) player[axis] -= amount;
-      player[axis] = Math.max(-SIZE + 0.3, Math.min(SIZE - 0.3, player[axis]));
-    }
-    // Swimming: when Biel's chest is under water, sink slowly and Space paddles up.
-    // Lava is thick: Biel paddles up through it like water.
-    const swimming =
-      inWater(blocks, player.x, player.y + 0.9, player.z) ||
-      inLava(blocks, player.x, player.y + 0.4, player.z);
-    const onLadder = [0.1, 1].some(
-      (dy) =>
-        blocks.get(
-          key(
-            Math.round(player.x),
-            Math.round(player.y + dy),
-            Math.round(player.z),
-          ),
-        ) === LADDER,
-    );
-    if (flying) {
-      velocity = (pressed("jump") ? 6 : 0) - (pressed("down") ? 6 : 0);
-    } else if (onLadder) {
-      velocity = pressed("jump") || pressed("forward") ? 3 : -1.2;
-    } else if (swimming) {
-      velocity = pressed("jump")
-        ? Math.min(velocity + 30 * dt, 3)
-        : Math.max(velocity - 6 * dt, -1.5);
-    } else {
-      if (pressed("jump") && grounded) {
-        velocity = riding ? 8.5 : 7;
-        grounded = false;
-      }
-      velocity -= 19 * dt;
-    }
-    const steps = Math.ceil(Math.abs(velocity * dt) / 0.15) || 1;
-    grounded = false;
-    for (let i = 0; i < steps; i++) {
-      const delta = (velocity * dt) / steps;
-      player.y += delta;
-      if (collides(blocks, player)) {
-        player.y -= delta;
-        if (velocity < 0) grounded = true;
-        // Landing while flying ends the flight.
-        if (flying && velocity < 0) setFlying(false);
-        velocity = 0;
-        break;
-      }
-    }
-    if (player.y < -5) spawn();
-    // Footsteps while walking on the ground (riding and flying are quiet).
-    if (grounded && !flying && !riding && (dx || dz)) {
-      stepClock -= speed * dt;
-      if (stepClock <= 0) {
-        stepClock = 2.2;
-        footstep();
-      }
-    }
+    if (pressed("jump")) jumpQueued = true;
     animalChatter(dt);
-    if (dx || dz) tutorialEvent("walk", speed * dt);
+    // The frame that resumes the game shows Biel where he is.
+    if (!simulationRunning) playerBefore.copy(player);
     const alpha = simulationClock.advance(
       simulationRunning ? frameSeconds : 0,
       simulationTick,
     );
     simulationRunning = mode === "playing";
     entityInterpolation.draw(simulatedObjects(), alpha);
-    // The mount follows the per-frame player, avoiding a 20 Hz camera wobble.
-    if (riding) {
-      riding.x = player.x;
-      riding.y = player.y;
-      riding.z = player.z;
-      riding.mesh.position.set(player.x, player.y - 0.01, player.z);
-    }
+    // Biel is drawn between his last two places, unless he was just
+    // carried somewhere else (home, a bed, another world).
+    if (playerBefore.distanceTo(player) > 3) playerShown.copy(player);
+    else playerShown.lerpVectors(playerBefore, player, alpha);
     poseCreatures();
     updateMinimap(dt);
     // Adventure: falls, hunger, air and health.
     if (!creative()) {
-      if (grounded || swimming || flying || onLadder) {
-        if (peakY !== null && grounded) {
-          const before = vitals.health;
-          hurt(vitals, fallDamage(peakY - player.y), rules());
-          if (vitals.health < before) hurtFlash();
-        }
-        peakY = null;
-      } else peakY = Math.max(peakY ?? player.y, player.y);
       const underwater = inWater(blocks, player.x, player.y + 1.6, player.z);
       updateVitalsHud(underwater);
       if (vitals.health <= 0) fallAsleep();
     }
-    biel.position.copy(player);
+    biel.position.copy(playerShown);
     if (riding) biel.position.y += 0.75;
     biel.visible = !firstPerson;
-    if (dx || dz) biel.rotation.y = Math.atan2(vx, vz);
-    const stride =
-      dx || dz
-        ? Math.sin(elapsed * (speed > 4 ? 14 : 10)) * 0.65
-        : Math.sin(elapsed * 2) * 0.035;
+    if (motion.moving) biel.rotation.y = motion.heading;
+    const stride = motion.moving
+      ? Math.sin(elapsed * (motion.speed > 4 ? 14 : 10)) * 0.65
+      : Math.sin(elapsed * 2) * 0.035;
     leftLeg.rotation.x = stride;
     rightLeg.rotation.x = -stride;
     leftArm.rotation.x = -stride;
     rightArm.rotation.x = attackCooldown > 0.25 ? -1.6 : stride;
     rightArm.rotation.z = 0;
     head.rotation.z = Math.sin(elapsed * 2) * 0.025;
-    look.copy(player).add(new THREE.Vector3(0, 1.5, 0));
+    look.copy(playerShown).add(new THREE.Vector3(0, 1.5, 0));
     if (firstPerson) {
       camera.position.copy(look);
       camera.lookAt(
