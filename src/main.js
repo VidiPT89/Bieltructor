@@ -103,6 +103,7 @@ import { collectRewards } from "./loot.js";
 import { FixedStep, EntityInterpolation, TICK_SECONDS } from "./simulation.js";
 import { BLOCKS } from "./blocks.js";
 import { openStorage, idbBackend } from "./storage.js";
+import { step, settle } from "./entities.js";
 import {
   buildChunkGeometry,
   atlasRows,
@@ -3384,25 +3385,27 @@ function updateAnimals(dt) {
       if (a.walking) speed = ANIMALS[a.type].speed;
     }
     if (speed) {
-      const nx = a.x + Math.sin(a.yaw) * speed * dt,
-        nz = a.z + Math.cos(a.yaw) * speed * dt,
-        ny = surfaceY(nx, nz, a.y);
-      const blocked =
-        Math.abs(nx) > SIZE - 1 ||
-        Math.abs(nz) > SIZE - 1 ||
-        ny - a.y > 1.05 ||
-        (ny < WATER_LEVEL - 0.3 && !a.tamed);
-      if (blocked) {
+      // Animals stay on the island, do not climb walls and, unless they
+      // are pets, keep out of the water. A blocked animal turns away.
+      const moved = step(
+        a,
+        a.yaw,
+        speed,
+        dt,
+        surfaceY,
+        (nx, nz, ny) =>
+          Math.abs(nx) <= SIZE - 1 &&
+          Math.abs(nz) <= SIZE - 1 &&
+          ny - a.y <= 1.05 &&
+          (ny >= WATER_LEVEL - 0.3 || a.tamed),
+      );
+      if (!moved) {
         a.yaw += Math.PI * (0.5 + roll());
         a.timer = 1;
         speed = 0;
-      } else {
-        a.x = nx;
-        a.z = nz;
       }
     }
-    const ground = surfaceY(a.x, a.z, a.y);
-    a.y = ground > a.y ? ground : Math.max(ground, a.y - 6 * dt);
+    settle(a, dt, surfaceY);
     m.position.set(a.x, a.y - 0.01, a.z);
     m.rotation.y +=
       Math.atan2(
@@ -3878,24 +3881,21 @@ function updateMonsters(dt) {
         m.cooldown = 1.2;
         hurtPlayer(MONSTERS[m.type].damage, m);
       }
-    } else if (speed) {
-      const nx = m.x + Math.sin(dir) * speed * dt,
-        nz = m.z + Math.cos(dir) * speed * dt,
-        ny = surfaceY(nx, nz, m.y);
-      if (
-        ny - m.y <= (MONSTERS[m.type].climbs ? 3.05 : 1.05) &&
-        ny > -5 &&
-        Math.abs(nx) < SIZE &&
-        Math.abs(nz) < SIZE
-      ) {
-        m.x = nx;
-        m.z = nz;
-      }
-    }
-    if (!MONSTERS[m.type].flies) {
-      const ground = surfaceY(m.x, m.z, m.y);
-      m.y = ground > m.y ? ground : Math.max(ground, m.y - 6 * dt);
-    }
+    } else if (speed)
+      // Monsters stay on the island; spiders climb walls three blocks high.
+      step(
+        m,
+        dir,
+        speed,
+        dt,
+        surfaceY,
+        (nx, nz, ny) =>
+          ny - m.y <= (MONSTERS[m.type].climbs ? 3.05 : 1.05) &&
+          ny > -5 &&
+          Math.abs(nx) < SIZE &&
+          Math.abs(nz) < SIZE,
+      );
+    if (!MONSTERS[m.type].flies) settle(m, dt, surfaceY);
     const mesh = m.mesh;
     mesh.position.set(
       m.x,

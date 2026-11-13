@@ -26,7 +26,7 @@ Last updated: 2026-11-13 (drawing and storage of phase 0d).
 | 15 Sound and music | mostly done | Sounds and music made live, footsteps by ground, voices, cave music, three volumes | Positional sound, music per place, record player, a "creatures" volume |
 | 16 Platforms | mostly done | Mac, iPad and iPhone layouts, controllers, optional iCloud, Low Power Mode, release scripts | Controller remapping, a "High" quality, real-device and real-iCloud validation |
 | 17 Playing together | not started | | Everything (an extra) |
-| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 167 unit tests, 234 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
+| 18 Parents, saving, tests, docs | partly done | Parents' corner, validated import, autosave, automatic backups (last three per world) with Restore, 170 unit tests, 234 in-game checks, UI test, `docs/ARCHITECTURE.md` | Parents' summary |
 
 ## Phase 0 in parts
 
@@ -72,9 +72,9 @@ Done on 2026-11-12, the drawing of plain blocks:
 
 Still to do:
 
-- One entity list for animals, monsters and arrows, with shared movement and collision.
+- Entities, a first step (done, 2026-11-13): `src/entities.js` holds the step over the ground and the fall that animals and monsters share; each keeps its own rule about where it may go. Still to do: one list for animals, monsters and arrows, and Biel's own movement in ticks. Biel's movement changes how the controls feel, so it waits for a try on the real iPad first.
 - Storage (done, 2026-11-13; IndexedDB chosen by David on 2026-11-12): `src/storage.js` keeps worlds in IndexedDB, with a second copy in `localStorage` of what fits, written at once. Existing worlds are copied the first time and the old copies are not deleted. Without a working IndexedDB the game uses `localStorage` alone.
-- Generating in a Web Worker only if WKWebView proves reliable with the custom `bieltructor://` scheme; otherwise spread over frames.
+- Generating in a Web Worker: a small worker made from a Blob does run in the Mac app under `bieltructor://` (tried on 2026-11-13). Not built yet, because today's largest island loads in well under four seconds; it belongs with the 256 and 512 sizes of phase 1. A bundled module worker and the iOS apps are still to be tried.
 
 ## Decisions
 

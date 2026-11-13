@@ -24,7 +24,7 @@ Each chunk of 16 × 16 columns is drawn in two ways. Plain blocks (whole cubes t
 ## Rules and interfaces
 
 - `items.js`, `inventory.js`, `loot.js`, `recipes.js`, `smelting.js`: item definitions, stacks, crafting and furnace rules. `Inventory.collect()` commits a batch only when everything fits. Mining combines container contents and the container block in that same batch. `collectRewards()` plans backpack additions and overflow into nearby persistent ground bags atomically; when all 64 bags are full, it refuses without partial changes. A lost backpack uses the same planner and is retained if storage on the ground is full.
-- `creatures.js`, `monsters.js`, `survival.js`: animal interaction, combat and health rules. `models.js` builds the render objects. `disposeModel()` releases their owned geometry/materials/textures without destroying cached colours or shared sprite geometry.
+- `creatures.js`, `monsters.js`, `survival.js`: animal interaction, combat and health rules. `entities.js`: the step over the ground and the fall that animals and monsters share. `models.js` builds the render objects. `disposeModel()` releases their owned geometry/materials/textures without destroying cached colours or shared sprite geometry.
 - `daynight.js`, `weather.js`, `farm.js`, `water.js`, `lighting.js`: environmental rules.
 - `random.js`: seeded gameplay rolls. Visual particles and procedural sound can use unseeded randomness.
 - `input/`: shared actions for keyboard, touch and gamepad; each held finger has its own pointer ID.
